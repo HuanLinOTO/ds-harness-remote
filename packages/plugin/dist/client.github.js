@@ -1909,6 +1909,13 @@ Minimum version required to store current data is: ` + bestVersion + `.
     signInClientDescription: "Connect once. Available anytime.",
     startSignIn: "Start sign-in",
     allowControlCurrentDevice: "Allow control of this device",
+    connectedClients: "Devices connected here",
+    currentConnectedDevices: "Currently connected devices",
+    connectedDevicesDescription: "Clients that are controlling this Host right now.",
+    connectedClientCount: "{count} connected",
+    noConnectedClients: "No devices are currently connected to this Host.",
+    unknownDevice: "Unknown device",
+    hostControlRequired: "Turn on \u201CAllow control of this device\u201D to accept Client connections.",
     exitRemoteAccount: "Sign out",
     githubLogin: "GitHub QR",
     zhihuLogin: "Zhihu QR",
@@ -2116,6 +2123,13 @@ Minimum version required to store current data is: ` + bestVersion + `.
     signInClientDescription: "\u4E00\u6B21\u8FDE\u63A5\uFF0C\u968F\u65F6\u53EF\u7528\u3002",
     startSignIn: "\u5F00\u59CB\u767B\u5F55",
     allowControlCurrentDevice: "\u5141\u8BB8\u63A7\u5236\u5F53\u524D\u8BBE\u5907",
+    connectedClients: "\u5DF2\u8FDE\u63A5\u5230\u6B64\u8BBE\u5907",
+    currentConnectedDevices: "\u5F53\u524D\u8FDE\u63A5\u7684\u8BBE\u5907",
+    connectedDevicesDescription: "\u6B63\u5728\u63A7\u5236\u6B64 Host \u7684\u5BA2\u6237\u7AEF\u3002",
+    connectedClientCount: "{count} \u53F0\u5DF2\u8FDE\u63A5",
+    noConnectedClients: "\u76EE\u524D\u6CA1\u6709\u8BBE\u5907\u8FDE\u63A5\u5230\u8FD9\u53F0\u4E3B\u673A\u3002",
+    unknownDevice: "\u672A\u77E5\u8BBE\u5907",
+    hostControlRequired: "\u5F00\u542F\u201C\u5141\u8BB8\u63A7\u5236\u5F53\u524D\u8BBE\u5907\u201D\u540E\uFF0C\u624D\u80FD\u63A5\u53D7\u5BA2\u6237\u7AEF\u8FDE\u63A5\u3002",
     exitRemoteAccount: "\u9000\u51FA\u8D26\u53F7",
     githubLogin: "GitHub \u626B\u7801",
     zhihuLogin: "\u77E5\u4E4E\u626B\u7801",
@@ -2579,7 +2593,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
         );
       }
       function RemoteWorkspaceAction(props) {
-        let { t } = props, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [selectedHost, setSelectedHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(!1), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginMethod, setLoginMethod] = React.useState(props.preferredQrProvider), [loginMethodManuallySelected, setLoginMethodManuallySelected] = React.useState(!1), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0);
+        let { t } = props, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [selectedHost, setSelectedHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(!1), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginMethod, setLoginMethod] = React.useState(props.preferredQrProvider), [loginMethodManuallySelected, setLoginMethodManuallySelected] = React.useState(!1), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0);
         React.useEffect(() => {
           if (!open) return;
           let closeOnEscape = (event) => {
@@ -2727,7 +2741,16 @@ Minimum version required to store current data is: ` + bestVersion + `.
           }
         }, show = async () => {
           setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setOpen(!0), await refreshRemote();
-        }, chooseAnotherHost = () => {
+        };
+        React.useEffect(() => {
+          if (!open || selectedHost !== void 0) return;
+          let timer = window.setInterval(() => {
+            props.control("status").then(setStatus).catch(() => {
+            });
+          }, 1500);
+          return () => window.clearInterval(timer);
+        }, [open, selectedHost]);
+        let chooseAnotherHost = () => {
           setSelectedHost(void 0), setWorkspaces([]), setCodexWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setDirectory(void 0), setPath(""), setAddingWorkspace(!1), setError(void 0);
         }, signInClient = async () => {
           if (!(email.trim() === "" || password === "")) {
@@ -3012,6 +3035,62 @@ Minimum version required to store current data is: ` + bestVersion + `.
                           onClick: () => void logoutRemote()
                         }, t("exitRemoteAccount"))
                       )
+                    ),
+                    status?.hostAuthorizationAvailable !== !0 ? null : React.createElement(
+                      "div",
+                      {
+                        className: `dshRemotePluginCard dshRemoteConnectedCard${devicesOpen ? " isOpen" : ""}`
+                      },
+                      React.createElement(
+                        "div",
+                        { className: "dshRemotePluginCardHeader" },
+                        React.createElement(
+                          "button",
+                          {
+                            type: "button",
+                            className: "dshRemotePluginCardToggle",
+                            "aria-expanded": devicesOpen,
+                            "aria-label": t(devicesOpen ? "collapseSettings" : "expandSettings", {
+                              name: t("currentConnectedDevices")
+                            }),
+                            onClick: () => setDevicesOpen((current) => !current)
+                          },
+                          React.createElement(
+                            "span",
+                            { className: "dshRemotePluginCardHeading" },
+                            React.createElement("strong", null, t("currentConnectedDevices")),
+                            React.createElement("span", null, t("connectedDevicesDescription"))
+                          ),
+                          React.createElement("span", {
+                            className: `dshRemotePluginCardStatus${(status.host?.connectedClients?.length ?? 0) > 0 ? " isOnline" : ""}`
+                          }, t("connectedClientCount", { count: status.host?.connectedClients?.length ?? 0 })),
+                          React.createElement("span", { className: "dshRemotePluginCardChevron", "aria-hidden": !0 }, "\u2304")
+                        )
+                      ),
+                      devicesOpen ? React.createElement(
+                        "div",
+                        { className: "dshRemotePluginCardBody" },
+                        status.host?.authorized !== !0 ? React.createElement("p", { className: "dshRemoteSettingsState" }, t("hostControlRequired")) : (status.host?.connectedClients?.length ?? 0) === 0 ? React.createElement("p", { className: "dshRemoteSettingsState" }, t("noConnectedClients")) : React.createElement("div", {
+                          className: "dshRemoteClientList",
+                          "aria-label": t("currentConnectedDevices")
+                        }, ...(status.host?.connectedClients ?? []).map((client) => React.createElement(
+                          "div",
+                          {
+                            key: client.deviceId,
+                            className: "dshRemoteClientRow"
+                          },
+                          React.createElement(
+                            "span",
+                            null,
+                            React.createElement("strong", null, client.name.trim() === "" ? t("unknownDevice") : client.name),
+                            React.createElement("small", null, [
+                              client.platform === void 0 ? void 0 : formatPlatform(client.platform),
+                              connectedClientModeLabel(client.mode, t)
+                            ].filter(Boolean).join(" \xB7 "))
+                          ),
+                          React.createElement("small", { className: "dshRemoteClientOnline" }, t("connected"))
+                        )))
+                      ) : null
                     ),
                     React.createElement("div", { className: "dshRemoteHostList" }, devices.length === 0 ? React.createElement("p", null, t(busy ? "checkingConnection" : "noRemoteHosts")) : devices.map((device) => React.createElement(
                       "button",
@@ -3552,6 +3631,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           ".dshRemoteSectionHeading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}.dshRemoteSectionTitle{min-width:0;display:flex;align-items:center;gap:10px}.dshRemoteSectionTitle>strong{font-size:14px}.dshRemoteSectionActions{display:flex;align-items:center;gap:14px}.dshRemoteSectionActions>button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:5px 0;font-size:12px}.dshRemoteSectionActions>button:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}",
           ".dshRemoteCancelWorkspace{min-height:36px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:6px 0;cursor:pointer}.dshRemoteCancelWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteCancelWorkspace:disabled{opacity:.5;cursor:default}",
           ".dshRemoteHostList{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteHostList>button{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:10px 4px;cursor:pointer}.dshRemoteHostList>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button:disabled{opacity:.5;cursor:default}.dshRemoteHostList>button>span{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteHostList>button strong{font-size:14px;font-weight:500}.dshRemoteHostList small{color:var(--dsw-alias-label-secondary);font-size:12px}",
+          '.dshRemoteConnectedCard{margin:4px 0 12px}.dshRemoteClientList{display:flex;flex-direction:column}.dshRemotePluginCardBody>.dshRemoteClientList{margin-top:4px}.dshRemotePluginCardBody>.dshRemoteSettingsState{padding:12px 0}.dshRemoteClientRow{min-height:52px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}.dshRemoteClientRow:last-child{border-bottom:0}.dshRemoteClientRow>span{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteClientRow strong{font-size:14px;font-weight:500}.dshRemoteClientRow small{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteClientOnline{display:inline-flex;align-items:center;gap:6px;color:var(--dsw-alias-state-success-primary)!important}.dshRemoteClientOnline::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}',
           '.dshRemoteProgress{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2)}.dshRemoteProgressHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.dshRemoteProgressHeader strong{font-size:13px;font-weight:600}.dshRemoteProgressHeader span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteProgressBar{height:6px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-layer-3)}.dshRemoteProgressBar>span{display:block;width:100%;height:100%;border-radius:inherit;background:var(--dsw-alias-brand-primary);transform-origin:left center;transition:transform .22s ease-out}[dir="rtl"] .dshRemoteProgressBar>span{transform-origin:right center}.dshRemoteProgress p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45}.dshRemoteProgressRoute{font-weight:500}.dshRemoteProgressRoute .isActive{color:var(--dsw-alias-state-success-primary);font-weight:700}.dshRemoteProgressRouteArrow{color:var(--dsw-alias-label-tertiary)}@media(prefers-reduced-motion:reduce){.dshRemoteProgressBar>span{transition:none}}',
           '.dshRemoteBrowser{display:flex;flex-direction:column}.dshRemoteCrumbs{display:flex;align-items:center;gap:4px;overflow:auto;padding:2px 0 10px}.dshRemoteCrumbs>button{flex:0 0 auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:5px 7px;border-radius:6px;cursor:pointer}.dshRemoteCrumbs>button:not(:last-child)::after{content:" /";color:var(--dsw-alias-label-tertiary)}.dshRemoteCrumbs>button:disabled{color:var(--dsw-alias-label-primary);font-weight:600}',
           ".dshRemoteWorkspaceLists{overflow:visible}",
@@ -3687,7 +3767,10 @@ Minimum version required to store current data is: ` + bestVersion + `.
       }
       function formatPlatform(value) {
         let normalized = value.toLowerCase();
-        return normalized === "darwin" || normalized === "macos" ? "macOS" : normalized === "win32" || normalized === "windows" ? "Windows" : normalized === "linux" ? "Linux" : value;
+        return normalized === "darwin" || normalized === "macos" ? "macOS" : normalized === "win32" || normalized === "windows" ? "Windows" : normalized === "linux" ? "Linux" : normalized === "android" ? "Android" : value;
+      }
+      function connectedClientModeLabel(mode, t) {
+        return t(mode === "LAN" ? "remoteNetworkLan" : mode === "P2P" ? "remoteNetworkP2p" : mode === "TURN" ? "remoteNetworkTurn" : mode === "Relay" ? "remoteNetworkRelay" : "connected");
       }
       return module.exports.apply = apply, module.exports.inject = inject, module.exports;
     }
