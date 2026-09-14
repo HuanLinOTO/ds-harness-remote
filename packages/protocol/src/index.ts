@@ -55,6 +55,10 @@ export const MIN_REPLAY_WINDOW_EVENTS = 10_000
 export const MIN_REPLAY_WINDOW_MS = 15 * 60_000
 /** Maximum concurrent alpha streams per connection. */
 export const MAX_ALPHA_STREAMS_PER_CONNECTION = 16
+/** Generic Agent Client Protocol capability and bounded gateway limits. */
+export const ACP_CAPABILITY = 'agent.acp.v1' as const
+export const MAX_ACP_PROMPT_BYTES = 64 * 1024
+export const MAX_ACP_UPDATE_BYTES = 512 * 1024
 
 const SECURE_FRAGMENT_MAGIC = new Uint8Array([0x44, 0x53, 0x48, 0x46]) // DSHF
 const SECURE_FRAGMENT_VERSION = 1
@@ -115,6 +119,13 @@ export const rpcMethods = [
   'codex.app.transfer.commit',
   'codex.app.transfer.read',
   'codex.app.transfer.close',
+  'acp.initialize',
+  'acp.session.new',
+  'acp.session.load',
+  'acp.session.prompt',
+  'acp.session.respond_permission',
+  'acp.session.cancel',
+  'acp.session.set_mode',
 ] as const
 
 export const remoteEvents = [
@@ -124,6 +135,9 @@ export const remoteEvents = [
   'harness.remote.stream.closed',
   'codex.app.frame',
   'codex.app.stream.closed',
+  'acp.session.update',
+  'acp.session.request_permission',
+  'acp.session.closed',
 ] as const
 
 export const errorCodes = [
@@ -430,6 +444,16 @@ export interface RpcRequestPayload<TParams = unknown> {
   method: RpcMethod
   params: TParams
 }
+
+export type AcpBackend = 'codex' | 'cursor' | (string & {})
+export interface AcpInitializeParams { protocolVersion: 1; backend?: AcpBackend }
+export interface AcpInitializeResult { protocolVersion: 1; capability: typeof ACP_CAPABILITY; backend: AcpBackend; capabilities: string[] }
+export interface AcpSessionParams { sessionId?: string; cwd?: string; mode?: string }
+export interface AcpPromptParams { sessionId: string; prompt: string; images?: Array<{ mimeType: string; data: string }> }
+export interface AcpPermissionResponseParams { sessionId: string; requestId: string; decision: 'allow_once' | 'deny' }
+export interface AcpCancelParams { sessionId: string }
+export interface AcpSetModeParams { sessionId: string; mode: string }
+export interface AcpSessionUpdate { sessionId: string; update: unknown; seq: number }
 
 export interface RpcResponsePayload<TResult = unknown> {
   requestId: string

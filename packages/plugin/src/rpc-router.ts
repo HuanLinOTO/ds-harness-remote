@@ -12,6 +12,7 @@ import type { HarnessRemoteBridge } from './harness-remote-bridge.js'
 import type { SafeLogger } from './logging.js'
 import type { CodexPeerBridge } from './codex/peer-bridge.js'
 import { RpcError, safeErrorCode } from './safe-error.js'
+import type { AcpGateway } from './acp.js'
 
 export { RpcError } from './safe-error.js'
 
@@ -46,6 +47,8 @@ const apiMethods = new Set([
   'codex.app.transfer.commit',
   'codex.app.transfer.read',
   'codex.app.transfer.close',
+  'acp.initialize', 'acp.session.new', 'acp.session.load', 'acp.session.prompt',
+  'acp.session.respond_permission', 'acp.session.cancel', 'acp.session.set_mode',
 ])
 
 export const HOST_CAPABILITIES = [
@@ -56,6 +59,7 @@ export const HOST_CAPABILITIES = [
   'fileviewer.read.v1',
   'codex.appserver.v1',
   'codex.appserver.transfer.v1',
+  'agent.acp.v1',
 ] as const
 
 export class RpcRouter {
@@ -69,6 +73,7 @@ export class RpcRouter {
     private readonly harnessRemote?: HarnessRemoteBridge,
     private readonly capabilities: () => readonly string[] = () => HOST_CAPABILITIES,
     private readonly codex?: CodexPeerBridge,
+    private readonly acp?: AcpGateway,
   ) {}
 
   async closePeerStreams(): Promise<void> {
@@ -153,6 +158,13 @@ export class RpcRouter {
       case 'codex.app.transfer.commit': return this.requireCodex().commitTransfer(params)
       case 'codex.app.transfer.read': return this.requireCodex().readTransfer(params)
       case 'codex.app.transfer.close': return this.requireCodex().closeTransfer(params)
+      case 'acp.initialize': return this.requireAcp().initialize(params as any)
+      case 'acp.session.new': return this.requireAcp().sessionNew(params as any)
+      case 'acp.session.load': return this.requireAcp().sessionLoad(params as any)
+      case 'acp.session.prompt': return this.requireAcp().prompt(params as any, async () => undefined)
+      case 'acp.session.respond_permission': return this.requireAcp().respondPermission(params as any)
+      case 'acp.session.cancel': return this.requireAcp().cancel(params as any)
+      case 'acp.session.set_mode': return this.requireAcp().setMode(params as any)
       default: throw new RpcError('METHOD_NOT_FOUND', 'The requested method does not exist.')
     }
   }
@@ -169,6 +181,11 @@ export class RpcRouter {
       throw new RpcError('FEATURE_NOT_SUPPORTED', 'This Harness version does not provide the Remote Gateway transport.')
     }
     return this.harnessRemote
+  }
+
+  private requireAcp(): AcpGateway {
+    if (!this.acp) throw new RpcError('CAPABILITY_NOT_SUPPORTED', 'ACP is not configured on this Host.')
+    return this.acp
   }
 
   private requireCodex(): CodexPeerBridge {

@@ -338,3 +338,5 @@ export type {
   TypertRpcResult,
 } from './typert-gateway-contract.js'
 export type { AuthenticatedPeerChannel } from './types.js'
+export { AcpGateway } from './acp.js'
+export type { AcpBackendAdapter } from './acp.js'

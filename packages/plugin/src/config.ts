@@ -21,6 +21,7 @@ export interface Config {
     enabled?: boolean
     binary?: string
   }
+  acp?: { enabled?: boolean; backend?: 'codex'|'cursor'|'kimi'|'zcode'; command?: string; args?: string[]; cwd?: string }
 }
 
 export interface ResolvedCodexConfig {
@@ -42,6 +43,7 @@ export interface ResolvedConfig {
     jitter: number
   }
   codex: ResolvedCodexConfig
+  acp?: { enabled: boolean; backend: 'codex'|'cursor'|'kimi'|'zcode'; command: string; args: string[]; cwd?: string }
 }
 
 /** Cordis-facing configuration shape; runtime bounds are enforced by resolveConfig. */
@@ -64,6 +66,7 @@ export const Config: s<Config> = s.object({
     enabled: s.boolean(),
     binary: s.string(),
   }),
+  acp: s.object({ enabled: s.boolean(), backend: s.union(['codex','cursor','kimi','zcode'] as const), command: s.string(), args: s.array(s.string()), cwd: s.string() }),
 })
 
 const reconnectSchema = z.union([
@@ -87,6 +90,7 @@ const configSchema = z.object({
     enabled: z.boolean().optional(),
     binary: z.string().trim().min(1).max(4096).optional(),
   }).strict().optional(),
+  acp: z.object({ enabled:z.boolean().optional(), backend:z.enum(['codex','cursor','kimi','zcode']).optional(), command:z.string().trim().min(1).max(4096).optional(), args:z.array(z.string().max(4096)).max(32).optional(), cwd:z.string().max(4096).optional() }).strict().optional(),
 }).strict()
 
 export function resolveConfig(input: Config = {}, env: NodeJS.ProcessEnv = process.env): ResolvedConfig {
@@ -116,6 +120,7 @@ export function resolveConfig(input: Config = {}, env: NodeJS.ProcessEnv = proce
       enabled: parsed.codex?.enabled ?? true,
       binary: parsed.codex?.binary ?? 'codex',
     },
+    acp: { enabled: parsed.acp?.enabled ?? false, backend: parsed.acp?.backend ?? 'cursor', command: parsed.acp?.command ?? 'agent', args: parsed.acp?.args ?? ['acp'], ...(parsed.acp?.cwd ? { cwd: parsed.acp.cwd } : {}) },
   }
 }
 

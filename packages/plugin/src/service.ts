@@ -29,6 +29,7 @@ import type { LocalTypertGateway } from './typert-gateway-contract.js'
 import { loadNodeRtcFactory } from './werift-rtc.js'
 import type { AuthenticatedPeerChannel } from './types.js'
 import { CodexRemoteDomain } from './codex/domain.js'
+import { AcpGateway, StdioAcpAdapter } from './acp.js'
 import type { CodexPeerBridge, PublishCodexFrame } from './codex/peer-bridge.js'
 import { RpcError } from './safe-error.js'
 
@@ -99,6 +100,7 @@ export class HostPluginRuntime {
         context,
         (event, data) => send(createEvent(event, data)),
       )
+      const acp = config.acp?.enabled ? new AcpGateway(new StdioAcpAdapter({ ...config.acp, id: config.acp.backend })) : undefined
       return new RpcRouter(
         harnessApi,
         undefined,
@@ -107,6 +109,7 @@ export class HostPluginRuntime {
         harnessRemote,
         () => this.hostCapabilities(),
         codex,
+        acp,
       )
     }, this.logger)
     if (config.serverUrl !== undefined) {
@@ -379,6 +382,7 @@ export class HostPluginRuntime {
     }
     if (this.fileViewerHost?.() !== undefined) capabilities.push('fileviewer.read.v1')
     if (this.codex.isAvailable()) capabilities.push('codex.appserver.v1', 'codex.appserver.transfer.v1')
+    if (this.config.acp?.enabled) capabilities.push('agent.acp.v1')
     return capabilities
   }
 
