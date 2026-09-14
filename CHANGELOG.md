@@ -12,7 +12,7 @@
   sources, replacement ranges, and history gaps at the Remote boundary.
 - Keeps legacy Typert clients fail-closed against Session V3 Hosts and permits
   Codex-only Hosts to pass feature probing without requiring a Harness carrier.
-- Advances the Plugin and Android app to `0.4.13` (`versionCode 30`).
+- Advances the Plugin, VS Code extension, and Android app to `0.4.13` (`versionCode 30`).
 
 ## 0.4.12
 
