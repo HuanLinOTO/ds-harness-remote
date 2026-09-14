@@ -30,6 +30,7 @@ import { loadNodeRtcFactory } from './werift-rtc.js'
 import type { AuthenticatedPeerChannel } from './types.js'
 import { CodexRemoteDomain } from './codex/domain.js'
 import { AcpGateway, StdioAcpAdapter } from './acp.js'
+import { execFileSync } from 'node:child_process'
 import type { CodexPeerBridge, PublishCodexFrame } from './codex/peer-bridge.js'
 import { RpcError } from './safe-error.js'
 
@@ -100,7 +101,7 @@ export class HostPluginRuntime {
         context,
         (event, data) => send(createEvent(event, data)),
       )
-      const acp = config.acp?.enabled ? new AcpGateway(new StdioAcpAdapter({ ...config.acp, id: config.acp.backend })) : undefined
+      const acp = config.acp?.enabled && this.acpAvailable(config.acp.command) ? new AcpGateway(new StdioAcpAdapter({ ...config.acp, id: config.acp.backend })) : undefined
       return new RpcRouter(
         harnessApi,
         undefined,
@@ -384,6 +385,10 @@ export class HostPluginRuntime {
     if (this.codex.isAvailable()) capabilities.push('codex.appserver.v1', 'codex.appserver.transfer.v1')
     if (this.config.acp?.enabled) capabilities.push('agent.acp.v1')
     return capabilities
+  }
+
+  private acpAvailable(command: string): boolean {
+    try { execFileSync(process.platform === 'win32' ? 'where' : 'which', [command], { stdio: 'ignore' }); return true } catch { return false }
   }
 
   private requireLocalCodexPeer(): CodexPeerBridge {

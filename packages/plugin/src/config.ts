@@ -120,7 +120,7 @@ export function resolveConfig(input: Config = {}, env: NodeJS.ProcessEnv = proce
       enabled: parsed.codex?.enabled ?? true,
       binary: parsed.codex?.binary ?? 'codex',
     },
-    acp: { enabled: parsed.acp?.enabled ?? false, backend: parsed.acp?.backend ?? 'cursor', command: parsed.acp?.command ?? 'agent', args: parsed.acp?.args ?? ['acp'], ...(parsed.acp?.cwd ? { cwd: parsed.acp.cwd } : {}) },
+    acp: { enabled: parsed.acp?.enabled ?? true, backend: parsed.acp?.backend ?? 'cursor', command: parsed.acp?.command ?? 'agent', args: parsed.acp?.args ?? ['acp'], ...(parsed.acp?.cwd ? { cwd: parsed.acp.cwd } : {}) },
   }
 }
 
