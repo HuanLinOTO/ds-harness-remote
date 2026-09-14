@@ -14,14 +14,15 @@ export interface AcpBackendAdapter {
 }
 
 export class AcpGateway {
-  constructor(private readonly adapter: AcpBackendAdapter) {}
-  initialize(p: AcpInitializeParams) { return this.adapter.initialize(p) }
-  sessionNew(p: AcpSessionParams) { return this.adapter.sessionNew(p) }
-  sessionLoad(p: AcpSessionParams) { if (!this.adapter.sessionLoad) throw new Error('CAPABILITY_NOT_SUPPORTED'); return this.adapter.sessionLoad(p) }
-  prompt(p: AcpPromptParams, emit: (u: AcpSessionUpdate) => Promise<void>) { return this.adapter.prompt(p, emit) }
-  respondPermission(p: AcpPermissionResponseParams) { if (!this.adapter.respondPermission) throw new Error('CAPABILITY_NOT_SUPPORTED'); return this.adapter.respondPermission(p) }
-  cancel(p: AcpCancelParams) { if (!this.adapter.cancel) throw new Error('CAPABILITY_NOT_SUPPORTED'); return this.adapter.cancel(p) }
-  setMode(p: AcpSetModeParams) { if (!this.adapter.setMode) throw new Error('CAPABILITY_NOT_SUPPORTED'); return this.adapter.setMode(p) }
+  constructor(private readonly adapters: AcpBackendAdapter | Iterable<AcpBackendAdapter>) {}
+  private get(p: { backend?: AcpBackend }): AcpBackendAdapter { const list = this.adapters instanceof Object && 'backend' in this.adapters ? [this.adapters as AcpBackendAdapter] : [...this.adapters as Iterable<AcpBackendAdapter>]; const a = list.find(x => !p.backend || x.backend === p.backend); if (!a) throw new Error('CAPABILITY_NOT_SUPPORTED'); return a }
+  initialize(p: AcpInitializeParams) { return this.get(p).initialize(p) }
+  sessionNew(p: AcpSessionParams & { backend?: AcpBackend }) { return this.get(p).sessionNew(p) }
+  sessionLoad(p: AcpSessionParams & { backend?: AcpBackend }) { const a=this.get(p); if (!a.sessionLoad) throw new Error('CAPABILITY_NOT_SUPPORTED'); return a.sessionLoad(p) }
+  prompt(p: AcpPromptParams & { backend?: AcpBackend }, emit: (u: AcpSessionUpdate) => Promise<void>) { return this.get(p).prompt(p, emit) }
+  respondPermission(p: AcpPermissionResponseParams & { backend?: AcpBackend }) { const a=this.get(p); if (!a.respondPermission) throw new Error('CAPABILITY_NOT_SUPPORTED'); return a.respondPermission(p) }
+  cancel(p: AcpCancelParams & { backend?: AcpBackend }) { const a=this.get(p); if (!a.cancel) throw new Error('CAPABILITY_NOT_SUPPORTED'); return a.cancel(p) }
+  setMode(p: AcpSetModeParams & { backend?: AcpBackend }) { const a=this.get(p); if (!a.setMode) throw new Error('CAPABILITY_NOT_SUPPORTED'); return a.setMode(p) }
 }
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'

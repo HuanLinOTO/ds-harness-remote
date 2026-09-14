@@ -101,7 +101,8 @@ export class HostPluginRuntime {
         context,
         (event, data) => send(createEvent(event, data)),
       )
-      const acp = config.acp?.enabled && this.acpAvailable(config.acp.command) ? new AcpGateway(new StdioAcpAdapter({ ...config.acp, id: config.acp.backend })) : undefined
+      const adapters = (config.acp?.backends ?? []).filter(item => item.enabled && this.acpAvailable(item.command)).map(item => new StdioAcpAdapter(item))
+      const acp = config.acp?.enabled && adapters.length > 0 ? new AcpGateway(adapters) : undefined
       return new RpcRouter(
         harnessApi,
         undefined,
@@ -383,7 +384,7 @@ export class HostPluginRuntime {
     }
     if (this.fileViewerHost?.() !== undefined) capabilities.push('fileviewer.read.v1')
     if (this.codex.isAvailable()) capabilities.push('codex.appserver.v1', 'codex.appserver.transfer.v1')
-    if (this.config.acp?.enabled) capabilities.push('agent.acp.v1')
+    if (this.config.acp?.enabled) for (const item of this.config.acp.backends) if (item.enabled && this.acpAvailable(item.command)) capabilities.push(`agent.acp.v1.${item.id}`)
     return capabilities
   }
 

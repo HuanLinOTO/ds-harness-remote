@@ -1,4 +1,5 @@
 import { hostname } from 'node:os'
+import { execFileSync } from 'node:child_process'
 import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { SettingsScope } from '@deepseek-ai/dsh-settings'
 import { resolveConfig, type Config, type ResolvedConfig } from './config.js'
@@ -20,6 +21,7 @@ export interface PluginSettingsView {
   applies: 'restart'
   association?: PluginAssociation
   associations: Partial<Record<'host' | 'client', PluginAssociation>>
+  acpAvailability?: Record<string, boolean>
 }
 
 export interface PluginAssociation {
@@ -48,6 +50,7 @@ export class PluginControlRuntime {
       if (endpoint === 'settings.server.set') return ok(await this.setServer(payload))
       if (endpoint === 'settings.role.set') return ok(await this.setRole(payload))
       if (endpoint === 'settings.codex.set') return ok(await this.setCodex(payload))
+      if (endpoint === 'settings.acp.set') return ok(await this.setAcp(payload))
       if (endpoint === 'settings.logout') return ok(await this.logout())
       if (endpoint === 'host.reconnect') {
         if (this.host === undefined) throw new ClientModeError('METHOD_NOT_ALLOWED', 'This plugin is not running as a Host.')
@@ -169,6 +172,16 @@ export class PluginControlRuntime {
     return this.settingsView()
   }
 
+  private async setAcp(payload: unknown): Promise<PluginSettingsView> {
+    if (this.settings === undefined) throw new ClientModeError('SETTINGS_UNAVAILABLE', 'DSH user settings are unavailable in this profile.')
+    const value = record(payload)
+    if (typeof value.backend !== 'string' || typeof value.enabled !== 'boolean') throw new ClientModeError('INVALID_MESSAGE', 'ACP backend and enabled are required.')
+    const current = resolveConfig(this.settings.get())
+    const backends = current.acp?.backends.map(item => item.id === value.backend ? { ...item, enabled: value.enabled } : item) ?? []
+    await this.settings.replace({ ...editableConfig(current), acp: { enabled: current.acp?.enabled ?? true, backends } })
+    return this.settingsView()
+  }
+
   private async authorizeOwnedRole(
     serverUrl: string,
     sourceRole: 'host' | 'client',
@@ -220,6 +233,7 @@ export class PluginControlRuntime {
       writable: this.settings !== undefined,
       applies: 'restart',
       associations,
+      acpAvailability: Object.fromEntries((config.acp?.backends ?? []).map(item => [item.id, commandAvailable(item.command ?? '')])),
       ...(association === undefined ? {} : { association }),
     }
   }
@@ -260,6 +274,10 @@ export class PluginControlRuntime {
   }
 }
 
+function commandAvailable(command: string): boolean {
+  try { execFileSync(process.platform === 'win32' ? 'where' : 'which', [command], { stdio: 'ignore' }); return true } catch { return false }
+}
+
 function editableConfig(config: ResolvedConfig): Config {
   return {
     enabled: config.enabled,
@@ -278,6 +296,7 @@ function editableConfig(config: ResolvedConfig): Config {
       enabled: config.codex.enabled,
       binary: config.codex.binary,
     },
+    ...(config.acp === undefined ? {} : { acp: { enabled: config.acp.enabled, backends: config.acp.backends } }),
   }
 }
 

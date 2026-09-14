@@ -213,6 +213,7 @@ interface PluginSettings {
     enabled?: boolean
     binary?: string
   }
+  acp?: { enabled?: boolean; backends?: Array<{ id: 'codex'|'cursor'|'kimi'|'zcode'; enabled?: boolean; command?: string; args?: string[]; cwd?: string }> }
 }
 
 interface PluginSettingsView {
@@ -222,6 +223,7 @@ interface PluginSettingsView {
   applies: 'restart'
   association?: PluginAssociation
   associations?: Partial<Record<'host' | 'client', PluginAssociation>>
+  acpAvailability?: Record<string, boolean>
 }
 
 interface PluginAssociation {
@@ -992,6 +994,8 @@ window.__ModuleLoader__.load({
       const [writable, setWritable] = React.useState(false)
       const [busy, setBusy] = React.useState(false)
       const [codexBusy, setCodexBusy] = React.useState(false)
+      const [acpBackends, setAcpBackends] = React.useState<Array<{ id: string; enabled: boolean }>>([])
+      const [acpAvailability, setAcpAvailability] = React.useState<Record<string, boolean>>({})
       const [reconnectBusy, setReconnectBusy] = React.useState(false)
       const [hostStatus, setHostStatus] = React.useState<RemoteStatus['host'] | undefined>(undefined)
       const [notice, setNotice] = React.useState<LocalizedMessage | undefined>(undefined)
@@ -1006,6 +1010,8 @@ window.__ModuleLoader__.load({
         setSettingsView(view)
         setServerUrl(view.config.serverUrl ?? 'https://dsh.r2049.cn')
         setCodexEnabled(view.config.codex?.enabled ?? true)
+        setAcpBackends((view.config.acp?.backends ?? []).map(item => ({ id: item.id, enabled: item.enabled !== false })))
+        setAcpAvailability(view.acpAvailability ?? {})
         setAssociations(view.associations ?? (view.association === undefined ? {} : { host: view.association }))
         setWritable(view.writable)
         setLoaded(true)
@@ -1137,6 +1143,13 @@ window.__ModuleLoader__.load({
           onChange: (event: Event) => void setCodexRemote((event.target as HTMLInputElement).checked),
         }))
 
+      const acpSetting = React.createElement('details', { className: 'dshRemoteAuthorizationSetting dshRemoteAcpSetting' },
+        React.createElement('summary', null, 'ACP Agent backends'),
+        React.createElement('div', null, acpBackends.map(item => React.createElement('label', { key: item.id, className: 'dshRemoteAuthorizationSetting' },
+          React.createElement('span', null, `${item.id}${acpAvailability[item.id] ? ' · available' : ' · not installed'}`), React.createElement('input', { type: 'checkbox', role: 'switch', checked: item.enabled, disabled: busy || !writable || !acpAvailability[item.id],
+            onChange: (event: Event) => void props.control<PluginSettingsView>('settings.acp.set', { backend: item.id, enabled: (event.target as HTMLInputElement).checked }).then(view => { applyView(view); setAcpBackends((view.config.acp?.backends ?? []).map(v => ({ id: v.id, enabled: v.enabled !== false }))) }).catch(reason => setError(messageOf(reason)))
+          })))))
+
       return React.createElement('li', { className: `dshRemotePluginCard${open ? ' isOpen' : ''}` },
         React.createElement('div', { className: 'dshRemotePluginCardHeader' },
           React.createElement('button', {
@@ -1181,6 +1194,7 @@ window.__ModuleLoader__.load({
           }),
           React.createElement('p', null, t('serverUrlHint'))),
         codexSetting,
+        acpSetting,
         React.createElement('div', { className: 'dshRemoteAuthorizationSetting' },
           React.createElement('div', null,
             React.createElement('strong', null, t('allowControlCurrentDevice')),
@@ -1243,6 +1257,7 @@ window.__ModuleLoader__.load({
           }),
           React.createElement('p', null, t('serverUrlHint'))),
         codexSetting,
+        acpSetting,
         React.createElement('p', { className: 'dshRemoteSettingsState' }, t('authorizeFromRemote')),
         !writable ? React.createElement('p', { className: 'dshRemoteError' }, t('readOnly')) : null,
         React.createElement('div', { className: 'dshRemoteSettingsFooter' },
