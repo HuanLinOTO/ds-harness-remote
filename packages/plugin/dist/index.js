@@ -4066,6 +4066,8 @@ var MAX_RPC_TEXT_INPUT_BYTES = 64 * 1024;
 var MAX_FILEVIEWER_RANGE_BYTES = 512 * 1024;
 var MIN_REPLAY_WINDOW_MS = 15 * 6e4;
 var MAX_ALPHA_STREAMS_PER_CONNECTION = 16;
+var MAX_ACP_PROMPT_BYTES = 64 * 1024;
+var MAX_ACP_UPDATE_BYTES = 512 * 1024;
 var SECURE_FRAGMENT_MAGIC = new Uint8Array([68, 83, 72, 70]);
 var SECURE_FRAGMENT_VERSION = 1;
 var SECURE_FRAGMENT_HEADER_BYTES = 17;
@@ -4121,7 +4123,14 @@ var rpcMethods = [
   "codex.app.transfer.chunk",
   "codex.app.transfer.commit",
   "codex.app.transfer.read",
-  "codex.app.transfer.close"
+  "codex.app.transfer.close",
+  "acp.initialize",
+  "acp.session.new",
+  "acp.session.load",
+  "acp.session.prompt",
+  "acp.session.respond_permission",
+  "acp.session.cancel",
+  "acp.session.set_mode"
 ];
 var errorCodes = [
   // Protocol / Version
@@ -17422,7 +17431,8 @@ var Config = s.object({
   codex: s.object({
     enabled: s.boolean(),
     binary: s.string()
-  })
+  }),
+  acp: s.object({ enabled: s.boolean(), backends: s.array(s.object({ id: s.union(["codex", "cursor", "kimi", "zcode"]), enabled: s.boolean(), command: s.string(), args: s.array(s.string()), cwd: s.string() })) })
 });
 var reconnectSchema = external_exports.union([
   external_exports.boolean(),
@@ -17443,7 +17453,8 @@ var configSchema = external_exports.object({
   codex: external_exports.object({
     enabled: external_exports.boolean().optional(),
     binary: external_exports.string().trim().min(1).max(4096).optional()
-  }).strict().optional()
+  }).strict().optional(),
+  acp: external_exports.object({ enabled: external_exports.boolean().optional(), backends: external_exports.array(external_exports.object({ id: external_exports.enum(["codex", "cursor", "kimi", "zcode"]), enabled: external_exports.boolean().optional(), command: external_exports.string().trim().min(1).max(4096).optional(), args: external_exports.array(external_exports.string().max(4096)).max(32).optional(), cwd: external_exports.string().max(4096).optional() }).strict()).max(4).optional(), backend: external_exports.enum(["codex", "cursor", "kimi", "zcode"]).optional(), command: external_exports.string().trim().min(1).max(4096).optional(), args: external_exports.array(external_exports.string().max(4096)).max(32).optional(), cwd: external_exports.string().max(4096).optional() }).strict().optional()
 }).strict();
 function resolveConfig(input2 = {}, env = process.env) {
   const parsed = configSchema.parse(input2);
@@ -17471,7 +17482,12 @@ function resolveConfig(input2 = {}, env = process.env) {
     codex: {
       enabled: parsed.codex?.enabled ?? true,
       binary: parsed.codex?.binary ?? "codex"
-    }
+    },
+    acp: { enabled: parsed.acp?.enabled ?? true, backends: ["codex", "cursor", "kimi", "zcode"].map((id2) => {
+      const d = parsed.acp?.backends?.find((x) => x.id === id2);
+      const legacy = parsed.acp?.backend === id2 ? parsed.acp : void 0;
+      return { id: id2, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? { codex: "codex", cursor: "agent", kimi: "kimi", zcode: "zcode" }[id2], args: d?.args ?? legacy?.args ?? ["acp"], ...d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {} };
+    }) }
   };
 }
 function normalizeServerUrl(value) {
@@ -20182,6 +20198,7 @@ function iceServersForAttempt(attempt, iceServers) {
 
 // src/control-runtime.ts
 import { hostname as hostname2 } from "node:os";
+import { execFileSync } from "node:child_process";
 
 // src/identity-store.ts
 import { createHash } from "node:crypto";
@@ -20446,6 +20463,7 @@ var PluginControlRuntime = class {
       if (endpoint === "settings.server.set") return ok3(await this.setServer(payload));
       if (endpoint === "settings.role.set") return ok3(await this.setRole(payload));
       if (endpoint === "settings.codex.set") return ok3(await this.setCodex(payload));
+      if (endpoint === "settings.acp.set") return ok3(await this.setAcp(payload));
       if (endpoint === "settings.logout") return ok3(await this.logout());
       if (endpoint === "host.reconnect") {
         if (this.host === void 0) throw new ClientModeError("METHOD_NOT_ALLOWED", "This plugin is not running as a Host.");
@@ -20557,6 +20575,15 @@ var PluginControlRuntime = class {
     await this.settings.replace(editableConfig(next));
     return this.settingsView();
   }
+  async setAcp(payload) {
+    if (this.settings === void 0) throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
+    const value = record4(payload);
+    if (typeof value.backend !== "string" || typeof value.enabled !== "boolean") throw new ClientModeError("INVALID_MESSAGE", "ACP backend and enabled are required.");
+    const current = resolveConfig(this.settings.get());
+    const backends = current.acp?.backends.map((item) => item.id === value.backend ? { ...item, enabled: value.enabled } : item) ?? [];
+    await this.settings.replace({ ...editableConfig(current), acp: { enabled: current.acp?.enabled ?? true, backends } });
+    return this.settingsView();
+  }
   async authorizeOwnedRole(serverUrl, sourceRole, targetRole) {
     const sourceDirectory = serverStorageDirectory(this.identityDirectory, serverUrl, sourceRole);
     const sourceIdentity = await new IdentityStore({ directory: sourceDirectory }).loadOrCreate(hostname2());
@@ -20597,6 +20624,7 @@ var PluginControlRuntime = class {
       writable: this.settings !== void 0,
       applies: "restart",
       associations,
+      acpAvailability: Object.fromEntries((config.acp?.backends ?? []).map((item) => [item.id, commandAvailable(item.command ?? "")])),
       ...association === void 0 ? {} : { association }
     };
   }
@@ -20633,6 +20661,14 @@ var PluginControlRuntime = class {
     };
   }
 };
+function commandAvailable(command) {
+  try {
+    execFileSync(process.platform === "win32" ? "where" : "which", [command], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
 function editableConfig(config) {
   return {
     enabled: config.enabled,
@@ -20648,7 +20684,8 @@ function editableConfig(config) {
     codex: {
       enabled: config.codex.enabled,
       binary: config.codex.binary
-    }
+    },
+    ...config.acp === void 0 ? {} : { acp: { enabled: config.acp.enabled, backends: config.acp.backends } }
   };
 }
 function isRecord8(value) {
@@ -20938,7 +20975,14 @@ var apiMethods = /* @__PURE__ */ new Set([
   "codex.app.transfer.chunk",
   "codex.app.transfer.commit",
   "codex.app.transfer.read",
-  "codex.app.transfer.close"
+  "codex.app.transfer.close",
+  "acp.initialize",
+  "acp.session.new",
+  "acp.session.load",
+  "acp.session.prompt",
+  "acp.session.respond_permission",
+  "acp.session.cancel",
+  "acp.session.set_mode"
 ]);
 var HOST_CAPABILITIES = [
   "harness.api.v1",
@@ -20947,10 +20991,11 @@ var HOST_CAPABILITIES = [
   "harness.remote.transfer.v1",
   "fileviewer.read.v1",
   "codex.appserver.v1",
-  "codex.appserver.transfer.v1"
+  "codex.appserver.transfer.v1",
+  "agent.acp.v1"
 ];
 var RpcRouter = class {
-  constructor(harnessApi, maxPending = 128, logger, fileViewer, harnessRemote, capabilities = () => HOST_CAPABILITIES, codex) {
+  constructor(harnessApi, maxPending = 128, logger, fileViewer, harnessRemote, capabilities = () => HOST_CAPABILITIES, codex, acp) {
     this.harnessApi = harnessApi;
     this.maxPending = maxPending;
     this.logger = logger;
@@ -20958,6 +21003,7 @@ var RpcRouter = class {
     this.harnessRemote = harnessRemote;
     this.capabilities = capabilities;
     this.codex = codex;
+    this.acp = acp;
   }
   active = 0;
   async closePeerStreams() {
@@ -21066,6 +21112,20 @@ var RpcRouter = class {
         return this.requireCodex().readTransfer(params);
       case "codex.app.transfer.close":
         return this.requireCodex().closeTransfer(params);
+      case "acp.initialize":
+        return this.requireAcp().initialize(params);
+      case "acp.session.new":
+        return this.requireAcp().sessionNew(params);
+      case "acp.session.load":
+        return this.requireAcp().sessionLoad(params);
+      case "acp.session.prompt":
+        return this.requireAcp().prompt(params, async () => void 0);
+      case "acp.session.respond_permission":
+        return this.requireAcp().respondPermission(params);
+      case "acp.session.cancel":
+        return this.requireAcp().cancel(params);
+      case "acp.session.set_mode":
+        return this.requireAcp().setMode(params);
       default:
         throw new RpcError("METHOD_NOT_FOUND", "The requested method does not exist.");
     }
@@ -21081,6 +21141,10 @@ var RpcRouter = class {
       throw new RpcError("FEATURE_NOT_SUPPORTED", "This Harness version does not provide the Remote Gateway transport.");
     }
     return this.harnessRemote;
+  }
+  requireAcp() {
+    if (!this.acp) throw new RpcError("CAPABILITY_NOT_SUPPORTED", "ACP is not configured on this Host.");
+    return this.acp;
   }
   requireCodex() {
     if (this.codex === void 0) {
@@ -24989,7 +25053,119 @@ function isActiveWriterMessage(message) {
   return message.toLowerCase().includes("active writer");
 }
 
+// src/acp.ts
+import { spawn as spawn3 } from "node:child_process";
+var AcpGateway = class {
+  constructor(adapters) {
+    this.adapters = adapters;
+  }
+  get(p) {
+    const list = this.adapters instanceof Object && "backend" in this.adapters ? [this.adapters] : [...this.adapters];
+    const a = list.find((x) => !p.backend || x.backend === p.backend);
+    if (!a) throw new Error("CAPABILITY_NOT_SUPPORTED");
+    return a;
+  }
+  initialize(p) {
+    return this.get(p).initialize(p);
+  }
+  sessionNew(p) {
+    return this.get(p).sessionNew(p);
+  }
+  sessionLoad(p) {
+    const a = this.get(p);
+    if (!a.sessionLoad) throw new Error("CAPABILITY_NOT_SUPPORTED");
+    return a.sessionLoad(p);
+  }
+  prompt(p, emit) {
+    return this.get(p).prompt(p, emit);
+  }
+  respondPermission(p) {
+    const a = this.get(p);
+    if (!a.respondPermission) throw new Error("CAPABILITY_NOT_SUPPORTED");
+    return a.respondPermission(p);
+  }
+  cancel(p) {
+    const a = this.get(p);
+    if (!a.cancel) throw new Error("CAPABILITY_NOT_SUPPORTED");
+    return a.cancel(p);
+  }
+  setMode(p) {
+    const a = this.get(p);
+    if (!a.setMode) throw new Error("CAPABILITY_NOT_SUPPORTED");
+    return a.setMode(p);
+  }
+};
+var StdioAcpAdapter = class {
+  constructor(config) {
+    this.config = config;
+    this.backend = config.id;
+  }
+  backend;
+  child;
+  nextId = 1;
+  ensure() {
+    if (!this.child) this.child = spawn3(this.config.command, this.config.args ?? [], { cwd: this.config.cwd, stdio: "pipe" });
+    return this.child;
+  }
+  async initialize(params) {
+    await this.call("initialize", params);
+    return { protocolVersion: 1, capability: "agent.acp.v1", backend: this.backend, capabilities: ["session.new", "session.load", "session.prompt", "session.cancel"] };
+  }
+  async sessionNew(params) {
+    const r = await this.call("session/new", params);
+    if (!r.sessionId) throw new Error("INVALID_MESSAGE");
+    return { sessionId: r.sessionId };
+  }
+  async sessionLoad(params) {
+    const r = await this.call("session/load", params);
+    if (!r.sessionId) throw new Error("INVALID_MESSAGE");
+    return { sessionId: r.sessionId };
+  }
+  async prompt(params, emit) {
+    await this.call("session/prompt", params, async (n) => emit({ sessionId: params.sessionId, update: n, seq: this.nextId++ }));
+  }
+  async cancel(p) {
+    await this.call("session/cancel", p);
+  }
+  async setMode(p) {
+    await this.call("session/set_mode", p);
+  }
+  async respondPermission(p) {
+    await this.call("session/request_permission", p);
+  }
+  async close() {
+    this.child?.kill();
+    this.child = void 0;
+  }
+  call(method, params, onNotification) {
+    const c = this.ensure();
+    const id2 = this.nextId++;
+    c.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: id2, method, params }) + "\n");
+    return new Promise((resolve3, reject) => {
+      let buf = "";
+      const onData = async (d) => {
+        buf += d;
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const l of lines) {
+          try {
+            const m = JSON.parse(l);
+            if (m.id === id2) {
+              c.stdout.off("data", onData);
+              m.error ? reject(new Error(m.error.message ?? "ACP error")) : resolve3(m.result);
+            } else if (m.method && onNotification) await onNotification(m.params);
+          } catch {
+          }
+        }
+      };
+      c.stdout.on("data", onData);
+      c.once("error", reject);
+    });
+  }
+};
+
 // src/service.ts
+import { execFileSync as execFileSync2 } from "node:child_process";
 var HostPluginRuntime = class {
   constructor(config, identities, apiProxy, logger, localGateway, fileViewerHost) {
     this.config = config;
@@ -25022,6 +25198,8 @@ var HostPluginRuntime = class {
         context,
         (event, data) => send(createEvent(event, data))
       );
+      const adapters = (config.acp?.backends ?? []).filter((item) => item.enabled && this.acpAvailable(item.command)).map((item) => new StdioAcpAdapter(item));
+      const acp = config.acp?.enabled && adapters.length > 0 ? new AcpGateway(adapters) : void 0;
       return new RpcRouter(
         harnessApi,
         void 0,
@@ -25029,7 +25207,8 @@ var HostPluginRuntime = class {
         fileViewer,
         harnessRemote,
         () => this.hostCapabilities(),
-        codex
+        codex,
+        acp
       );
     }, this.logger);
     if (config.serverUrl !== void 0) {
@@ -25280,7 +25459,18 @@ var HostPluginRuntime = class {
     }
     if (this.fileViewerHost?.() !== void 0) capabilities.push("fileviewer.read.v1");
     if (this.codex.isAvailable()) capabilities.push("codex.appserver.v1", "codex.appserver.transfer.v1");
+    if (this.config.acp?.enabled) {
+      for (const item of this.config.acp.backends) if (item.enabled && this.acpAvailable(item.command)) capabilities.push(`agent.acp.v1.${item.id}`);
+    }
     return capabilities;
+  }
+  acpAvailable(command) {
+    try {
+      execFileSync2(process.platform === "win32" ? "where" : "which", [command], { stdio: "ignore" });
+      return true;
+    } catch {
+      return false;
+    }
   }
   requireLocalCodexPeer() {
     if (!this.codex.isAvailable()) {
@@ -26198,6 +26388,7 @@ function isPlainRecord2(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 export {
+  AcpGateway,
   ApiProxySwitch,
   CODEX_APP_ALLOWLIST,
   ClientModeError,
