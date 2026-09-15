@@ -20779,7 +20779,21 @@ var ConnectionController = class {
     return this.active.size;
   }
   peerDeviceIds() {
-    return [...new Set([...this.active.values()].map((connection) => connection.channel.peerDeviceId))];
+    return this.connectedPeers().map((peer) => peer.deviceId);
+  }
+  connectedPeers() {
+    const peers = [];
+    const seen = /* @__PURE__ */ new Set();
+    for (const connection of this.active.values()) {
+      const deviceId = connection.channel.peerDeviceId;
+      if (seen.has(deviceId)) continue;
+      seen.add(deviceId);
+      peers.push({
+        deviceId,
+        ...connection.channel.mode === void 0 ? {} : { mode: connection.channel.mode }
+      });
+    }
+    return peers;
   }
   peerDeviceId() {
     const peers = this.peerDeviceIds();
@@ -25068,8 +25082,20 @@ var HostPluginRuntime = class {
       ...error === void 0 ? {} : { error },
       ...authorization?.account === void 0 ? {} : { account: authorization.account },
       authorized: authorization !== void 0,
-      accountRequired: error === "ACCOUNT_AUTH_REQUIRED" || error === "AUTH_INVALID" || error === "TOKEN_EXPIRED"
+      accountRequired: error === "ACCOUNT_AUTH_REQUIRED" || error === "AUTH_INVALID" || error === "TOKEN_EXPIRED",
+      connectedClients: this.listConnectedClients()
     };
+  }
+  listConnectedClients() {
+    return this.connections.connectedPeers().map((peer) => {
+      const trusted = this.identities.trustedPeer(peer.deviceId);
+      return {
+        deviceId: peer.deviceId,
+        name: trusted?.name.trim() ?? "",
+        ...trusted === void 0 ? {} : { platform: trusted.platform },
+        ...peer.mode === void 0 ? {} : { mode: peer.mode }
+      };
+    });
   }
   localHarnessVersion() {
     return this.harnessVersion;

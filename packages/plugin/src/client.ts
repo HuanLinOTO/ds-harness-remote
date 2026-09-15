@@ -70,6 +70,12 @@ interface RemoteStatus {
     account?: string
     authorized: boolean
     accountRequired: boolean
+    connectedClients?: Array<{
+      deviceId: string
+      name: string
+      platform?: string
+      mode?: 'LAN' | 'P2P' | 'TURN' | 'Relay'
+    }>
   }
 }
 
@@ -426,6 +432,10 @@ const en = {
   signInClientDescription: 'Connect once. Available anytime.',
   startSignIn: 'Start sign-in',
   allowControlCurrentDevice: 'Allow control of this device',
+  connectedClientCount: '{count} connected',
+  currentConnectedDevices: 'Currently connected devices',
+  noConnectedClients: 'No devices are currently connected to this Host.',
+  unknownDevice: 'Unknown device',
   exitRemoteAccount: 'Sign out',
   githubLogin: 'GitHub QR',
   zhihuLogin: 'Zhihu QR',
@@ -635,6 +645,10 @@ const zh: Record<keyof typeof en, string> = {
   signInClientDescription: '一次连接，随时可用。',
   startSignIn: '开始登录',
   allowControlCurrentDevice: '允许控制当前设备',
+  connectedClientCount: '{count} 台已连接',
+  currentConnectedDevices: '当前连接的设备',
+  noConnectedClients: '目前没有设备连接到这台主机。',
+  unknownDevice: '未知设备',
   exitRemoteAccount: '退出账号',
   githubLogin: 'GitHub 扫码',
   zhihuLogin: '知乎扫码',
@@ -1259,6 +1273,7 @@ window.__ModuleLoader__.load({
       const [addingWorkspace, setAddingWorkspace] = React.useState(false)
       const [showAllWorkspaces, setShowAllWorkspaces] = React.useState(false)
       const [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(false)
+      const [devicesOpen, setDevicesOpen] = React.useState(false)
       const workspaceListId = 'dsh-remote-workspace-list'
       const codexWorkspaceHeadingId = 'dsh-remote-codex-workspace-heading'
       const codexWorkspaceListId = 'dsh-remote-codex-workspace-list'
@@ -1278,13 +1293,39 @@ window.__ModuleLoader__.load({
       const [error, setError] = React.useState<string | undefined>(undefined)
 
       React.useEffect(() => {
+        if (!open) setDevicesOpen(false)
+      }, [open])
+
+      React.useEffect(() => {
         if (!open) return
         const closeOnEscape = (event: KeyboardEvent): void => {
-          if (event.key === 'Escape') setOpen(false)
+          if (event.key !== 'Escape') return
+          if (devicesOpen) {
+            event.stopPropagation()
+            setDevicesOpen(false)
+            return
+          }
+          setOpen(false)
         }
         window.addEventListener('keydown', closeOnEscape)
         return () => window.removeEventListener('keydown', closeOnEscape)
-      }, [open])
+      }, [open, devicesOpen])
+
+      React.useEffect(() => {
+        if (!devicesOpen) return
+        const closeOnPointer = (event: MouseEvent): void => {
+          const target = event.target
+          if (!(target instanceof Element)) return
+          if (target.closest('.dshRemoteConnectedMenu') !== null) return
+          setDevicesOpen(false)
+        }
+        window.addEventListener('mousedown', closeOnPointer)
+        return () => window.removeEventListener('mousedown', closeOnPointer)
+      }, [devicesOpen])
+
+      React.useEffect(() => {
+        if ((status?.host?.connectedClients?.length ?? 0) === 0) setDevicesOpen(false)
+      }, [status?.host?.connectedClients?.length])
 
       React.useEffect(() => {
         void props.control<RemoteStatus>('status').then(setStatus).catch(() => undefined)
@@ -1569,6 +1610,14 @@ window.__ModuleLoader__.load({
         await refreshRemote()
       }
 
+      React.useEffect(() => {
+        if (!open || selectedHost !== undefined) return
+        const timer = window.setInterval(() => {
+          void props.control<RemoteStatus>('status').then(setStatus).catch(() => undefined)
+        }, 1_500)
+        return () => window.clearInterval(timer)
+      }, [open, selectedHost])
+
       const chooseAnotherHost = (): void => {
         setSelectedHost(undefined)
         setWorkspaces([])
@@ -1693,6 +1742,50 @@ window.__ModuleLoader__.load({
         selectedHost.harnessVersion === undefined ? undefined : t('harnessVersion', { version: selectedHost.harnessVersion }),
         selectedHost.clientVersion === undefined ? undefined : t('pluginVersion', { version: selectedHost.clientVersion }),
       ].filter(Boolean).join(' · ')
+      const connectedClients = status?.host?.connectedClients ?? []
+      const connectedCount = connectedClients.length
+      const connectedCountLabel = t('connectedClientCount', { count: connectedCount })
+      const connectedMenu = !needsAuthorization && status?.hostAuthorizationAvailable === true
+        ? React.createElement('div', {
+          className: `dshRemoteConnectedMenu${devicesOpen ? ' isOpen' : ''}`,
+        },
+          React.createElement('button', {
+            type: 'button',
+            className: `dshRemoteConnectedCount${connectedCount > 0 ? ' isOnline isInteractive' : ''}`,
+            disabled: connectedCount === 0,
+            'aria-expanded': connectedCount > 0 ? devicesOpen : undefined,
+            'aria-haspopup': connectedCount > 0 ? 'dialog' : undefined,
+            title: connectedCountLabel,
+            'aria-label': connectedCountLabel,
+            onClick: () => {
+              if (connectedCount === 0) return
+              setDevicesOpen(current => !current)
+            },
+          }, connectedCountLabel),
+          devicesOpen && connectedCount > 0
+            ? React.createElement('div', {
+              className: 'dshRemoteConnectedPanel',
+              role: 'dialog',
+              'aria-label': t('currentConnectedDevices'),
+            },
+              React.createElement('strong', { className: 'dshRemoteConnectedPanelTitle' }, t('currentConnectedDevices')),
+              React.createElement(
+                'div',
+                { className: 'dshRemoteClientList', 'aria-label': t('currentConnectedDevices') },
+                ...connectedClients.map(client => React.createElement('div', {
+                  key: client.deviceId,
+                  className: 'dshRemoteClientRow',
+                },
+                  React.createElement('span', null,
+                    React.createElement('strong', null, client.name.trim() === '' ? t('unknownDevice') : client.name),
+                    React.createElement('small', null, [
+                      client.platform === undefined ? undefined : formatPlatform(client.platform),
+                      connectedClientModeLabel(client.mode, t),
+                    ].filter(Boolean).join(' · '))),
+                  React.createElement('small', { className: 'dshRemoteClientOnline' }, t('connected')))),
+              ))
+            : null)
+        : null
 
       return React.createElement(React.Fragment, null,
         React.createElement('div', { className: `dshRemoteSidebarEntry${status?.mode === 'remote' ? ' isActive' : ''}${props.wide ? ' isWide' : ' isRail'}` },
@@ -1743,6 +1836,7 @@ window.__ModuleLoader__.load({
                 title: t('backToHosts'),
                 onClick: chooseAnotherHost,
               }, t('backToHosts')),
+              connectedMenu,
               React.createElement('button', {
                 type: 'button',
                 className: 'dshRemotePageRefresh',
@@ -2400,6 +2494,7 @@ window.__ModuleLoader__.load({
         '.dshRemoteSectionHeading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:10px}.dshRemoteSectionTitle{min-width:0;display:flex;align-items:center;gap:10px}.dshRemoteSectionTitle>strong{font-size:14px}.dshRemoteSectionActions{display:flex;align-items:center;gap:14px}.dshRemoteSectionActions>button{border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;padding:5px 0;font-size:12px}.dshRemoteSectionActions>button:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}',
         '.dshRemoteCancelWorkspace{min-height:36px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:6px 0;cursor:pointer}.dshRemoteCancelWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteCancelWorkspace:disabled{opacity:.5;cursor:default}',
         '.dshRemoteHostList{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteHostList>button{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:10px 4px;cursor:pointer}.dshRemoteHostList>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button:disabled{opacity:.5;cursor:default}.dshRemoteHostList>button>span{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteHostList>button strong{font-size:14px;font-weight:500}.dshRemoteHostList small{color:var(--dsw-alias-label-secondary);font-size:12px}',
+        '.dshRemoteConnectedMenu{position:relative;flex:0 0 auto;margin-right:4px}.dshRemoteConnectedCount{appearance:none;display:inline-flex;align-items:center;justify-content:center;height:22px;border:0;border-radius:999px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);box-shadow:0 1px 2px rgba(0,0,0,.18),0 0 0 1px rgba(255,255,255,.04) inset;padding:0 10px;font:inherit;font-size:11px;font-weight:500;line-height:17px;white-space:nowrap;cursor:default}.dshRemoteConnectedCount.isOnline{color:var(--dsw-alias-state-success-primary)}.dshRemoteConnectedCount.isInteractive{cursor:pointer}.dshRemoteConnectedCount.isInteractive:hover{filter:brightness(1.08)}.dshRemoteConnectedCount:disabled{opacity:1;cursor:default}.dshRemoteConnectedCount:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteConnectedPanel{position:absolute;top:calc(100% + 8px);right:0;z-index:4;width:min(320px,calc(100vw - 48px));max-height:min(280px,40vh);overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-2);box-shadow:0 10px 28px rgba(0,0,0,.28);padding:10px 12px}.dshRemoteConnectedPanelTitle{display:block;margin:0 0 6px;color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600}.dshRemoteClientList{display:flex;flex-direction:column}.dshRemoteClientRow{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}.dshRemoteClientRow:last-child{border-bottom:0}.dshRemoteClientRow>span{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteClientRow strong{font-size:13px;font-weight:500}.dshRemoteClientRow small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteClientOnline{display:inline-flex;align-items:center;gap:6px;color:var(--dsw-alias-state-success-primary)!important}.dshRemoteClientOnline::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}',
         '.dshRemoteProgress{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2)}.dshRemoteProgressHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.dshRemoteProgressHeader strong{font-size:13px;font-weight:600}.dshRemoteProgressHeader span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteProgressBar{height:6px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-layer-3)}.dshRemoteProgressBar>span{display:block;width:100%;height:100%;border-radius:inherit;background:var(--dsw-alias-brand-primary);transform-origin:left center;transition:transform .22s ease-out}[dir="rtl"] .dshRemoteProgressBar>span{transform-origin:right center}.dshRemoteProgress p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45}.dshRemoteProgressRoute{font-weight:500}.dshRemoteProgressRoute .isActive{color:var(--dsw-alias-state-success-primary);font-weight:700}.dshRemoteProgressRouteArrow{color:var(--dsw-alias-label-tertiary)}@media(prefers-reduced-motion:reduce){.dshRemoteProgressBar>span{transition:none}}',
         '.dshRemoteBrowser{display:flex;flex-direction:column}.dshRemoteCrumbs{display:flex;align-items:center;gap:4px;overflow:auto;padding:2px 0 10px}.dshRemoteCrumbs>button{flex:0 0 auto;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:5px 7px;border-radius:6px;cursor:pointer}.dshRemoteCrumbs>button:not(:last-child)::after{content:" /";color:var(--dsw-alias-label-tertiary)}.dshRemoteCrumbs>button:disabled{color:var(--dsw-alias-label-primary);font-weight:600}',
         '.dshRemoteWorkspaceLists{overflow:visible}',
@@ -2625,7 +2720,19 @@ window.__ModuleLoader__.load({
       if (normalized === 'darwin' || normalized === 'macos') return 'macOS'
       if (normalized === 'win32' || normalized === 'windows') return 'Windows'
       if (normalized === 'linux') return 'Linux'
+      if (normalized === 'android') return 'Android'
       return value
+    }
+
+    function connectedClientModeLabel(
+      mode: 'LAN' | 'P2P' | 'TURN' | 'Relay' | undefined,
+      t: Translate,
+    ): string {
+      if (mode === 'LAN') return t('remoteNetworkLan')
+      if (mode === 'P2P') return t('remoteNetworkP2p')
+      if (mode === 'TURN') return t('remoteNetworkTurn')
+      if (mode === 'Relay') return t('remoteNetworkRelay')
+      return t('connected')
     }
 
     module.exports.apply = apply
