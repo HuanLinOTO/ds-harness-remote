@@ -17432,7 +17432,7 @@ var Config = s.object({
     enabled: s.boolean(),
     binary: s.string()
   }),
-  acp: s.object({ enabled: s.boolean(), backends: s.array(s.object({ id: s.union(["codex", "cursor", "kimi", "zcode"]), enabled: s.boolean(), command: s.string(), args: s.array(s.string()), cwd: s.string() })) })
+  acp: s.object({ enabled: s.boolean(), backends: s.array(s.object({ id: s.string(), enabled: s.boolean(), command: s.string(), args: s.array(s.string()), cwd: s.string() })) })
 });
 var reconnectSchema = external_exports.union([
   external_exports.boolean(),
@@ -17454,7 +17454,7 @@ var configSchema = external_exports.object({
     enabled: external_exports.boolean().optional(),
     binary: external_exports.string().trim().min(1).max(4096).optional()
   }).strict().optional(),
-  acp: external_exports.object({ enabled: external_exports.boolean().optional(), backends: external_exports.array(external_exports.object({ id: external_exports.enum(["codex", "cursor", "kimi", "zcode"]), enabled: external_exports.boolean().optional(), command: external_exports.string().trim().min(1).max(4096).optional(), args: external_exports.array(external_exports.string().max(4096)).max(32).optional(), cwd: external_exports.string().max(4096).optional() }).strict()).max(4).optional(), backend: external_exports.enum(["codex", "cursor", "kimi", "zcode"]).optional(), command: external_exports.string().trim().min(1).max(4096).optional(), args: external_exports.array(external_exports.string().max(4096)).max(32).optional(), cwd: external_exports.string().max(4096).optional() }).strict().optional()
+  acp: external_exports.object({ enabled: external_exports.boolean().optional(), backends: external_exports.array(external_exports.object({ id: external_exports.string().trim().regex(/^[a-z0-9][a-z0-9._-]{0,31}$/i), enabled: external_exports.boolean().optional(), command: external_exports.string().trim().min(1).max(4096).optional(), args: external_exports.array(external_exports.string().max(4096)).max(32).optional(), cwd: external_exports.string().max(4096).optional() }).strict()).max(12).optional(), backend: external_exports.string().trim().regex(/^[a-z0-9][a-z0-9._-]{0,31}$/i).optional(), command: external_exports.string().trim().min(1).max(4096).optional(), args: external_exports.array(external_exports.string().max(4096)).max(32).optional(), cwd: external_exports.string().max(4096).optional() }).strict().optional()
 }).strict();
 function resolveConfig(input2 = {}, env = process.env) {
   const parsed = configSchema.parse(input2);
@@ -17483,10 +17483,10 @@ function resolveConfig(input2 = {}, env = process.env) {
       enabled: parsed.codex?.enabled ?? true,
       binary: parsed.codex?.binary ?? "codex"
     },
-    acp: { enabled: parsed.acp?.enabled ?? true, backends: ["codex", "cursor", "kimi", "zcode"].map((id2) => {
+    acp: { enabled: parsed.acp?.enabled ?? true, backends: [.../* @__PURE__ */ new Set(["codex", "cursor", "kimi", ...parsed.acp?.backends?.map((item) => item.id) ?? []])].map((id2) => {
       const d = parsed.acp?.backends?.find((x) => x.id === id2);
       const legacy = parsed.acp?.backend === id2 ? parsed.acp : void 0;
-      return { id: id2, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? { codex: "codex", cursor: "agent", kimi: "kimi", zcode: "zcode" }[id2], args: d?.args ?? legacy?.args ?? ["acp"], ...d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {} };
+      return { id: id2, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? { codex: "codex", cursor: "agent", kimi: "kimi" }[id2] ?? id2, args: d?.args ?? legacy?.args ?? ["acp"], ...d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {} };
     }) }
   };
 }
@@ -20464,6 +20464,8 @@ var PluginControlRuntime = class {
       if (endpoint === "settings.role.set") return ok3(await this.setRole(payload));
       if (endpoint === "settings.codex.set") return ok3(await this.setCodex(payload));
       if (endpoint === "settings.acp.set") return ok3(await this.setAcp(payload));
+      if (endpoint === "settings.acp.add") return ok3(await this.addAcp(payload));
+      if (endpoint === "settings.acp.remove") return ok3(await this.removeAcp(payload));
       if (endpoint === "settings.logout") return ok3(await this.logout());
       if (endpoint === "host.reconnect") {
         if (this.host === void 0) throw new ClientModeError("METHOD_NOT_ALLOWED", "This plugin is not running as a Host.");
@@ -20582,6 +20584,28 @@ var PluginControlRuntime = class {
     const current = resolveConfig(this.settings.get());
     const backends = current.acp?.backends.map((item) => item.id === value.backend ? { ...item, enabled: value.enabled } : item) ?? [];
     await this.settings.replace({ ...editableConfig(current), acp: { enabled: current.acp?.enabled ?? true, backends } });
+    return this.settingsView();
+  }
+  async addAcp(payload) {
+    if (this.settings === void 0) throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
+    const value = record4(payload);
+    if (typeof value.id !== "string" || typeof value.command !== "string" || !Array.isArray(value.args) || !value.args.every((item) => typeof item === "string")) {
+      throw new ClientModeError("INVALID_MESSAGE", "ACP name, command, and arguments are required.");
+    }
+    const current = resolveConfig(this.settings.get());
+    if (current.acp?.backends.some((item) => item.id === value.id)) throw new ClientModeError("INVALID_MESSAGE", "ACP backend already exists.");
+    const backends = [...current.acp?.backends ?? [], { id: value.id, command: value.command, args: value.args, enabled: false }];
+    const next = resolveConfig({ ...editableConfig(current), acp: { enabled: current.acp?.enabled ?? true, backends } });
+    await this.settings.replace(editableConfig(next));
+    return this.settingsView();
+  }
+  async removeAcp(payload) {
+    if (this.settings === void 0) throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
+    const id2 = record4(payload).id;
+    if (typeof id2 !== "string" || ["codex", "cursor", "kimi"].includes(id2)) throw new ClientModeError("INVALID_MESSAGE", "Only custom ACP backends can be removed.");
+    const current = resolveConfig(this.settings.get());
+    const backends = (current.acp?.backends ?? []).filter((item) => item.id !== id2);
+    await this.settings.replace(editableConfig({ ...current, acp: { enabled: current.acp?.enabled ?? true, backends } }));
     return this.settingsView();
   }
   async authorizeOwnedRole(serverUrl, sourceRole, targetRole) {

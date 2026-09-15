@@ -21,7 +21,7 @@ export interface Config {
     enabled?: boolean
     binary?: string
   }
-  acp?: { enabled?: boolean; backends?: Array<{ id:'codex'|'cursor'|'kimi'|'zcode'; enabled?: boolean; command?: string; args?: string[]; cwd?: string }>; backend?: 'codex'|'cursor'|'kimi'|'zcode'; command?: string; args?: string[]; cwd?: string }
+  acp?: { enabled?: boolean; backends?: Array<{ id:string; enabled?: boolean; command?: string; args?: string[]; cwd?: string }>; backend?: string; command?: string; args?: string[]; cwd?: string }
 }
 
 export interface ResolvedCodexConfig {
@@ -43,7 +43,7 @@ export interface ResolvedConfig {
     jitter: number
   }
   codex: ResolvedCodexConfig
-  acp?: { enabled: boolean; backends: Array<{ id:'codex'|'cursor'|'kimi'|'zcode'; enabled:boolean; command:string; args:string[]; cwd?:string }> }
+  acp?: { enabled: boolean; backends: Array<{ id:string; enabled:boolean; command:string; args:string[]; cwd?:string }> }
 }
 
 /** Cordis-facing configuration shape; runtime bounds are enforced by resolveConfig. */
@@ -66,7 +66,7 @@ export const Config: s<Config> = s.object({
     enabled: s.boolean(),
     binary: s.string(),
   }),
-  acp: s.object({ enabled: s.boolean(), backends: s.array(s.object({ id:s.union(['codex','cursor','kimi','zcode'] as const), enabled:s.boolean(), command:s.string(), args:s.array(s.string()), cwd:s.string() })) }),
+  acp: s.object({ enabled: s.boolean(), backends: s.array(s.object({ id:s.string(), enabled:s.boolean(), command:s.string(), args:s.array(s.string()), cwd:s.string() })) }),
 })
 
 const reconnectSchema = z.union([
@@ -90,7 +90,7 @@ const configSchema = z.object({
     enabled: z.boolean().optional(),
     binary: z.string().trim().min(1).max(4096).optional(),
   }).strict().optional(),
-  acp: z.object({ enabled:z.boolean().optional(), backends:z.array(z.object({ id:z.enum(['codex','cursor','kimi','zcode']), enabled:z.boolean().optional(), command:z.string().trim().min(1).max(4096).optional(), args:z.array(z.string().max(4096)).max(32).optional(), cwd:z.string().max(4096).optional() }).strict()).max(4).optional(), backend:z.enum(['codex','cursor','kimi','zcode']).optional(), command:z.string().trim().min(1).max(4096).optional(), args:z.array(z.string().max(4096)).max(32).optional(), cwd:z.string().max(4096).optional() }).strict().optional(),
+  acp: z.object({ enabled:z.boolean().optional(), backends:z.array(z.object({ id:z.string().trim().regex(/^[a-z0-9][a-z0-9._-]{0,31}$/i), enabled:z.boolean().optional(), command:z.string().trim().min(1).max(4096).optional(), args:z.array(z.string().max(4096)).max(32).optional(), cwd:z.string().max(4096).optional() }).strict()).max(12).optional(), backend:z.string().trim().regex(/^[a-z0-9][a-z0-9._-]{0,31}$/i).optional(), command:z.string().trim().min(1).max(4096).optional(), args:z.array(z.string().max(4096)).max(32).optional(), cwd:z.string().max(4096).optional() }).strict().optional(),
 }).strict()
 
 export function resolveConfig(input: Config = {}, env: NodeJS.ProcessEnv = process.env): ResolvedConfig {
@@ -120,7 +120,7 @@ export function resolveConfig(input: Config = {}, env: NodeJS.ProcessEnv = proce
       enabled: parsed.codex?.enabled ?? true,
       binary: parsed.codex?.binary ?? 'codex',
     },
-    acp: { enabled: parsed.acp?.enabled ?? true, backends: (['codex','cursor','kimi','zcode'] as const).map(id => { const d = parsed.acp?.backends?.find(x => x.id === id); const legacy = parsed.acp?.backend === id ? parsed.acp : undefined; return { id, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? ({codex:'codex',cursor:'agent',kimi:'kimi',zcode:'zcode'}[id]), args: d?.args ?? legacy?.args ?? ['acp'], ...(d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {}) } }) },
+    acp: { enabled: parsed.acp?.enabled ?? true, backends: [...new Set(['codex','cursor','kimi',...(parsed.acp?.backends?.map(item => item.id) ?? [])])].map(id => { const d = parsed.acp?.backends?.find(x => x.id === id); const legacy = parsed.acp?.backend === id ? parsed.acp : undefined; return { id, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? ({codex:'codex',cursor:'agent',kimi:'kimi'} as Record<string,string>)[id] ?? id, args: d?.args ?? legacy?.args ?? ['acp'], ...(d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {}) } }) },
   }
 }
 

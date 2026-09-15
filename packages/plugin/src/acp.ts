@@ -27,12 +27,11 @@ export class AcpGateway {
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 
-export interface AcpIdeConfig { id: 'codex' | 'cursor' | 'kimi' | 'zcode'; command: string; args?: string[]; cwd?: string }
+export interface AcpIdeConfig { id: string; command: string; args?: string[]; cwd?: string }
 export const DEFAULT_ACP_IDES: readonly AcpIdeConfig[] = [
   { id: 'codex', command: 'codex', args: ['acp'] },
   { id: 'cursor', command: 'agent', args: ['acp'] },
   { id: 'kimi', command: 'kimi', args: ['acp'] },
-  { id: 'zcode', command: 'zcode', args: ['acp'] },
 ]
 
 /** JSON-RPC stdio bridge for ACP agents (Cursor/Kimi/CodeX). */
