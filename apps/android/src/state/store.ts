@@ -48,22 +48,27 @@ import { reconcileTrustedDevices } from '../services/device-directory'
 import { resolveAutomaticPreferredTransports } from '../services/network-route'
 import { serverSession } from '../services/server-session'
 import { resolveAutoConnectDevice } from '../lib/auto-connect'
+import { workspaceStableKey } from '../lib/workspace-key'
 import {
   clearLocalData,
   clearCodexPermissionPresets,
   clearDeviceCredentials,
   clearLastConnectedDeviceId,
   forgetHost,
+  loadFavoriteWorkspaces,
   loadLastConnectedDeviceId,
   loadOrCreateIdentity,
   loadLanguagePreference,
   loadCodexPermissionPresets,
+  loadRecentWorkspaces,
   loadServerConfig,
   loadThemePreference,
   loadTransportPreference,
   loadTrustedHosts,
+  saveFavoriteWorkspaces,
   saveLanguagePreference,
   saveLastConnectedDeviceId,
+  saveRecentWorkspaces,
   saveCodexPermissionPreset,
   saveServerConfig,
   saveThemePreference,
@@ -79,6 +84,7 @@ import type {
   ConnectionStage,
   ConnectionSnapshot,
   DeviceIdentity,
+  WorkspaceShortcut,
   HistoryEntry,
   HostDescriptor,
   ModelSelection,
@@ -111,6 +117,9 @@ interface AppState {
   hostDescriptor?: HostDescriptor
   codexAvailable: boolean
   workspaces: WorkspaceView[]
+  favoriteWorkspaces: WorkspaceShortcut[]
+  /** Newest first; the home screen falls back to these when Favorites is empty. */
+  recentWorkspaces: WorkspaceShortcut[]
   archivedSessionIds: string[]
   sessions: RemoteSession[]
   selectedSession?: RemoteSession
@@ -133,7 +142,10 @@ interface AppState {
   error?: string
   /** Remembered host from the last successful connect (persisted). */
   lastConnectedDeviceId?: string
-  /** Set during bootstrap when that host is trusted + online; consumed by the navigator. */
+  /**
+   * Set during bootstrap when that host is trusted + online. Retained for the
+   * auto-connect entry point; boot routing currently lands on the device list.
+   */
   pendingAutoConnectDeviceId?: string
   /** True when credentials are invalid and the UI should show the sign-in screen. */
   reauthRequired: boolean
@@ -167,6 +179,11 @@ interface AppState {
   workspaceRename(workspaceId: string, title: string): Promise<boolean>
   workspaceDelete(workspaceId: string): Promise<boolean>
   workspaceMove(workspaceId: string, beforeWorkspaceId?: string): Promise<boolean>
+  /** Toggle the home-screen shortcut for a workspace; resolves to its new favorited state. */
+  toggleFavoriteWorkspace(workspace: WorkspaceView): Promise<boolean>
+  removeFavoriteWorkspace(deviceId: string, key: string): Promise<boolean>
+  /** Open the most recently updated conversation of a saved workspace; undefined when it has none. */
+  openFavoriteWorkspaceSession(key: string): Promise<RemoteSession | undefined>
   hostListDirectory(path?: string): Promise<import('../types').DirectoryListing | undefined>
   setTransportPreference(preference: TransportPreference): Promise<void>
   setLanguagePreference(preference: LanguagePreference): Promise<void>
@@ -197,6 +214,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionProbeOrder: [],
   codexAvailable: false,
   workspaces: [],
+  favoriteWorkspaces: [],
+  recentWorkspaces: [],
   archivedSessionIds: [],
   sessions: [],
   messages: {},
@@ -215,12 +234,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   async bootstrap() {
     set({ bootPhase: 'loading', error: undefined, pendingAutoConnectDeviceId: undefined, reauthRequired: false })
     try {
-      const [config, identity, transportPreference, languagePreference, themePreference, lastConnectedDeviceId] = await Promise.all([
+      const [config, identity, transportPreference, languagePreference, themePreference, favoriteWorkspaces, recentWorkspaces, lastConnectedDeviceId] = await Promise.all([
         loadServerConfig(),
         loadOrCreateIdentity(),
         loadTransportPreference(),
         loadLanguagePreference(),
         loadThemePreference(),
+        loadFavoriteWorkspaces(),
+        loadRecentWorkspaces(),
         loadLastConnectedDeviceId(),
       ])
       const language = applyLanguagePreference(languagePreference)
@@ -232,12 +253,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         languagePreference,
         language,
         themePreference,
+        favoriteWorkspaces,
+        recentWorkspaces,
         lastConnectedDeviceId,
       })
       let pendingAutoConnectDeviceId: string | undefined
       if (config !== undefined) {
         await get().refreshDevices()
         if (!get().reauthRequired) {
+          // Resolved but intentionally not routed on boot: the home screen is the
+          // device list, and connecting stays an explicit user choice.
           pendingAutoConnectDeviceId = resolveAutoConnectDevice(get().devices, lastConnectedDeviceId)?.deviceId
         }
       }
@@ -641,6 +666,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     try {
       await load()
+      await rememberRecentWorkspace(session)
       return true
     } catch (error) {
       if (isRpcTimeoutError(error)) {
@@ -652,6 +678,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (recovered) {
           try {
             await load()
+            await rememberRecentWorkspace(session)
             return true
           } catch (retryError) {
             set({ busyAction: undefined, error: friendlyError(retryError) })
@@ -877,6 +904,61 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ busyAction: undefined, error: friendlyError(error) })
       return false
     }
+  },
+
+  async toggleFavoriteWorkspace(workspace) {
+    const device = get().selectedDevice
+    if (device === undefined) return false
+    const key = workspaceStableKey(workspace, device.platform)
+    const current = get().favoriteWorkspaces
+    const existing = current.some(item => item.deviceId === device.deviceId && item.key === key)
+    const next = existing
+      ? current.filter(item => !(item.deviceId === device.deviceId && item.key === key))
+      : [...current, {
+          deviceId: device.deviceId,
+          deviceName: device.name,
+          key,
+          workspaceId: workspace.workspaceId,
+          backend: workspace.backend === 'codex' ? 'codex' as const : 'harness' as const,
+          title: workspace.title,
+          path: workspace.path,
+          addedAt: Date.now(),
+        }]
+    try {
+      await saveFavoriteWorkspaces(next)
+    } catch (error) {
+      set({ error: friendlyError(error) })
+      return existing
+    }
+    set({ favoriteWorkspaces: next })
+    await Haptics.notificationAsync(existing
+      ? Haptics.NotificationFeedbackType.Warning
+      : Haptics.NotificationFeedbackType.Success)
+    return !existing
+  },
+
+  async removeFavoriteWorkspace(deviceId, key) {
+    const current = get().favoriteWorkspaces
+    const next = current.filter(item => !(item.deviceId === deviceId && item.key === key))
+    if (next.length === current.length) return false
+    try {
+      await saveFavoriteWorkspaces(next)
+    } catch (error) {
+      set({ error: friendlyError(error) })
+      return false
+    }
+    set({ favoriteWorkspaces: next })
+    return true
+  },
+
+  async openFavoriteWorkspaceSession(key) {
+    const state = get()
+    if (state.connection.phase !== 'connected') return undefined
+    const workspace = state.workspaces.find(item => workspaceStableKey(item, state.selectedDevice?.platform) === key)
+    if (workspace === undefined) return undefined
+    const session = latestWorkspaceSession(state.sessions, workspace)
+    if (session === undefined) return undefined
+    return await state.openSession(session) ? session : undefined
   },
 
   async hostListDirectory(path) {
@@ -1123,8 +1205,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       await clearCodexPermissionPresets(deviceId)
       const clearedLast = get().lastConnectedDeviceId === deviceId
       if (clearedLast) await clearLastConnectedDeviceId()
+      const favoriteWorkspaces = get().favoriteWorkspaces.filter(item => item.deviceId !== deviceId)
+      if (favoriteWorkspaces.length !== get().favoriteWorkspaces.length) {
+        await saveFavoriteWorkspaces(favoriteWorkspaces)
+      }
+      const recentWorkspaces = get().recentWorkspaces.filter(item => item.deviceId !== deviceId)
+      if (recentWorkspaces.length !== get().recentWorkspaces.length) {
+        await saveRecentWorkspaces(recentWorkspaces)
+      }
       set(state => ({
         devices: state.devices.filter(device => device.deviceId !== deviceId),
+        favoriteWorkspaces,
+        recentWorkspaces,
         lastConnectedDeviceId: clearedLast ? undefined : state.lastConnectedDeviceId,
         pendingAutoConnectDeviceId: state.pendingAutoConnectDeviceId === deviceId
           ? undefined
@@ -1302,6 +1394,53 @@ function withActiveCodexTurn(timeline: CodexTimelineState, activeTurnId: string 
   }
 }
 
+/** Number of recently visited workspaces kept for the home-screen fallback list. */
+const RECENT_WORKSPACE_LIMIT = 3
+
+/**
+ * Remember the workspace a session was opened from. Favorites take precedence on
+ * the home screen, so this list is the fallback shown while Favorites is empty.
+ */
+async function rememberRecentWorkspace(session: RemoteSession): Promise<void> {
+  const state = useAppStore.getState()
+  const device = state.selectedDevice
+  const workspace = state.workspaces.find(item => item.sessionIds.includes(session.sessionId))
+  if (device === undefined || workspace === undefined) return
+  const key = workspaceStableKey(workspace, device.platform)
+  const entry: WorkspaceShortcut = {
+    deviceId: device.deviceId,
+    deviceName: device.name,
+    key,
+    workspaceId: workspace.workspaceId,
+    backend: workspace.backend === 'codex' ? 'codex' : 'harness',
+    title: workspace.title,
+    path: workspace.path,
+    addedAt: Date.now(),
+  }
+  const next = [
+    entry,
+    ...state.recentWorkspaces.filter(item => !(item.deviceId === device.deviceId && item.key === key)),
+  ].slice(0, RECENT_WORKSPACE_LIMIT)
+  try {
+    await saveRecentWorkspaces(next)
+  } catch {
+    // The shortcut list is a convenience; a storage failure must not fail the visit.
+    return
+  }
+  useAppStore.setState({ recentWorkspaces: next })
+}
+
+/** Most recently updated conversation inside a workspace; undefined when it has none yet. */
+function latestWorkspaceSession(sessions: RemoteSession[], workspace: WorkspaceView): RemoteSession | undefined {
+  let latest: RemoteSession | undefined
+  for (const sessionId of workspace.sessionIds) {
+    const session = sessions.find(item => item.sessionId === sessionId)
+    if (session === undefined) continue
+    if (latest === undefined || session.updatedAt > latest.updatedAt) latest = session
+  }
+  return latest
+}
+
 function findApproval(messages: Record<string, ChatItem[]>, itemId: string) {
   for (const items of Object.values(messages)) {
     const found = items.find(item => item.kind === 'approval' && item.id === itemId)
@@ -1437,7 +1576,7 @@ async function finalizeLogin(
 
 function initialData(): Pick<AppState,
   'config' | 'account' | 'devices' | 'selectedDevice' | 'connection' | 'hostDescriptor' | 'codexAvailable' | 'workspaces' |
-  'archivedSessionIds' | 'sessions' | 'selectedSession' | 'messages' | 'sessionModels' | 'modelSelecting' | 'permissionSelecting' |
+  'favoriteWorkspaces' | 'recentWorkspaces' | 'archivedSessionIds' | 'sessions' | 'selectedSession' | 'messages' | 'sessionModels' | 'modelSelecting' | 'permissionSelecting' |
   'historyHasMore' | 'historyLoadingOlder' | 'oldestLoadedSeq' | 'transportPreference' | 'authPhase' | 'refreshing' | 'busyAction' | 'error' |
   'connectionProbeOrder' | 'connectionNetworkDetails' | 'reauthRequired'> {
   return {
@@ -1451,6 +1590,8 @@ function initialData(): Pick<AppState,
     hostDescriptor: undefined,
     codexAvailable: false,
     workspaces: [],
+    favoriteWorkspaces: [],
+    recentWorkspaces: [],
     archivedSessionIds: [],
     sessions: [],
     selectedSession: undefined,

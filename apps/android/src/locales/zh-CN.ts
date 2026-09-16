@@ -24,7 +24,7 @@ const zhCN = {
     signOut: '退出登录', resetLocal: '清除本地数据', resetTitle: '清除此手机上的数据？', resetBody: '将删除服务设置、登录信息和已信任的设备。之后需要重新登录，此操作无法撤销。', reset: '清除数据', signOutTitle: '退出当前账号？', signOutBody: '退出后，需要重新登录才能访问设备。',
   },
   devices: {
-    title: '设备', myDevices: '我的设备', lead: '选择一台设备，继续你的工作', emptyTitle: '还没有可用设备', emptyBody: '在电脑上安装 DSH Remote 插件并登录同一账号，设备就会出现在这里。', options: '管理设备', encrypted: '安全连接',
+    title: '设备', myDevices: '我的设备', lead: '选择一台设备，继续你的工作', footer: '随时继续你的工作。', favorites: '收藏夹', recent: '最近访问', openFavorite: (title: string, device: string) => `打开收藏夹中 ${device} 上的“${title}”`, openRecent: (title: string, device: string) => `打开最近访问的“${title}”（${device}）`, removeFavorite: (title: string) => `从收藏夹移除“${title}”`, emptyTitle: '还没有可用设备', emptyBody: '在电脑上安装 DSH Remote 插件并登录同一账号，设备就会出现在这里。', options: '管理设备', encrypted: '安全连接',
     connectionInterrupted: '连接已断开', trustExplanation: '确认后，此手机会记住这台设备的安全身份。如果身份发生变化，将停止连接以保护你的数据。', trust: '信任并继续', connectReady: '连接后即可查看并继续电脑上的对话。', offlineHelp: '这台设备已离线。请确认电脑上的 DSH Remote 插件正在运行。', secureConnect: '连接设备',
     connectingTitle: '连接设备', connecting: '正在连接', connectionReady: '已就绪', retryConnection: '重新连接', cancelConnection: '取消连接', openInfo: '查看设备和连接信息',
     connectionProbeLabels: {
@@ -55,7 +55,7 @@ const zhCN = {
   workspaces: {
     title: '工作区', create: '新建工作区', type: '工作区类型', dsh: 'DSH', deviceTitle: (name: string) => name, deviceInfo: '设备与连接信息',
     deviceSubtitle: (name: string, status: string) => `${name} · ${status}`, noDevice: '未连接设备',
-    emptyTitle: '还没有工作区', emptyBody: '选择电脑上的项目目录，将相关对话整理在一起。', search: '搜索工作区', clearSearch: '清除搜索', noSearchResults: '没有找到工作区', noSearchResultsBody: '试试搜索其他名称或目录路径。', options: '管理工作区', noSessions: '还没有对话，点击新建', unnamedSession: '未命名对话', codex: 'CodeX',
+    emptyTitle: '还没有工作区', emptyBody: '选择电脑上的项目目录，将相关对话整理在一起。', search: '搜索工作区', clearSearch: '清除搜索', noSearchResults: '没有找到工作区', noSearchResultsBody: '试试搜索其他名称或目录路径。', options: '管理工作区', addFavorite: (title: string) => `将“${title}”加入收藏夹`, removeFavorite: (title: string) => `将“${title}”移出收藏夹`, favoriteUnavailable: '收藏夹中的这个工作区已不在电脑上，可能已被删除。', noSessions: '还没有对话，点击新建', unnamedSession: '未命名对话', codex: 'CodeX',
     deleteTitle: (title: string) => `删除“${title}”？`, deleteBody: '将从这台设备上删除该工作区及其中的所有对话。此操作无法撤销。', delete: '删除工作区', rename: '重命名', moveUp: '上移', moveDown: '下移', expandWorkspace: (title: string) => `展开工作区“${title}”`, collapseWorkspace: (title: string) => `折叠工作区“${title}”`, newSessionIn: (title: string) => `在“${title}”中新建对话`, deviceDirectory: '电脑上的项目目录', browse: '选择目录', directoryHint: '在这里新建的对话会使用该目录。', codexDirectoryHint: '所选目录会添加到电脑端 CodeX 项目目录。', renameTitle: '重命名工作区', namePlaceholder: '输入工作区名称', saveName: '保存', chooseFolder: '选择项目目录', loading: '正在加载…', loadingDirectory: '正在读取目录…', noFolders: '这里没有可选的文件夹', showHidden: '显示隐藏文件夹', hideHidden: '隐藏隐藏文件夹', chooseThisFolder: '使用此目录',
   },
   chat: {

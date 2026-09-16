@@ -9,6 +9,7 @@ import { ConnectionScreen, DeviceDetailScreen, DevicesScreen, SessionsScreen } f
 import { AboutScreen, HomeActionsMenu, ServerSetupScreen, SettingsScreen } from './src/screens/setup-screens'
 import { WorkspacesScreen } from './src/screens/workspaces-screen'
 import { useAppStore } from './src/state/store'
+import type { WorkspaceShortcut } from './src/types'
 import {
   networkRouteForNativeType,
   shouldReconnectForNetworkRoute,
@@ -24,8 +25,8 @@ type Route =
   | { name: 'server' }
   | { name: 'devices' }
   | { name: 'device'; deviceId: string; source?: 'workspaces' }
-  | { name: 'connecting'; deviceId: string }
-  | { name: 'workspaces' }
+  | { name: 'connecting'; deviceId: string; focusWorkspaceKey?: string }
+  | { name: 'workspaces'; focusWorkspaceKey?: string }
   | { name: 'sessions' }
   | { name: 'chat' }
   | { name: 'settings' }
@@ -76,7 +77,6 @@ function AppNavigator() {
   const error = useAppStore(state => state.error)
   const bootstrap = useAppStore(state => state.bootstrap)
   const reconnect = useAppStore(state => state.reconnect)
-  const consumePendingAutoConnect = useAppStore(state => state.consumePendingAutoConnect)
   const reauthRequired = useAppStore(state => state.reauthRequired)
   const setOffline = useAppStore(state => state.setOffline)
   const clearError = useAppStore(state => state.clearError)
@@ -103,8 +103,48 @@ function AppNavigator() {
       : { name: 'device', deviceId: device.deviceId })
   }
 
-  const goHomeWorkspaces = () => reset({ name: 'workspaces' })
+  const goHomeWorkspaces = (focusWorkspaceKey?: string) => reset({
+    name: 'workspaces',
+    ...(focusWorkspaceKey === undefined ? {} : { focusWorkspaceKey }),
+  })
+  // Workspaces is the post-connect home, so its back target is the device list.
+  const backFromWorkspaces = () => {
+    if (routes.length > 1) pop()
+    else reset({ name: 'devices' })
+  }
   const openHomeMenu = () => setHomeMenuOpen(true)
+
+  /**
+   * Saved shortcuts (favorites, or recent visits while Favorites is empty) land
+   * in the conversation itself: open the workspace's most recently updated
+   * session and stack it on top of the workspaces screen so back returns to the
+   * workspace. Workspaces without any conversation yet fall back to revealing
+   * the workspace.
+   */
+  const openShortcutSession = async (workspaceKey: string) => {
+    const session = await useAppStore.getState().openFavoriteWorkspaceSession(workspaceKey)
+    setRoutes(session === undefined
+      ? [{ name: 'workspaces', focusWorkspaceKey: workspaceKey }]
+      : [{ name: 'workspaces', focusWorkspaceKey: workspaceKey }, { name: 'chat' }])
+  }
+
+  // A home-screen shortcut connects to its host first when it is not the current one.
+  const openShortcut = (shortcut: WorkspaceShortcut) => {
+    const device = devices.find(item => item.deviceId === shortcut.deviceId)
+    if (device === undefined) {
+      useAppStore.getState().clearError()
+      useAppStore.setState({ error: zhCN.app.deviceUnavailable })
+      return
+    }
+    if (selectedDevice?.deviceId === device.deviceId
+      && useAppStore.getState().connection.phase === 'connected') {
+      void openShortcutSession(shortcut.key)
+      return
+    }
+    push(device.trusted && device.online
+      ? { name: 'connecting', deviceId: device.deviceId, focusWorkspaceKey: shortcut.key }
+      : { name: 'device', deviceId: device.deviceId })
+  }
 
   useEffect(() => { void bootstrap() }, [bootstrap])
 
@@ -147,14 +187,9 @@ function AppNavigator() {
       reset({ name: 'server' })
       return
     }
-    const autoConnectDeviceId = consumePendingAutoConnect()
-    if (autoConnectDeviceId !== undefined) {
-      reset({ name: 'connecting', deviceId: autoConnectDeviceId })
-      return
-    }
-    // Not yet connected — pick a host first; workspaces becomes home after connect.
+    // Always land on the device list; connecting is an explicit user choice.
     reset({ name: 'devices' })
-  }, [bootPhase, config, consumePendingAutoConnect, reauthRequired])
+  }, [bootPhase, config, reauthRequired])
 
   // Session expired while already navigating — send the user to sign-in.
   useEffect(() => {
@@ -171,7 +206,12 @@ function AppNavigator() {
       }
       // ConnectionScreen owns hardware back (and may swallow it while connecting).
       if (route.name === 'connecting') return false
-      if (routes.length <= 1) return false
+      // The workspaces home steps back to the device list instead of exiting.
+      if (routes.length <= 1) {
+        if (route.name !== 'workspaces') return false
+        reset({ name: 'devices' })
+        return true
+      }
       pop()
       return true
     })
@@ -215,7 +255,7 @@ function AppNavigator() {
     ? devices.find(device => device.deviceId === route.deviceId) ?? selectedDevice
     : undefined
   const devicesIsRoot = route.name === 'devices' && routes.length === 1
-  const homeMenuVisible = homeMenuOpen && route.name === 'workspaces'
+  const homeMenuVisible = homeMenuOpen && (route.name === 'workspaces' || devicesIsRoot)
 
   return (
     <View style={styles.flex}>
@@ -225,6 +265,8 @@ function AppNavigator() {
         <DevicesScreen
           onDevice={openDevice}
           onBack={devicesIsRoot ? undefined : pop}
+          onMore={devicesIsRoot ? openHomeMenu : undefined}
+          onShortcut={devicesIsRoot ? openShortcut : undefined}
         />
       )}
       {route.name === 'connecting' && deviceForRoute !== undefined && (
@@ -234,7 +276,10 @@ function AppNavigator() {
             if (routes.length > 1) pop()
             else reset({ name: 'devices' })
           }}
-          onConnected={goHomeWorkspaces}
+          onConnected={() => {
+            if (route.focusWorkspaceKey === undefined) goHomeWorkspaces()
+            else void openShortcutSession(route.focusWorkspaceKey)
+          }}
         />
       )}
       {route.name === 'connecting' && deviceForRoute === undefined && <MissingRoute onBack={() => reset({ name: 'devices' })} />}
@@ -246,8 +291,10 @@ function AppNavigator() {
       />}
       {route.name === 'device' && deviceForRoute === undefined && <MissingRoute onBack={() => reset({ name: 'devices' })} />}
       {route.name === 'workspaces' && <WorkspacesScreen
+        onBack={backFromWorkspaces}
         onSession={() => push({ name: 'chat' })}
         onMore={openHomeMenu}
+        focusWorkspaceKey={route.focusWorkspaceKey}
         onDeviceInfo={() => {
           if (selectedDevice !== undefined) push({ name: 'device', deviceId: selectedDevice.deviceId, source: 'workspaces' })
         }}

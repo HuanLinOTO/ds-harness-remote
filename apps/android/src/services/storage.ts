@@ -5,13 +5,14 @@ import * as Device from 'expo-device'
 import * as SecureStore from 'expo-secure-store'
 import { isLanguagePreference, type LanguagePreference } from '../locales/i18n'
 import { isThemePreference, type ThemePreference } from '../ui/theme'
-import type { CodexPermissionPreset, DeviceCredentials, DeviceIdentity, RemoteDevice, ServerConfig } from '../types'
+import type { AgentBackend, CodexPermissionPreset, DeviceCredentials, DeviceIdentity, RemoteDevice, ServerConfig, WorkspaceShortcut } from '../types'
 
 const KEYS = {
   config: 'dshremote.server.v1',
   identity: 'dshremote.identity.v1',
   credentials: 'dshremote.credentials.v1',
   trustedHosts: 'dshremote.trusted-hosts.v1',
+  /** Remembered host for `resolveAutoConnectDevice`; boot routing no longer consumes it. */
   lastConnectedDeviceId: 'dshremote.last-connected-device.v1',
   transportPreference: 'dshremote.transport-preference.v1',
   languagePreference: 'dshremote.language-preference.v1',
@@ -19,6 +20,8 @@ const KEYS = {
   collapsedWorkspaces: 'dshremote.collapsed-workspaces.v1',
   workspaceBackends: 'dshremote.workspace-backends.v1',
   codexPermissionPresets: 'dshremote.codex-permission-presets.v1',
+  favoriteWorkspaces: 'dshremote.favorite-workspaces.v1',
+  recentWorkspaces: 'dshremote.recent-workspaces.v1',
 } as const
 
 const secureOptions: SecureStore.SecureStoreOptions = {
@@ -103,6 +106,31 @@ export async function saveLastConnectedDeviceId(deviceId: string): Promise<void>
 
 export async function clearLastConnectedDeviceId(): Promise<void> {
   await SecureStore.deleteItemAsync(KEYS.lastConnectedDeviceId, secureOptions)
+}
+
+export async function loadFavoriteWorkspaces(): Promise<WorkspaceShortcut[]> {
+  return loadWorkspaceShortcuts(KEYS.favoriteWorkspaces)
+}
+
+export async function saveFavoriteWorkspaces(items: readonly WorkspaceShortcut[]): Promise<void> {
+  await writeJson(KEYS.favoriteWorkspaces, { items })
+}
+
+export async function loadRecentWorkspaces(): Promise<WorkspaceShortcut[]> {
+  return loadWorkspaceShortcuts(KEYS.recentWorkspaces)
+}
+
+export async function saveRecentWorkspaces(items: readonly WorkspaceShortcut[]): Promise<void> {
+  await writeJson(KEYS.recentWorkspaces, { items })
+}
+
+async function loadWorkspaceShortcuts(key: string): Promise<WorkspaceShortcut[]> {
+  const stored = await readJson<{ items?: unknown }>(key)
+  if (!Array.isArray(stored?.items)) return []
+  return stored.items.flatMap(item => {
+    const shortcut = workspaceShortcut(item)
+    return shortcut === undefined ? [] : [shortcut]
+  })
 }
 
 export async function loadTransportPreference(): Promise<import('../types').TransportPreference> {
@@ -225,6 +253,28 @@ async function writeJson(key: string, value: unknown): Promise<void> {
 
 function codexPermissionPreset(value: unknown): CodexPermissionPreset | undefined {
   return value === 'workspace-write' || value === 'danger-full-access' ? value : undefined
+}
+
+function workspaceShortcut(value: unknown): WorkspaceShortcut | undefined {
+  if (!isRecord(value)) return undefined
+  const { deviceId, deviceName, key, workspaceId, backend, title, path, addedAt } = value
+  if (typeof deviceId !== 'string' || deviceId.trim() === '') return undefined
+  if (typeof key !== 'string' || key.trim() === '') return undefined
+  if (typeof workspaceId !== 'string' || typeof title !== 'string' || typeof path !== 'string') return undefined
+  return {
+    deviceId,
+    deviceName: typeof deviceName === 'string' ? deviceName : '',
+    key,
+    workspaceId,
+    backend: agentBackend(backend),
+    title,
+    path,
+    addedAt: typeof addedAt === 'number' && Number.isFinite(addedAt) ? addedAt : 0,
+  }
+}
+
+function agentBackend(value: unknown): AgentBackend {
+  return value === 'codex' ? 'codex' : 'harness'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

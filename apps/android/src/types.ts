@@ -97,6 +97,21 @@ export interface WorkspaceList {
   archivedSessionIds: string[]
 }
 
+/** Locally remembered workspace shortcut: a favorite, or a recently visited workspace. */
+export interface WorkspaceShortcut {
+  deviceId: string
+  /** Host name snapshot so the link still renders while the device is offline. */
+  deviceName: string
+  /** Durable identity from `workspaceStableKey`; survives CodeX project id changes. */
+  key: string
+  workspaceId: string
+  backend: AgentBackend
+  title: string
+  path: string
+  /** When this shortcut was recorded: favorited time, or last visit for recent items. */
+  addedAt: number
+}
+
 export interface DirectoryEntry {
   name: string
   path: string

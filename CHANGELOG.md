@@ -29,10 +29,13 @@
 - Publishes the `harnessCapabilities` constant from protocol §17, documents the
   control extensions, marks `webrtcEnabled` as an implementation extension, and
   adds the `HARNESS_VERSION_INCOMPATIBLE` and `RESPONSE_TOO_LARGE` error codes.
-- Android: remembers the last connected Host and reconnects to it automatically,
-  treats workspaces as the post-connect home with devices as a secondary page,
-  returns expired sessions to sign-in, and aligns assistant activity, reasoning,
-  and answer text on one left edge.
+- Android: opens on the device list titled `DSH Remote` instead of connecting to
+  the remembered Host on launch (`resolveAutoConnectDevice` is kept but no longer
+  routed), adds per-host workspace favorites shown as home-screen links that
+  connect and open the workspace's latest conversation, falls back to the three
+  most recently visited workspaces while Favorites is empty, shows the device and
+  transport as the workspaces header with back navigation, and aligns assistant
+  activity, reasoning, and answer text on one left edge.
 - Advances the Plugin, VS Code extension, and Android app to `0.4.14`
   (`versionCode 31`).
 
