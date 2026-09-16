@@ -1,7 +1,7 @@
 # TODO
 
-本清单按 2026-09-10 的兼容方向维护：Harness v0.1.1 rc.2 使用官方 ApiProxy，
-v0.1.2 alpha.1–rc.1 使用既有 Typert Remote Gateway，v0.1.5 rc.1 作为 Session V3
+本清单按 2026-09-16 的兼容方向维护：Harness v0.1.1 rc.2 使用官方 ApiProxy，
+v0.1.2 alpha.1–rc.1 使用既有 Typert Remote Gateway，v0.1.5 rc.1 / v0.1.6 alpha.1 作为 Session V3
 兼容目标。Android 与 VS Code Client 通过 capability 探测兼容这些 Host carrier；Server、Remote Web 和 Admin 只在独立
 Server 仓库实现。
 
@@ -40,6 +40,8 @@ transport 状态机；普通 UI、文案和辅助脚本不单独补测试。
 - [x] 分别用 `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1` 与 `dsh-v0.1.2-alpha.2` 跑通双机 Workspace/Session/Prompt/approval E2E，并验证混合代际在 mutation 前拒绝
 - [ ] 用 `dsh-v0.1.2-rc.1` 补跑 Desktop/dsh-TUI 跨机 Workspace/Session/Prompt/approval E2E 与长期稳定性回归
 - [ ] 用 `dsh-v0.1.5-rc.1` 补跑 Desktop/dsh-TUI 跨机 Workspace/Session/Prompt/approval、CodeX replacement/stream、重连 E2E 与长期稳定性回归
+- [x] 用独立 `dsh-v0.1.6-alpha.1` 实例跑通 Web → Host 主链路（Plugin 树加载、Host identity、Codex 域与 client bundle 下发）
+- [ ] 用 `dsh-v0.1.6-alpha.1` 补跑 Desktop/dsh-TUI 跨机 Workspace/Session/Prompt/approval、CodeX replacement/stream、重连 E2E 与长期稳定性回归
 - [x] 用两台真实 Harness + 外部 Server 跑通同账号授权、选择 Remote、创建/继续会话
 - [x] 验证原生 mux/host stream、approval/question respond 与断线关闭行为
 - [x] 用手机 Web 与电脑 Web 同时连接一个真实 Host，验证并发操作、同设备重连和流隔离

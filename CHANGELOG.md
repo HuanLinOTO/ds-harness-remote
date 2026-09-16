@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.4.14
+
+- Adds configurable ACP (Agent Client Protocol) IDE backends. The Plugin carries a
+  backend-neutral `AcpGateway` plus a stdio JSON-RPC adapter, exposes the
+  `agent.acp.v1` capability with bounded prompt and update limits, and lets the
+  Remote settings surface enable, add, and probe backends (Codex, Cursor, Kimi,
+  or a custom command). ACP is enabled by default but gated on an availability
+  check, so a missing CLI reports `not installed` instead of failing the Host.
+- Shows Host-side connected Clients in the Remote host picker as a
+  `{count} connected` pill next to Refresh, with a dropdown that lists the peers
+  and their platform, instead of a standalone settings card.
+- Adds experimental DeepSeek Harness `dsh-v0.1.6-alpha.1` support to the Plugin
+  and its Host/Remote carriers. `0.1.6` builds report patch `6`, so they already
+  select the established v0.1.5 Session V3 Typert Remote Gateway profile and need
+  no additional wire-format adapter or version branch.
+- Extends the DSH peer dependency matrix to `>=0.1.5-alpha.1` and drops the
+  `0.1.5-rc.1` upper bound, so the `0.1.6` line resolves as supported instead of
+  being rejected by peer validation. The range is intentionally left open-ended.
+- Moves the Plugin development, type-check, and test baseline to
+  `@deepseek-ai/dsh-*@0.1.6-alpha.1`.
+- Verifies the Web → Host main path against a standalone
+  `dsh-v0.1.6-alpha.1` instance running the local Plugin build. Cross-machine,
+  CodeX, Android, VS Code, and WebRTC coverage on `0.1.6` is outside this
+  verification set and stays tracked in `TODO.md`.
+- Selects the command attachment field by Host version, so `dsh-commands` 0.1.2
+  (`images`) and the newer attachment field both round-trip image prompts.
+- Publishes the `harnessCapabilities` constant from protocol §17, documents the
+  control extensions, marks `webrtcEnabled` as an implementation extension, and
+  adds the `HARNESS_VERSION_INCOMPATIBLE` and `RESPONSE_TOO_LARGE` error codes.
+- Android: remembers the last connected Host and reconnects to it automatically,
+  treats workspaces as the post-connect home with devices as a secondary page,
+  returns expired sessions to sign-in, and aligns assistant activity, reasoning,
+  and answer text on one left edge.
+- Advances the Plugin, VS Code extension, and Android app to `0.4.14`
+  (`versionCode 31`).
+
 ## 0.4.13
 
 - Registers the Remote loopback control route directly on the DSH web server

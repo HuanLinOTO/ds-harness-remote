@@ -771,7 +771,7 @@ carrier 或 Session 代际不一致时，Desktop Client 必须在选择目标、
 | `0.3.24–0.3.36` / rc.2 | `harness.api.v1` | 支持 | provider 存在时支持 | `harness.api.transfer.v1` |
 | `0.4.x` / rc.2 | capability 探测返回 `harness.api.v1` | 支持 | provider 存在时支持 | `harness.api.transfer.v1` |
 | `0.4.x` / v0.1.2 alpha.1–rc.1 | capability 探测返回 `harness.remote.v1` | 支持 | provider 存在时支持 | `harness.remote.transfer.v1` |
-| `0.4.12+` / v0.1.5 rc.1 | capability 探测返回 `harness.remote.v3` | 支持 | provider 存在时支持 | `harness.remote.transfer.v1` |
+| `0.4.12+` / v0.1.5 rc.1 与 v0.1.6 alpha.1 | capability 探测返回 `harness.remote.v3` | 支持 | provider 存在时支持 | `harness.remote.transfer.v1` |
 
 未知版本按 `0.3.15` 之前的能力处理。未来 Server 暴露 Host capability 后，应优先使用
 capability，`clientVersion` 仅保留为旧 Server 的兼容路径。

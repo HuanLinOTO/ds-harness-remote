@@ -1,77 +1,107 @@
 ## English
 
-`v0.4.13` is the cumulative upgrade from `v0.4.10` to the current DeepSeek
-Harness compatibility line. The main change is support for the latest
-`dsh-v0.1.5-rc.1` Session V3 stack, while keeping the existing rc.2 ApiProxy and
-v0.1.2 Typert Remote paths available where they are still needed. It contains
-the changes since `v0.4.10` ([full comparison](https://github.com/liguobao/ds-harness-remote/compare/v0.4.10...v0.4.13)).
+`v0.4.14` is the cumulative upgrade from `v0.4.13`. It adds configurable ACP
+(Agent Client Protocol) IDE backends, surfaces connected Clients in the Remote
+host picker, and extends DeepSeek Harness compatibility to the
+`dsh-v0.1.6-alpha.1` line. It contains the changes since `v0.4.13`
+([full comparison](https://github.com/liguobao/ds-harness-remote/compare/v0.4.13...v0.4.14)).
 
 ### What changed
 
-- Adds `dsh-v0.1.5-rc.1` Session V3 support across the Plugin, Android app, and
-  VS Code Typert client.
-- Extends the DSH peer dependency matrix through `0.1.5-rc.1` while keeping
-  `dsh-v0.1.1-rc.2` on the official legacy ApiProxy path and
-  `dsh-v0.1.2-alpha.1` through `dsh-v0.1.2-rc.1` on the official Typert Remote
-  Gateway path.
-- Normalizes released sessions that still report the retired
-  `agentPreset: "code"` to `ptc`, so old Remote sessions can resume on
-  `dsh-v0.1.5-rc.1` without patching DeepSeek Harness itself.
-- Restores compatibility around mixed client generations: Hosts with Session V3
-  and ApiProxy advertise both carriers for older Remote Web clients, while
-  Session V3 Desktop clients can open legacy v0.1.2 Typert Remote Hosts through
-  Remote-side history and event normalization.
-- Registers the Remote loopback control route directly on the newer DSH web
-  server when available, preserving the same request rejection checks.
-- Synchronizes the Plugin and Android app at version `0.4.13` with Android
-  `versionCode 30`.
+- Adds configurable ACP IDE backends: a backend-neutral `AcpGateway`, a stdio
+  JSON-RPC adapter, the `agent.acp.v1` capability with bounded prompt and update
+  limits, and a Remote settings surface to enable, add, and probe backends
+  (Codex, Cursor, Kimi, or a custom command). ACP is on by default but gated on
+  an availability check, so a missing CLI reports `not installed` instead of
+  failing the Host.
+- Shows Host-side connected Clients as a `{count} connected` pill next to
+  Refresh in the Remote host picker, with a dropdown listing the peers and their
+  platform.
+- Adds experimental `dsh-v0.1.6-alpha.1` support. A `0.1.6` Host reports patch
+  `6`, which already selects the v0.1.5 Session V3 Typert Remote Gateway profile,
+  so no wire-format adapter or version branch was needed.
+- Extends the DSH peer dependency matrix to `>=0.1.5-alpha.1` and drops the
+  `0.1.5-rc.1` upper bound. The range is intentionally left open-ended.
+- Selects the command attachment field by Host version, so `dsh-commands` 0.1.2
+  (`images`) and newer builds both round-trip image prompts.
+- Publishes the `harnessCapabilities` constant from protocol §17, documents the
+  control extensions, marks `webrtcEnabled` as an implementation extension, and
+  adds the `HARNESS_VERSION_INCOMPATIBLE` and `RESPONSE_TOO_LARGE` error codes.
+- Android: remembers the last connected Host and reconnects automatically,
+  treats workspaces as the post-connect home with devices as a secondary page,
+  returns expired sessions to sign-in, and aligns assistant activity, reasoning,
+  and answer text on one left edge.
+- Synchronizes the Plugin, VS Code extension, and Android app at version
+  `0.4.14` with Android `versionCode 31`.
+
+### Verification
+
+- `pnpm -r check`, `pnpm -r test`, `node scripts/verify-dsh-plugin.mjs`, and a
+  frozen-lockfile install all pass on this tag.
+- The Web → Host main path was verified against a standalone
+  `dsh-v0.1.6-alpha.1` instance running this Plugin build. Cross-machine, CodeX,
+  Android, VS Code, and WebRTC coverage on `0.1.6` remains tracked in `TODO.md`.
 
 ### Install and downloads
 
 Install through DSH's plugin manager:
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.13
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.13
+dsh plugin --profile web add ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
 ```
 
-- [npm package](https://www.npmjs.com/package/ds-harness-remote/v/0.4.13)
-- [Android APK](https://github.com/liguobao/ds-harness-remote/releases/download/v0.4.13/dsh-remote-android-v0.4.13.apk)
+- [npm package](https://www.npmjs.com/package/ds-harness-remote/v/0.4.14)
+- [Android APK](https://github.com/liguobao/ds-harness-remote/releases/download/v0.4.14/dsh-remote-android-v0.4.14.apk)
 - Release assets also include the npm tarball and `SHA256SUMS.txt`.
 
 ## 中文
 
-`v0.4.13` 是从 `v0.4.10` 升级到当前 DeepSeek Harness 兼容线的累计版本。主要变化是
-兼容最新的 `dsh-v0.1.5-rc.1` Session V3，同时保留既有 rc.2 ApiProxy 与 v0.1.2 Typert
-Remote 路径。本版本包含自 `v0.4.10` 以来的改动（[完整对比](https://github.com/liguobao/ds-harness-remote/compare/v0.4.10...v0.4.13)）。
+`v0.4.14` 是从 `v0.4.13` 升级的累计版本。新增可配置的 ACP（Agent Client Protocol）
+IDE backend、在 Remote Host 选择器里显示已连接 Client，并把 DeepSeek Harness 兼容线
+扩展到 `dsh-v0.1.6-alpha.1`。本版本包含自 `v0.4.13` 以来的改动
+（[完整对比](https://github.com/liguobao/ds-harness-remote/compare/v0.4.13...v0.4.14)）。
 
 ### 主要变更
 
-- Plugin、Android App 和 VS Code Typert Client 都已支持 `dsh-v0.1.5-rc.1`
-  Session V3。
-- DSH peer dependency 矩阵扩展到 `0.1.5-rc.1`；同时保留 `dsh-v0.1.1-rc.2`
-  的官方 legacy ApiProxy 路径，以及 `dsh-v0.1.2-alpha.1` 到
-  `dsh-v0.1.2-rc.1` 的官方 Typert Remote Gateway 路径。
-- Remote 会把已发布旧会话中仍然上报的已退役 `agentPreset: "code"` 归一为
-  `ptc`，因此旧 Remote 会话可以在 `dsh-v0.1.5-rc.1` 上恢复，而无需修改
-  DeepSeek Harness 本身。
-- 修复不同 Client 代际之间的兼容细节：同时具备 Session V3 与 ApiProxy 的 Host 会继续
-  发布两种 carrier，便于旧 Remote Web Client 选择 rc.2 路径；Session V3 Desktop
-  Client 也可以通过 Remote 侧 history/event 归一化打开 legacy v0.1.2 Typert Remote
-  Host。
-- 在新版 DSH web server 可用时直接注册 Remote loopback control route，同时保留相同的
-  request rejection 检查。
-- Plugin 与 Android App 版本统一更新为 `0.4.13`，Android `versionCode` 更新为 `30`。
+- 新增可配置 ACP IDE backend：后端中立的 `AcpGateway`、stdio JSON-RPC 适配器、
+  带 prompt/update 上限的 `agent.acp.v1` capability，以及在 Remote 设置面板中启用、
+  新增和探测 backend（Codex、Cursor、Kimi 或自定义命令）。ACP 默认开启，但以可用性
+  检测为前提，CLI 缺失时显示 `not installed` 而不会让 Host 加载失败。
+- Remote Host 选择器在 Refresh 旁以 `{count} connected` pill 显示 Host 侧已连接的
+  Client，下拉可查看 peers 及其平台。
+- 新增实验性 `dsh-v0.1.6-alpha.1` 支持。`0.1.6` Host 上报的 patch 为 `6`，本身就会
+  选中 v0.1.5 Session V3 Typert Remote Gateway profile，因此不需要 wire format
+  适配层或版本分支。
+- DSH peer dependency 矩阵扩展到 `>=0.1.5-alpha.1`，并去掉 `0.1.5-rc.1` 上界；
+  该范围有意保持开放。
+- 按 Host 版本选择命令附件字段，使 `dsh-commands` 0.1.2（`images`）与更新版本都能
+  正常往返图片 Prompt。
+- 补齐协议 §17 的 `harnessCapabilities` 常量，补充 control extensions 文档，把
+  `webrtcEnabled` 标注为实现扩展，并新增 `HARNESS_VERSION_INCOMPATIBLE` 与
+  `RESPONSE_TOO_LARGE` 错误码。
+- Android：记住上次连接的 Host 并自动重连，连接后以 workspace 为主页、设备列表降为
+  次级页面，过期会话跳回登录，并把 assistant activity、reasoning 与回答正文对齐到同一条
+  左边缘。
+- Plugin、VS Code Extension 与 Android App 版本统一更新为 `0.4.14`，Android
+  `versionCode` 更新为 `31`。
+
+### 验证
+
+- 该 tag 上 `pnpm -r check`、`pnpm -r test`、`node scripts/verify-dsh-plugin.mjs`
+  与 frozen-lockfile 安装全部通过。
+- Web → Host 主链路已在独立 `dsh-v0.1.6-alpha.1` 实例 + 本 Plugin 构建上验证。
+  `0.1.6` 的跨机、CodeX、Android、VS Code 与 WebRTC 覆盖仍记录在 `TODO.md`。
 
 ### 安装与下载
 
 请通过 DSH Plugin 管理器安装：
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.13
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.13
+dsh plugin --profile web add ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
 ```
 
-- [npm 包](https://www.npmjs.com/package/ds-harness-remote/v/0.4.13)
-- [Android APK](https://github.com/liguobao/ds-harness-remote/releases/download/v0.4.13/dsh-remote-android-v0.4.13.apk)
+- [npm 包](https://www.npmjs.com/package/ds-harness-remote/v/0.4.14)
+- [Android APK](https://github.com/liguobao/ds-harness-remote/releases/download/v0.4.14/dsh-remote-android-v0.4.14.apk)
 - Release 附件还包括 npm tarball 与 `SHA256SUMS.txt`。
