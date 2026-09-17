@@ -114,6 +114,12 @@ export function IconButton({ label, icon: Icon, onPress, disabled = false, tint,
   disabled?: boolean
   /** Overrides the default `ink` glyph color, e.g. to mark an active toggle. */
   tint?: string
+  /**
+   * Fills closed icon paths; defaults to `none`. Passing an undefined `fill`
+   * through to lucide would clobber its `fill: none` default, and
+   * `react-native-svg` then falls back to the SVG spec default of black, which
+   * paints solid interiors in the light theme.
+   */
   fill?: string
   /** Tighter 40dp box for rows with several trailing actions; hitSlop keeps a 48dp target. */
   dense?: boolean
@@ -134,7 +140,7 @@ export function IconButton({ label, icon: Icon, onPress, disabled = false, tint,
         disabled && styles.disabled,
       ]}
     >
-      <Icon size={dense ? 20 : 21} color={tint ?? colors.ink} fill={fill} strokeWidth={2} />
+      <Icon size={dense ? 20 : 21} color={tint ?? colors.ink} fill={fill ?? 'none'} strokeWidth={2} />
     </Pressable>
   )
 }
