@@ -35,9 +35,10 @@ host picker, and extends DeepSeek Harness compatibility to the
   transport as the workspaces header with back navigation, and aligns assistant
   activity, reasoning, and answer text on one left edge.
 - Android: offers the conversation quick actions (review changes, commit,
-  review screenshot) in Harness conversations as well as CodeX ones, and tints
-  the create buttons with the accent color so the plus is no longer a
-  near-black circle in the light theme.
+  review screenshot) in Harness conversations as well as CodeX ones, and stops
+  icon buttons from painting solid black interiors in the light theme (the plus
+  showed up as a filled black circle); the create buttons now use the accent
+  tint.
 - Synchronizes the Plugin, VS Code extension, and Android app at version
   `0.4.14` with Android `versionCode 31`.
 
