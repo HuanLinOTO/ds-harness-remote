@@ -37,10 +37,11 @@
   transport as the workspaces header with back navigation, and aligns assistant
   activity, reasoning, and answer text on one left edge.
 - Android: offers the conversation quick actions (review changes, commit,
-  review screenshot) in Harness conversations as well as CodeX ones, and stops
-  icon buttons from painting solid black interiors in the light theme (the plus
-  showed up as a filled black circle); the create buttons now use the accent
-  tint.
+  review screenshot) in Harness conversations as well as CodeX ones, stops icon
+  buttons from painting solid black interiors in the light theme (the plus showed
+  up as a filled black circle) with the create buttons now using the accent tint,
+  and keeps the remembered workspace collapse when a home-screen shortcut opens
+  the list.
 - Advances the Plugin, VS Code extension, and Android app to `0.4.14`
   (`versionCode 31`).
 
