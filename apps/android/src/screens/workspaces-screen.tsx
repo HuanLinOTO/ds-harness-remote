@@ -49,6 +49,13 @@ export function WorkspacesScreen({ onBack, onSession, onDeviceInfo, onMore, focu
   const workspaceOffsets = useRef(new Map<string, number>())
   const pendingScrollKey = useRef<string | undefined>(undefined)
   const focusApplied = useRef(false)
+  /**
+   * Keys a home-screen shortcut revealed. They stay expanded for this screen
+   * without rewriting the collapsed set the user actually chose.
+   */
+  const revealedKeys = useRef<readonly string[]>([])
+  /** Guards saves so an unloaded (empty) set can never overwrite the stored one. */
+  const collapsedLoaded = useRef(false)
   const { colors } = useTheme()
   const styles = useThemedStyles(createStyles)
 
@@ -58,14 +65,20 @@ export function WorkspacesScreen({ onBack, onSession, onDeviceInfo, onMore, focu
     setActiveBackend(initialWorkspaceBackend(workspaces, codexAvailable))
     setSearchQuery('')
     setCollapsedWorkspaceIds(new Set())
+    collapsedLoaded.current = false
     if (deviceId === undefined) return () => { cancelled = true }
     void loadWorkspaceBackend(deviceId).then(backend => {
       // A home-screen shortcut owns the visible tab on the first render.
       if (!cancelled && !focusApplied.current && backend !== undefined && (backend !== 'codex' || codexAvailable)) setActiveBackend(backend)
     })
     void loadCollapsedWorkspaceIds(deviceId).then(workspaceIds => {
-      // The shortcut expand below must not be undone by the stored snapshot.
-      if (!cancelled && !focusApplied.current) setCollapsedWorkspaceIds(new Set(workspaceIds))
+      if (cancelled) return
+      const next = new Set(workspaceIds)
+      // The stored snapshot still applies to every other workspace, so entering
+      // through a shortcut no longer forgets the remembered collapse state.
+      for (const key of revealedKeys.current) next.delete(key)
+      collapsedLoaded.current = true
+      setCollapsedWorkspaceIds(next)
     })
     return () => { cancelled = true }
   }, [selectedDevice?.deviceId])
@@ -103,13 +116,12 @@ export function WorkspacesScreen({ onBack, onSession, onDeviceInfo, onMore, focu
     const backend = workspace.backend === 'codex' ? 'codex' : 'harness'
     setSearchQuery('')
     if (backend !== activeBackend) selectBackend(backend)
+    // Revealing is in-memory only: persisting here used to save a set that had
+    // not loaded yet, which erased the remembered collapse list for this Host.
+    revealedKeys.current = [focusWorkspaceKey, workspace.workspaceId]
     setCollapsedWorkspaceIds(current => {
       const next = new Set(current)
-      next.delete(focusWorkspaceKey)
-      // Remove the pre-path-key value when migrating an existing install.
-      next.delete(workspace.workspaceId)
-      const deviceId = selectedDevice?.deviceId
-      if (deviceId !== undefined) void saveCollapsedWorkspaceIds(deviceId, [...next])
+      for (const key of revealedKeys.current) next.delete(key)
       return next
     })
     setFocusedWorkspaceKey(focusWorkspaceKey)
@@ -141,7 +153,9 @@ export function WorkspacesScreen({ onBack, onSession, onDeviceInfo, onMore, focu
       next.add(key)
     }
     const deviceId = selectedDevice?.deviceId
-    if (deviceId !== undefined) void saveCollapsedWorkspaceIds(deviceId, [...next])
+    // Skipping the write until the stored snapshot is in keeps a fast toggle from
+    // saving a set that has not loaded yet and dropping the rest.
+    if (deviceId !== undefined && collapsedLoaded.current) void saveCollapsedWorkspaceIds(deviceId, [...next])
     return next
   })
 
