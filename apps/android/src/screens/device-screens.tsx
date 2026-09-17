@@ -458,7 +458,7 @@ export function SessionsScreen({ onBack, onSession }: { onBack: () => void; onSe
       <TopBar
         title={zhCN.sessions.title}
         onBack={onBack}
-        action={<IconButton label={zhCN.sessions.new} icon={CirclePlus} onPress={() => void createSession()} disabled={creating} />}
+        action={<IconButton label={zhCN.sessions.new} icon={CirclePlus} tint={colors.primary} onPress={() => void createSession()} disabled={creating} />}
       />
       <Screen>
         <View style={styles.pageHeading}>

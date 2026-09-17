@@ -214,7 +214,7 @@ export function WorkspacesScreen({ onBack, onSession, onDeviceInfo, onMore, focu
         onBack={onBack}
         action={(
           <View style={styles.topBarActions}>
-            <IconButton label={zhCN.workspaces.create} icon={CirclePlus} onPress={() => setCreateOpen(true)} />
+            <IconButton label={zhCN.workspaces.create} icon={CirclePlus} tint={colors.primary} onPress={() => setCreateOpen(true)} />
             {onMore !== undefined && (
               <IconButton label={zhCN.settings.more} icon={MoreVertical} onPress={onMore} />
             )}
@@ -346,7 +346,7 @@ export function WorkspacesScreen({ onBack, onSession, onDeviceInfo, onMore, focu
                         fill={favorited ? colors.primary : 'none'}
                         onPress={() => toggleFavorite(workspace)}
                       />
-                      <IconButton dense label={zhCN.workspaces.newSessionIn(workspace.title)} icon={CirclePlus} onPress={() => void createInWorkspace(workspace.workspaceId)} />
+                      <IconButton dense label={zhCN.workspaces.newSessionIn(workspace.title)} icon={CirclePlus} tint={colors.primary} onPress={() => void createInWorkspace(workspace.workspaceId)} />
                       {workspace.backend !== 'codex' && <IconButton dense label={zhCN.workspaces.options} icon={MoreVertical} onPress={() => setActionsTarget(workspace)} />}
                     </View>
                   </View>
