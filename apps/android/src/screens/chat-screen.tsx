@@ -313,7 +313,7 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
       />
 
       <View style={styles.composerWrap}>
-        {session.backend === 'codex' && <ScrollView
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
@@ -341,7 +341,7 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
               ]}>{label}</Text>}
             </Pressable>
           ))}
-        </ScrollView>}
+        </ScrollView>
         {images.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageTray}>
             {images.map((image, index) => (
