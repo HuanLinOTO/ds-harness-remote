@@ -13,6 +13,16 @@ $serviceName = if ($env:DSH_SERVICE_NAME) { $env:DSH_SERVICE_NAME } else { 'DSHR
 
 function Say([string]$Message) { Write-Host "[dsh-install] $Message" }
 
+# npm's global .ps1 shims (dsh.ps1, ds-harness-remote.ps1, ...) are blocked under
+# the default Restricted policy ("在此系统上禁止运行脚本"), so relax it for the
+# current user only. RemoteSigned still blocks unsigned scripts downloaded from
+# the network; locally created npm shims run fine.
+$policy = Get-ExecutionPolicy
+if ($policy -in @('Restricted', 'AllSigned')) {
+  Say 'Setting PowerShell execution policy to RemoteSigned for the current user (required by npm command shims)'
+  Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+}
+
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64') { 'arm64' } else { 'x64' }
   $nodeHome = if ($env:DSH_NODE_HOME) { $env:DSH_NODE_HOME } else { Join-Path $env:LOCALAPPDATA "dsh-node\node-v$nodeVersion-win-$arch" }
