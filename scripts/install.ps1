@@ -42,9 +42,13 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { throw 'npm was not found next to Node.js.' }
 Say "Installing @deepseek-ai/dsh ($dshVersion)"
 npm.cmd --registry $registry install --global "@deepseek-ai/dsh@$dshVersion"
+Say "Installing ds-harness-remote CLI ($remoteVersion)"
+npm.cmd --registry $registry install --global "ds-harness-remote@$remoteVersion"
+$remotePackageDir = Join-Path ((npm.cmd root --global).Trim()) 'ds-harness-remote'
+if (-not (Test-Path (Join-Path $remotePackageDir 'package.json'))) { throw "Global ds-harness-remote package was not found at $remotePackageDir" }
 Say "Adding ds-harness-remote@$remoteVersion to the $profile profile"
 $env:npm_config_registry = $registry
-dsh.cmd plugin --profile $profile add "ds-harness-remote@$remoteVersion"
+dsh.cmd plugin --profile $profile add $remotePackageDir
 Say "Adding dsh-file-viewer@$fileViewerVersion to the $profile profile"
 dsh.cmd plugin --profile $profile add "dsh-file-viewer@$fileViewerVersion"
 Say 'Installation complete. Restart DSH to load the plugins.'

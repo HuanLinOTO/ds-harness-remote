@@ -20,4 +20,7 @@ if command -v dsh >/dev/null 2>&1; then
   dsh plugin --profile "$DSH_PROFILE" remove ds-harness-remote >/dev/null 2>&1 || true
   dsh plugin --profile "$DSH_PROFILE" remove dsh-file-viewer >/dev/null 2>&1 || true
 fi
-printf '[dsh-install] Removed service and plugins from the %s profile. Node.js and credentials were kept.\n' "$DSH_PROFILE"
+if command -v npm >/dev/null 2>&1; then
+  npm uninstall --global ds-harness-remote @deepseek-ai/dsh >/dev/null 2>&1 || true
+fi
+printf '[dsh-install] Removed service, CLI, and plugins from the %s profile. Node.js and credentials were kept.\n' "$DSH_PROFILE"

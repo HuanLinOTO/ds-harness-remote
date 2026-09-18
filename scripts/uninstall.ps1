@@ -9,4 +9,7 @@ if (Get-Command dsh.cmd -ErrorAction SilentlyContinue) {
   dsh.cmd plugin --profile $profile remove ds-harness-remote *> $null
   dsh.cmd plugin --profile $profile remove dsh-file-viewer *> $null
 }
-Write-Host "[dsh-install] Removed service and plugins from the $profile profile. Node.js and credentials were kept."
+if (Get-Command npm.cmd -ErrorAction SilentlyContinue) {
+  npm.cmd uninstall --global ds-harness-remote @deepseek-ai/dsh *> $null
+}
+Write-Host "[dsh-install] Removed service, CLI, and plugins from the $profile profile. Node.js and credentials were kept."

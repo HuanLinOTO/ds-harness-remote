@@ -101,6 +101,13 @@ Windows PowerShell 对应命令：
 irm https://dsh.r2049.cn/uninstall.ps1 | iex
 ```
 
+安装脚本也会将 `ds-harness-remote` CLI 放到 `PATH`，可以直接在终端登录：
+
+```sh
+ds-harness-remote login zhihu
+ds-harness-remote status
+```
+
 ### 方式 C：已有 DSH 环境
 
 通过 DSH 插件管理命令，将确切版本加入 `web` profile：

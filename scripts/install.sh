@@ -51,9 +51,13 @@ command -v npm >/dev/null 2>&1 || die 'npm was not found next to Node.js.'
 
 say "Installing @deepseek-ai/dsh (${DSH_VERSION})"
 npm --registry "$NPM_REGISTRY" install --global "@deepseek-ai/dsh@${DSH_VERSION}"
+say "Installing ds-harness-remote CLI (${REMOTE_VERSION})"
+npm --registry "$NPM_REGISTRY" install --global "ds-harness-remote@${REMOTE_VERSION}"
+REMOTE_PACKAGE_DIR="$(npm root --global)/ds-harness-remote"
+[[ -f "$REMOTE_PACKAGE_DIR/package.json" ]] || die "Global ds-harness-remote package was not found at $REMOTE_PACKAGE_DIR"
 
 say "Adding ds-harness-remote@${REMOTE_VERSION} to the ${DSH_PROFILE} profile"
-npm_config_registry="$NPM_REGISTRY" dsh plugin --profile "$DSH_PROFILE" add "ds-harness-remote@${REMOTE_VERSION}"
+dsh plugin --profile "$DSH_PROFILE" add "$REMOTE_PACKAGE_DIR"
 say "Adding dsh-file-viewer@${FILE_VIEWER_VERSION} to the ${DSH_PROFILE} profile"
 npm_config_registry="$NPM_REGISTRY" dsh plugin --profile "$DSH_PROFILE" add "dsh-file-viewer@${FILE_VIEWER_VERSION}"
 

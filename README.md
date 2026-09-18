@@ -101,6 +101,13 @@ Run PowerShell as Administrator when installing or removing the Windows service.
 irm https://dsh.r2049.cn/uninstall.ps1 | iex
 ```
 
+The installer also places the `ds-harness-remote` CLI on `PATH`, so terminal login is available:
+
+```sh
+ds-harness-remote login zhihu
+ds-harness-remote status
+```
+
 ### Path C: Existing DSH installation
 
 Add the exact package version through DSH's plugin manager for the `web` profile:
