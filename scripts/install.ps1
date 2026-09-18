@@ -79,9 +79,14 @@ if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) {
   Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
   sc.exe delete $serviceName 2>$null | Out-Null
 }
+# A bare $env:USERNAME as the logon trigger UserId fails with 0x80070057
+# ("参数错误"/invalid argument) when the name cannot be resolved unambiguously
+# (domain-joined machine or Microsoft account), so always qualify it with the
+# computer or domain name.
+$taskUser = if ($env:USERDOMAIN) { "$env:USERDOMAIN\$env:USERNAME" } else { $env:USERNAME }
 $cmd = Join-Path $env:SystemRoot 'System32\cmd.exe'
 $action = New-ScheduledTaskAction -Execute $cmd -Argument "/d /c `"`"$command`" --profile $profile`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $taskUser
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
   -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName $serviceName -Action $action -Trigger $trigger -Settings $settings `
@@ -89,7 +94,7 @@ Register-ScheduledTask -TaskName $serviceName -Action $action -Trigger $trigger 
 Start-ScheduledTask -TaskName $serviceName
 $state = (Get-ScheduledTask -TaskName $serviceName).State
 if ($state -eq 'Running') {
-  Say "Host task $serviceName is running and starts at sign-in ($env:USERNAME)."
+  Say "Host task $serviceName is running and starts at sign-in ($taskUser)."
 } else {
   $info = Get-ScheduledTaskInfo -TaskName $serviceName
   Write-Warning "[dsh-install] Host task $serviceName was registered but reports state '$state' (last result $($info.LastTaskResult)). Inspect it in Task Scheduler."
