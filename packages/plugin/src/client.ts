@@ -7,7 +7,8 @@ import {
   shouldUseRemoteFileViewer,
   type RemoteFileContentProvider,
 } from './remote-file-content-provider.js'
-import { CONTROL_RPC_PREFIX } from './control-route.js'
+import { CONTROL_RPC_PREFIX, STATUS_STREAM_PATH } from './control-route.js'
+import { createStatusFeed, type StatusFeed } from './status-stream.js'
 
 declare global {
   interface Window {
@@ -908,6 +909,11 @@ window.__ModuleLoader__.load({
       useMemo<T>(factory: () => T, deps: unknown[]): T
       useRef<T>(initial: T): { current: T }
       useState<T>(initial: T | (() => T)): [T, (value: T | ((previous: T) => T)) => void]
+      useSyncExternalStore<T>(
+        subscribe: (onStoreChange: () => void) => () => void,
+        getSnapshot: () => T,
+        getServerSnapshot?: () => T,
+      ): T
     }
     const inject = [
       'connection', 'slots', 'locale', 'workspaces', 'sessions',
@@ -1005,6 +1011,7 @@ window.__ModuleLoader__.load({
 
     function RemotePluginOptions(props: {
       control: <T>(endpoint: string, payload?: unknown) => Promise<T>
+      statusFeed: StatusFeed<RemoteStatus>
       t: Translate
     }): unknown {
       const { t } = props
@@ -1056,21 +1063,15 @@ window.__ModuleLoader__.load({
         setHostStatus(status?.host)
       }
 
-      const refreshHostStatus = async (): Promise<void> => {
-        setHostStatus((await props.control<RemoteStatus>('status')).host)
-      }
-
       React.useEffect(() => {
         void load().catch(reason => setError(messageOf(reason)))
       }, [])
 
       React.useEffect(() => {
+        // The pushed status keeps this Host account line current; it replaces
+        // the periodic unary status read this card used to perform.
         if (association === undefined) return
-        void refreshHostStatus().catch(() => undefined)
-        const timer = window.setInterval(() => {
-          void refreshHostStatus().catch(() => undefined)
-        }, 30_000)
-        return () => window.clearInterval(timer)
+        return props.statusFeed.subscribe(status => setHostStatus(status.host))
       }, [association !== undefined])
 
       const save = async (event?: Event): Promise<void> => {
@@ -1369,6 +1370,7 @@ window.__ModuleLoader__.load({
     function RemoteWorkspaceAction(props: {
       wide: boolean
       control: <T>(endpoint: string, payload?: unknown) => Promise<T>
+      statusFeed: StatusFeed<RemoteStatus>
       preferredQrProvider: OAuthProvider
       t: Translate
     }): unknown {
@@ -1724,11 +1726,11 @@ window.__ModuleLoader__.load({
       }
 
       React.useEffect(() => {
+        // While the host picker lists Hosts, the pushed status keeps the Host
+        // account line and the connection progress current; the subscription
+        // replays the latest status immediately.
         if (!open || selectedHost !== undefined) return
-        const timer = window.setInterval(() => {
-          void props.control<RemoteStatus>('status').then(setStatus).catch(() => undefined)
-        }, 1_500)
-        return () => window.clearInterval(timer)
+        return props.statusFeed.subscribe(setStatus)
       }, [open, selectedHost])
 
       const chooseAnotherHost = (): void => {
@@ -2178,6 +2180,7 @@ window.__ModuleLoader__.load({
     function RemoteModeAction(props: {
       wide: boolean
       control: <T>(endpoint: string, payload?: unknown) => Promise<T>
+      statusFeed: StatusFeed<RemoteStatus>
       t: Translate
     }): unknown {
       const { t } = props
@@ -2214,12 +2217,11 @@ window.__ModuleLoader__.load({
       }, [])
 
       React.useEffect(() => {
+        // While the chooser is open the pushed status keeps the Host account
+        // line and the connection progress current; the subscription replays
+        // the latest status immediately, so no initial read is needed.
         if (!open) return
-        void refreshStatus()
-        const timer = window.setInterval(() => {
-          void refreshStatus()
-        }, 1500)
-        return () => window.clearInterval(timer)
+        return props.statusFeed.subscribe(setStatus)
       }, [open])
 
       const switchMode = async (mode: 'local' | 'remote', targetDeviceId?: string): Promise<void> => {
@@ -2370,27 +2372,17 @@ window.__ModuleLoader__.load({
 
     function RemoteSessionHeaderAction(props: {
       control: <T>(endpoint: string, payload?: unknown) => Promise<T>
+      statusFeed: StatusFeed<RemoteStatus>
       t: Translate
     }): unknown {
       const { t } = props
-      const [status, setStatus] = React.useState<RemoteStatus | undefined>(undefined)
+      const status = React.useSyncExternalStore(
+        props.statusFeed.subscribe,
+        props.statusFeed.getSnapshot,
+        props.statusFeed.getSnapshot,
+      )
       const [busy, setBusy] = React.useState(false)
       const [routeOpen, setRouteOpen] = React.useState(false)
-
-      React.useEffect(() => {
-        let active = true
-        const refresh = (): void => {
-          void props.control<RemoteStatus>('status').then(next => {
-            if (active) setStatus(next)
-          }).catch(() => undefined)
-        }
-        refresh()
-        const timer = window.setInterval(refresh, 1_500)
-        return () => {
-          active = false
-          window.clearInterval(timer)
-        }
-      }, [])
 
       React.useEffect(() => {
         if (status?.mode !== 'remote') return
@@ -2706,6 +2698,17 @@ window.__ModuleLoader__.load({
         if (!result.ok) throw new Error(result.error?.message ?? t('remoteRequestFailed'))
         return result.value as T
       }
+      // One pushed status stream feeds every Host-status render in this page.
+      // Hosts without the event stream keep answering the unary status control
+      // call, which the feed itself polls at the interval this replaced.
+      const statusFeed = createStatusFeed<RemoteStatus>({
+        url: STATUS_STREAM_PATH,
+        readStatus: () => control<RemoteStatus>('status'),
+        onFallback: reason => {
+          console.warn('ds-harness-remote: status event stream unavailable, polling status instead:', reason)
+        },
+      })
+      ctx.effect(() => () => statusFeed.close(), 'ds-harness-remote: status stream')
       ctx.effect(() => {
         let disposed = false
         let unsubscribeWorkspaces: (() => void) | undefined
@@ -2763,39 +2766,30 @@ window.__ModuleLoader__.load({
         const viewer = fileViewerContext.get<FileViewerClientServiceLike>('fileViewer')
         if (viewer === undefined) return
         fileViewerContext.effect(() => {
-          let active = true
           let unregister: (() => void) | undefined
           let latestSaveAsAllowed = false
           let latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES
-          const sync = async (): Promise<void> => {
-            try {
-              const status = await control<RemoteStatus>('status')
-              if (!active) return
-              const supported = shouldUseRemoteFileViewer(status)
-              latestSaveAsAllowed = shouldAllowRemoteFileSaveAs(status)
-              latestSaveAsMaxBytes = remoteFileSaveAsMaxBytes(status)
-              if (supported && unregister === undefined) {
-                unregister = viewer.registerContentProvider(createRemoteFileContentProvider(
-                  (endpoint, payload) => control(endpoint, payload),
-                  { saveAsAllowed: () => latestSaveAsAllowed, saveAsMaxBytes: () => latestSaveAsMaxBytes },
-                ))
-              } else if (!supported && unregister !== undefined) {
-                unregister()
-                unregister = undefined
-                latestSaveAsAllowed = false
-                latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES
-              }
-            } catch {
-              // Keep the last known registration while the loopback control
-              // route is temporarily unavailable. Remote calls still fail
-              // closed at the authenticated Host bridge.
+          // The pushed status decides whether the remote content provider stays
+          // registered; an unreadable status keeps the last known registration
+          // and remote calls still fail closed at the authenticated Host bridge.
+          const unsubscribe = statusFeed.subscribe(status => {
+            const supported = shouldUseRemoteFileViewer(status)
+            latestSaveAsAllowed = shouldAllowRemoteFileSaveAs(status)
+            latestSaveAsMaxBytes = remoteFileSaveAsMaxBytes(status)
+            if (supported && unregister === undefined) {
+              unregister = viewer.registerContentProvider(createRemoteFileContentProvider(
+                (endpoint, payload) => control(endpoint, payload),
+                { saveAsAllowed: () => latestSaveAsAllowed, saveAsMaxBytes: () => latestSaveAsMaxBytes },
+              ))
+            } else if (!supported && unregister !== undefined) {
+              unregister()
+              unregister = undefined
+              latestSaveAsAllowed = false
+              latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES
             }
-          }
-          void sync()
-          const timer = window.setInterval(() => { void sync() }, 1_500)
+          })
           return () => {
-            active = false
-            window.clearInterval(timer)
+            unsubscribe()
             unregister?.()
           }
         }, 'ds-harness-remote: remote file viewer provider')
@@ -2807,7 +2801,7 @@ window.__ModuleLoader__.load({
         id: 'ds-harness-remote-global-context',
         order: 20,
         locale: localeNamespace,
-        inject: () => ({ control }),
+        inject: () => ({ control, statusFeed }),
       }, RemoteSessionHeaderAction))
       ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
         name: 'sidebar.footer.action',
@@ -2816,6 +2810,7 @@ window.__ModuleLoader__.load({
         locale: localeNamespace,
         inject: () => ({
           control,
+          statusFeed,
           preferredQrProvider: ctx.locale.getLocale().active === 'zh' ? 'zhihu' : 'github',
         }),
       }, RemoteWorkspaceAction))
@@ -2825,7 +2820,7 @@ window.__ModuleLoader__.load({
         id: 'ds-harness-remote',
         order: 30,
         locale: localeNamespace,
-        inject: () => ({ control }),
+        inject: () => ({ control, statusFeed }),
       }, RemotePluginOptions))
     }
 

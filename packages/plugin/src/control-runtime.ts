@@ -13,6 +13,7 @@ import { IdentityStore, serverStorageDirectory } from './identity-store.js'
 import { ClientServerApi, HostServerApi } from './server-api.js'
 import { ServerCredentialStore } from './server-credentials.js'
 import { registerControlRoute, type HostWebServerLike } from './control-route.js'
+import { ControlStatusStream } from './control-stream.js'
 
 export interface PluginSettingsView {
   config: Config
@@ -40,7 +41,24 @@ export class PluginControlRuntime {
   ) {}
 
   register(connection: HostConnectionHandle, webServer?: HostWebServerLike): () => Promise<void> {
-    return registerControlRoute(connection, (endpoint, payload, signal) => this.handle(endpoint, payload, signal), webServer)
+    const statusStream = new ControlStatusStream(() => this.streamStatus())
+    return registerControlRoute(
+      connection,
+      (endpoint, payload, signal) => this.handle(endpoint, payload, signal),
+      webServer,
+      statusStream,
+    )
+  }
+
+  /**
+   * Read the value the status event stream pushes. It resolves through the same
+   * endpoint handler as the unary `status` control call, so a pushed status and
+   * a polled one can never diverge.
+   */
+  private async streamStatus(): Promise<unknown> {
+    const result = await this.handle('status', {}, new AbortController().signal)
+    if (!result.ok) throw new ClientModeError('STATUS_UNAVAILABLE', result.error.message)
+    return result.value
   }
 
   private async handle(endpoint: string, payload: unknown, signal: AbortSignal): Promise<RpcResult<unknown>> {

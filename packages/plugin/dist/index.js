@@ -14025,16 +14025,19 @@ async function waitForResponder(inner, noise) {
 
 // src/control-route.ts
 var CONTROL_RPC_PREFIX = "/ds-harness-remote";
+var STATUS_STREAM_ENDPOINT = "status.events";
+var STATUS_STREAM_PATH = `${CONTROL_RPC_PREFIX}/${STATUS_STREAM_ENDPOINT}`;
 var ENDPOINT_SEGMENT_PATTERN = /^[A-Za-z0-9_$.-]+$/;
 var INVALID_REQUEST_RPC_ID = "invalid-request";
-function registerControlRoute(connection, handler, webServer) {
+function registerControlRoute(connection, handler, webServer, statusStream) {
   if (webServer !== void 0 && connection.requestRejection !== void 0) {
     const dispose = webServer.register({
       kind: "prefix",
       path: CONTROL_RPC_PREFIX,
-      handler: (req, res) => handleControlRequest(connection, handler, req, res)
+      handler: (req, res) => handleControlRequest(connection, handler, req, res, statusStream)
     });
     return async () => {
+      statusStream?.close();
       await dispose();
     };
   }
@@ -14042,7 +14045,7 @@ function registerControlRoute(connection, handler, webServer) {
     authority: "loopback"
   });
 }
-async function handleControlRequest(connection, handler, req, res) {
+async function handleControlRequest(connection, handler, req, res, statusStream) {
   const rejection = connection.requestRejection?.(req);
   if (rejection !== void 0) {
     res.writeHead(rejection);
@@ -14050,6 +14053,10 @@ async function handleControlRequest(connection, handler, req, res) {
     return;
   }
   const endpoint = endpointFromPath(CONTROL_RPC_PREFIX, new URL(req.url ?? "/", "http://dsh.internal").pathname);
+  if (req.method === "GET" && endpoint === STATUS_STREAM_ENDPOINT && statusStream !== void 0) {
+    await statusStream.handle(res);
+    return;
+  }
   if (req.method !== "POST" || endpoint === void 0) {
     writeText(res, 404, "not found");
     return;
@@ -20444,6 +20451,149 @@ function safeMessage(error) {
   return error instanceof Error ? error.message : "invalid credential data";
 }
 
+// src/control-stream.ts
+var STATUS_STREAM_SAMPLE_INTERVAL_MS = 1500;
+var STATUS_STREAM_HEARTBEAT_INTERVAL_MS = 15e3;
+var STATUS_STREAM_RETRY_MS = 3e3;
+var KEEP_ALIVE_FRAME = ": keep-alive\n\n";
+var ControlStatusStream = class {
+  /**
+   * @param readStatus - reads the current status value, the same value the unary control endpoint returns.
+   * @param options - sampling, keep-alive, and reconnect periods.
+   */
+  constructor(readStatus, options = {}) {
+    this.readStatus = readStatus;
+    this.sampleIntervalMs = options.sampleIntervalMs ?? STATUS_STREAM_SAMPLE_INTERVAL_MS;
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs ?? STATUS_STREAM_HEARTBEAT_INTERVAL_MS;
+    this.retryMs = options.retryMs ?? STATUS_STREAM_RETRY_MS;
+  }
+  subscribers = /* @__PURE__ */ new Set();
+  sampleIntervalMs;
+  heartbeatIntervalMs;
+  retryMs;
+  timer;
+  sampling = false;
+  payload;
+  writtenAt = 0;
+  closed = false;
+  /**
+   * Write the SSE response head, the current status as its first frame, and keep
+   * pushing until the client disconnects or {@link close} runs.
+   * @param response - the loopback route response, owned for the connection lifetime.
+   */
+  async handle(response) {
+    if (this.closed) {
+      response.writeHead(503);
+      response.end();
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-store",
+      connection: "keep-alive"
+    });
+    try {
+      response.write(`retry: ${String(this.retryMs)}
+
+`);
+    } catch {
+      return;
+    }
+    const subscriber = { response, payload: void 0 };
+    this.subscribers.add(subscriber);
+    const detach = () => {
+      this.detach(subscriber);
+    };
+    response.on("close", detach);
+    response.on("error", detach);
+    this.startSampling();
+    this.write(await this.readSnapshot() ?? this.payload);
+  }
+  /** End every open stream and stop sampling. */
+  close() {
+    this.closed = true;
+    this.stopSampling();
+    for (const subscriber of [...this.subscribers]) {
+      try {
+        subscriber.response.end();
+      } catch {
+      }
+    }
+    this.subscribers.clear();
+    this.payload = void 0;
+  }
+  /** Forget one subscriber; the last one to leave also stops the sampler. */
+  detach(subscriber) {
+    this.subscribers.delete(subscriber);
+    if (this.subscribers.size === 0) this.stopSampling();
+  }
+  startSampling() {
+    if (this.closed || this.timer !== void 0) return;
+    this.timer = setInterval(() => {
+      void this.sample();
+    }, this.sampleIntervalMs);
+  }
+  stopSampling() {
+    if (this.timer === void 0) return;
+    clearInterval(this.timer);
+    this.timer = void 0;
+  }
+  async sample() {
+    if (this.sampling || this.closed) return;
+    this.sampling = true;
+    try {
+      const snapshot = await this.readSnapshot();
+      if (snapshot !== void 0 && !this.closed) this.write(snapshot);
+    } finally {
+      this.sampling = false;
+    }
+  }
+  async readSnapshot() {
+    try {
+      const value = await this.readStatus();
+      return value === void 0 ? void 0 : JSON.stringify(value) ?? void 0;
+    } catch {
+      return void 0;
+    }
+  }
+  /**
+   * Write the payload to every subscriber that has not seen it, or one
+   * keep-alive comment when the whole connection set is idle.
+   */
+  write(snapshot) {
+    if (snapshot === void 0 || this.subscribers.size === 0) return;
+    const now = Date.now();
+    const fresh = [...this.subscribers].filter((subscriber) => subscriber.payload !== snapshot);
+    if (fresh.length > 0) {
+      const frame = `data: ${snapshot}
+
+`;
+      for (const subscriber of fresh) {
+        if (this.writeChunk(subscriber, frame)) subscriber.payload = snapshot;
+        else this.detach(subscriber);
+      }
+      this.payload = snapshot;
+      this.writtenAt = now;
+      return;
+    }
+    if (now - this.writtenAt < this.heartbeatIntervalMs) return;
+    for (const subscriber of [...this.subscribers]) {
+      if (!this.writeChunk(subscriber, KEEP_ALIVE_FRAME)) this.detach(subscriber);
+    }
+    this.writtenAt = now;
+  }
+  /** @returns true when the chunk reached a live response. */
+  writeChunk(subscriber, chunk) {
+    if (subscriber.response.destroyed || subscriber.response.writableEnded) return false;
+    try {
+      subscriber.response.write(chunk);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
+
 // src/control-runtime.ts
 var PluginControlRuntime = class {
   constructor(config, identityDirectory, settings, client, host) {
@@ -20454,7 +20604,23 @@ var PluginControlRuntime = class {
     this.host = host;
   }
   register(connection, webServer) {
-    return registerControlRoute(connection, (endpoint, payload, signal) => this.handle(endpoint, payload, signal), webServer);
+    const statusStream = new ControlStatusStream(() => this.streamStatus());
+    return registerControlRoute(
+      connection,
+      (endpoint, payload, signal) => this.handle(endpoint, payload, signal),
+      webServer,
+      statusStream
+    );
+  }
+  /**
+   * Read the value the status event stream pushes. It resolves through the same
+   * endpoint handler as the unary `status` control call, so a pushed status and
+   * a polled one can never diverge.
+   */
+  async streamStatus() {
+    const result = await this.handle("status", {}, new AbortController().signal);
+    if (!result.ok) throw new ClientModeError("STATUS_UNAVAILABLE", result.error.message);
+    return result.value;
   }
   async handle(endpoint, payload, signal) {
     try {

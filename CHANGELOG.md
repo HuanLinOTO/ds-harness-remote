@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Pushes the Desktop Web UI Host status over one loopback
+  `text/event-stream` connection (`/ds-harness-remote/status.events`) instead of
+  polling the unary `status` control endpoint every 1.5 seconds. The first frame
+  is the complete status, later frames are sent only when the sampled status
+  changes, and an idle page receives keep-alive comments only.
+- Degrades to the previous unary `status` read when a Host exposes no event
+  stream — an older Host, or a carrier whose control channel serves POST only —
+  and when the carrier has no `EventSource`, so old Client/Host combinations
+  keep working without a version handshake.
+- Shares one status subscription between the Remote Header, the workspace
+  chooser, the plugin settings card, and the remote file viewer provider.
+
 ## 0.4.14
 
 - Adds configurable ACP (Agent Client Protocol) IDE backends. The Plugin carries a
