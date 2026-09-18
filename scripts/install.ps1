@@ -40,17 +40,26 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 }
 
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { throw 'npm was not found next to Node.js.' }
+if (-not (Get-Command pnpm.cmd -ErrorAction SilentlyContinue)) {
+  Say 'Installing pnpm (required by the DSH plugin manager)'
+  npm.cmd --registry $registry install --global pnpm@9.15.4
+  if ($LASTEXITCODE -ne 0) { throw 'pnpm installation failed.' }
+}
 Say "Installing @deepseek-ai/dsh ($dshVersion)"
 npm.cmd --registry $registry install --global "@deepseek-ai/dsh@$dshVersion"
+if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 Say "Installing ds-harness-remote CLI ($remoteVersion)"
 npm.cmd --registry $registry install --global "ds-harness-remote@$remoteVersion"
+if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 $remotePackageDir = Join-Path ((npm.cmd root --global).Trim()) 'ds-harness-remote'
 if (-not (Test-Path (Join-Path $remotePackageDir 'package.json'))) { throw "Global ds-harness-remote package was not found at $remotePackageDir" }
 Say "Adding ds-harness-remote@$remoteVersion to the $profile profile"
 $env:npm_config_registry = $registry
 dsh.cmd plugin --profile $profile add $remotePackageDir
+if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 Say "Adding dsh-file-viewer@$fileViewerVersion to the $profile profile"
 dsh.cmd plugin --profile $profile add "dsh-file-viewer@$fileViewerVersion"
+if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 Say 'Installation complete. Restart DSH to load the plugins.'
 
 $command = if ($env:DSH_SERVICE_COMMAND) { $env:DSH_SERVICE_COMMAND } else { (Get-Command dsh-tui.cmd,dsh.cmd -ErrorAction SilentlyContinue | Select-Object -First 1).Source }

@@ -68,8 +68,8 @@ irm https://dsh.r2049.cn/app/install.ps1 | iex
 ```
 
 脚本会安装 Node.js（如缺失）、DSH、Remote 和 File Viewer 到 `web` profile，注册并启动
-Host 后台服务，同时把 `ds-harness-remote` CLI 加入 `PATH`（若 `dsh`/`dsh-tui`
-不在 `PATH`，请设置 `DSH_SERVICE_COMMAND`）：
+以 `dsh` 运行的 Host 后台服务（Linux 为 systemd 系统服务，需要 sudo），同时把
+`ds-harness-remote` CLI 加入 `PATH`（若 `dsh` 不在 `PATH`，请设置 `DSH_SERVICE_COMMAND`）：
 
 ```sh
 ds-harness-remote login zhihu

@@ -6,6 +6,10 @@ SERVICE_NAME="${DSH_SERVICE_NAME:-dsh-remote}"
 
 case "$(uname -s)" in
   Linux)
+    if [[ "${EUID}" -eq 0 ]]; then sudo_prefix=""; else sudo_prefix="sudo"; fi
+    ${sudo_prefix} systemctl disable --now "${SERVICE_NAME}.service" >/dev/null 2>&1 || true
+    ${sudo_prefix} rm -f "/etc/systemd/system/${SERVICE_NAME}.service"
+    ${sudo_prefix} systemctl daemon-reload >/dev/null 2>&1 || true
     systemctl --user disable --now "${SERVICE_NAME}.service" >/dev/null 2>&1 || true
     rm -f "${HOME}/.config/systemd/user/${SERVICE_NAME}.service"
     systemctl --user daemon-reload >/dev/null 2>&1 || true

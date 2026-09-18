@@ -49,6 +49,14 @@ install_node() {
 if ! command -v node >/dev/null 2>&1; then install_node; fi
 command -v npm >/dev/null 2>&1 || die 'npm was not found next to Node.js.'
 
+export PATH="$(npm prefix --global)/bin:$PATH"
+if ! command -v pnpm >/dev/null 2>&1; then
+  say 'Installing pnpm (required by the DSH plugin manager)'
+  npm --registry "$NPM_REGISTRY" install --global pnpm@9.15.4
+fi
+pnpm --version
+export npm_config_registry="$NPM_REGISTRY"
+
 say "Installing @deepseek-ai/dsh (${DSH_VERSION})"
 npm --registry "$NPM_REGISTRY" install --global "@deepseek-ai/dsh@${DSH_VERSION}"
 say "Installing ds-harness-remote CLI (${REMOTE_VERSION})"
@@ -61,49 +69,72 @@ dsh plugin --profile "$DSH_PROFILE" add "$REMOTE_PACKAGE_DIR"
 say "Adding dsh-file-viewer@${FILE_VIEWER_VERSION} to the ${DSH_PROFILE} profile"
 npm_config_registry="$NPM_REGISTRY" dsh plugin --profile "$DSH_PROFILE" add "dsh-file-viewer@${FILE_VIEWER_VERSION}"
 
-say 'Installation complete. Restart DSH to load the plugins.'
+say 'Plugins installed. Configuring the Host service.'
 
 executable="${SERVICE_COMMAND:-}"
   if [[ -z "$executable" ]]; then
-    executable="$(command -v dsh-tui || command -v dsh || true)"
+    executable="$(command -v dsh || true)"
   fi
-  [[ -n "$executable" ]] || die 'Cannot find dsh or dsh-tui. Set DSH_SERVICE_COMMAND to its executable.'
+  [[ -n "$executable" ]] || die 'Cannot find dsh. Set DSH_SERVICE_COMMAND to its executable.'
+  # A service has no interactive terminal and must use the installed profile.
+  runner_dir="$HOME/.local/share/dsh-remote"
+  mkdir -p "$runner_dir"
+  runner="$runner_dir/start-host.sh"
+  {
+    printf '#!/usr/bin/env bash\nset -euo pipefail\n'
+    printf 'export PATH=%q\n' "$PATH"
+    printf 'cd %q\n' "$HOME"
+    printf 'exec %q --profile %q\n' "$executable" "$DSH_PROFILE"
+  } > "$runner"
+  chmod 700 "$runner"
   case "$(uname -s)" in
     Linux)
-      unit_dir="${HOME}/.config/systemd/user"
-      mkdir -p "$unit_dir"
-      cat >"$unit_dir/${SERVICE_NAME}.service" <<EOF
+      command -v systemctl >/dev/null 2>&1 || die 'systemctl is required to install the system service.'
+      if [[ "${EUID}" -eq 0 ]]; then
+        sudo_prefix=""
+      else
+        command -v sudo >/dev/null 2>&1 || die 'sudo is required to install the system service. Re-run as root.'
+        sudo_prefix="sudo"
+      fi
+      run_user="$(id -un)"
+      unit_path="/etc/systemd/system/${SERVICE_NAME}.service"
+      ${sudo_prefix} tee "$unit_path" >/dev/null <<EOF
 [Unit]
 Description=DSH Remote Host
 After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStart=${executable}
+User=${run_user}
+ExecStart=/bin/bash "${runner}"
 Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 EOF
-      systemctl --user daemon-reload
-      systemctl --user enable --now "${SERVICE_NAME}.service"
-      say "Installed and started systemd user service ${SERVICE_NAME}."
+      ${sudo_prefix} systemctl daemon-reload
+      ${sudo_prefix} systemctl enable --now "${SERVICE_NAME}.service"
+      say "Installed and started systemd system service ${SERVICE_NAME} (running as ${run_user})."
       ;;
     Darwin)
       plist_dir="${HOME}/Library/LaunchAgents"
       plist_path="$plist_dir/${SERVICE_NAME}.plist"
       mkdir -p "$plist_dir"
-      escaped_command="${executable//&/&amp;}"
+      escaped_command="${runner//&/&amp;}"
+      escaped_command="${escaped_command//</&lt;}"
+      escaped_command="${escaped_command//>/&gt;}"
       cat >"$plist_path" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>${SERVICE_NAME}</string>
-<key>ProgramArguments</key><array><string>/bin/sh</string><string>-lc</string><string>${escaped_command}</string></array>
+<key>ProgramArguments</key><array><string>/bin/bash</string><string>${escaped_command}</string></array>
 <key>RunAtLoad</key><true/>
 <key>KeepAlive</key><true/>
 </dict></plist>
 EOF
+      launchctl bootout "gui/$(id -u)" "$plist_path" >/dev/null 2>&1 || true
       launchctl bootstrap "gui/$(id -u)" "$plist_path"
       say "Installed and started launchd user agent ${SERVICE_NAME}."
       ;;
@@ -117,3 +148,8 @@ printf '  ds-harness-remote login github    # sign in with GitHub\n'
 printf '  ds-harness-remote status          # show login and Host status\n'
 printf '  ds-harness-remote logout          # sign out this device\n'
 say 'Inside dsh-TUI the equivalents are /remote login, /remote status, /remote logout.'
+
+case "$(uname -s)" in
+  Linux) say "After CLI login/logout, run: systemctl --user restart ${SERVICE_NAME}.service" ;;
+  Darwin) say "After CLI login/logout, run: launchctl kickstart -k gui/$(id -u)/${SERVICE_NAME}" ;;
+esac

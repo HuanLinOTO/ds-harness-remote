@@ -68,8 +68,9 @@ irm https://dsh.r2049.cn/app/install.ps1 | iex
 ```
 
 The script installs Node.js (if missing), DSH, Remote, and File Viewer into the `web` profile,
-registers the Host as a background service, and puts the `ds-harness-remote` CLI on `PATH`
-(set `DSH_SERVICE_COMMAND` if `dsh`/`dsh-tui` is not on `PATH`):
+registers the Host as a background service running `dsh` (a system-level systemd unit on Linux,
+installed with sudo), and puts the `ds-harness-remote` CLI on `PATH`
+(set `DSH_SERVICE_COMMAND` if `dsh` is not on `PATH`):
 
 ```sh
 ds-harness-remote login zhihu
