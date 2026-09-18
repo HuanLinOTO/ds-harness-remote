@@ -55,58 +55,32 @@ Linux. Remote is included and enabled by default, so no separate plugin installa
 
 ### Path B: Automated installation
 
-Run one command directly from GitHub. If Node.js is missing, the script downloads it from npmmirror, then installs DSH, Remote, and File Viewer into the `web` profile.
+macOS / Linux:
 
 ```sh
 curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
+
+Windows PowerShell (as Administrator):
 
 ```powershell
 irm https://dsh.r2049.cn/app/install.ps1 | iex
 ```
 
-GitHub Raw fallback:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.sh | bash
-```
-
-```powershell
-irm https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.ps1 | iex
-```
-
-After installation, restart DSH, open **Remote** in Settings, sign in with Zhihu or GitHub, and
-enable **Allow control of this device**. On another device, sign in to the same account and select
-this Host. Verify the installation with `dsh plugin --profile web list`.
-
-The installer also registers and starts the Host as a background service (set `DSH_SERVICE_COMMAND`
-when the default `dsh`/`dsh-tui` executable is not on `PATH`):
-
-```sh
-curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
-```
-
-Remove the service and profile plugins later with:
-
-```sh
-curl -fsSL https://dsh.r2049.cn/app/uninstall.sh | bash
-```
-
-On Windows, use these commands:
-
-Run PowerShell as Administrator when installing or removing the Windows service.
-
-```powershell
-& ([scriptblock]::Create((irm https://dsh.r2049.cn/app/install.ps1)))
-irm https://dsh.r2049.cn/app/uninstall.ps1 | iex
-```
-
-The installer also places the `ds-harness-remote` CLI on `PATH`, so terminal login is available:
+The script installs Node.js (if missing), DSH, Remote, and File Viewer into the `web` profile,
+registers the Host as a background service, and puts the `ds-harness-remote` CLI on `PATH`
+(set `DSH_SERVICE_COMMAND` if `dsh`/`dsh-tui` is not on `PATH`):
 
 ```sh
 ds-harness-remote login zhihu
 ds-harness-remote status
 ```
+
+Restart DSH and continue with [Quick start](#quick-start). To uninstall:
+`curl -fsSL https://dsh.r2049.cn/app/uninstall.sh | bash`
+(Windows: `irm https://dsh.r2049.cn/app/uninstall.ps1 | iex`). If the domain is unreachable,
+swap `https://dsh.r2049.cn/app` for
+`https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts` and run the same way.
 
 ### Path C: Existing DSH installation
 

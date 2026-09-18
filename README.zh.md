@@ -55,58 +55,31 @@ DSH Desktop 已默认集成并启用 Remote，无需另行安装插件。
 
 ### 方式 B：自动安装
 
-直接从 GitHub 执行一条命令即可。如果没有 Node.js，脚本会从 npmmirror 安装，然后把 DSH、Remote 和 File Viewer 加入 `web` profile。
+macOS / Linux：
 
 ```sh
 curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
+
+Windows PowerShell（管理员）：
 
 ```powershell
 irm https://dsh.r2049.cn/app/install.ps1 | iex
 ```
 
-GitHub Raw 备用地址：
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.sh | bash
-```
-
-```powershell
-irm https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.ps1 | iex
-```
-
-安装后重启 DSH，在 **Remote** 设置中使用知乎或 GitHub 登录，并开启**允许控制当前设备**。
-然后在另一台设备登录同一账号并选择这台 Host。可以运行
-`dsh plugin --profile web list` 检查安装结果。
-
-安装脚本默认会将 Host 注册并启动为后台服务；如果默认的 `dsh`/`dsh-tui` 不在 `PATH`，
-请先设置 `DSH_SERVICE_COMMAND`：
-
-```sh
-curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
-```
-
-卸载服务和 profile 插件：
-
-```sh
-curl -fsSL https://dsh.r2049.cn/app/uninstall.sh | bash
-```
-
-Windows PowerShell 对应命令：
-
-安装或删除 Windows 服务时，请以管理员身份运行 PowerShell。
-
-```powershell
-& ([scriptblock]::Create((irm https://dsh.r2049.cn/app/install.ps1)))
-irm https://dsh.r2049.cn/app/uninstall.ps1 | iex
-```
-
-安装脚本也会将 `ds-harness-remote` CLI 放到 `PATH`，可以直接在终端登录：
+脚本会安装 Node.js（如缺失）、DSH、Remote 和 File Viewer 到 `web` profile，注册并启动
+Host 后台服务，同时把 `ds-harness-remote` CLI 加入 `PATH`（若 `dsh`/`dsh-tui`
+不在 `PATH`，请设置 `DSH_SERVICE_COMMAND`）：
 
 ```sh
 ds-harness-remote login zhihu
 ds-harness-remote status
 ```
+
+重启 DSH 后按[快速开始](#快速开始)继续。卸载：`curl -fsSL https://dsh.r2049.cn/app/uninstall.sh | bash`
+（Windows：`irm https://dsh.r2049.cn/app/uninstall.ps1 | iex`）。若域名不可访问，把
+`https://dsh.r2049.cn/app` 换成
+`https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts` 再执行即可。
 
 ### 方式 C：已有 DSH 环境
 
