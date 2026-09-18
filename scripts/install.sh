@@ -150,6 +150,6 @@ printf '  ds-harness-remote logout          # sign out this device\n'
 say 'Inside dsh-TUI the equivalents are /remote login, /remote status, /remote logout.'
 
 case "$(uname -s)" in
-  Linux) say "After CLI login/logout, run: systemctl --user restart ${SERVICE_NAME}.service" ;;
+  Linux) say "After CLI login/logout, run: sudo systemctl restart ${SERVICE_NAME}.service" ;;
   Darwin) say "After CLI login/logout, run: launchctl kickstart -k gui/$(id -u)/${SERVICE_NAME}" ;;
 esac
