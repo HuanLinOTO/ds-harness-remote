@@ -38,7 +38,7 @@ Return to the same Harness session from whichever device is with you. Harness ke
 ## Features
 
 - Continue active sessions and review their latest progress from another device
-- Send new instructions, change direction, and use image prompts with Harness `dsh-v0.1.1-rc.2`, `dsh-v0.1.2-alpha.1`–`rc.1`, `dsh-v0.1.5-rc.1`, or `dsh-v0.1.6-alpha.1`
+- Send new instructions, change direction, and use image prompts with supported Harness versions from `dsh-v0.1.1-rc.2` through `dsh-v0.1.6-alpha.1`
 - Answer questions and permission requests from clients with live conversation controls
 - Open workspaces from another authorized computer on the same account
 - Reuse the native Harness interface instead of maintaining a separate desktop conversation UI
@@ -53,7 +53,55 @@ Return to the same Harness session from whichever device is with you. Harness ke
 Install [DSH Desktop](https://github.com/liguobao/dsh-desktop) on Windows, macOS, or
 Linux. Remote is included and enabled by default, so no separate plugin installation is required.
 
-### Path B: Existing DSH installation
+### Path B: Automated installation
+
+Run one command directly from GitHub. If Node.js is missing, the script downloads it from npmmirror, then installs DSH, Remote, and File Viewer into the `web` profile.
+
+```sh
+curl -fsSL https://dsh.r2049.cn/install.sh | bash
+```
+
+```powershell
+irm https://dsh.r2049.cn/install.ps1 | iex
+```
+
+GitHub Raw fallback:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.ps1 | iex
+```
+
+After installation, restart DSH, open **Remote** in Settings, sign in with Zhihu or GitHub, and
+enable **Allow control of this device**. On another device, sign in to the same account and select
+this Host. Verify the installation with `dsh plugin --profile web list`.
+
+The installer also registers and starts the Host as a background service (set `DSH_SERVICE_COMMAND`
+when the default `dsh`/`dsh-tui` executable is not on `PATH`):
+
+```sh
+curl -fsSL https://dsh.r2049.cn/install.sh | bash
+```
+
+Remove the service and profile plugins later with:
+
+```sh
+curl -fsSL https://dsh.r2049.cn/uninstall.sh | bash
+```
+
+On Windows, use these commands:
+
+Run PowerShell as Administrator when installing or removing the Windows service.
+
+```powershell
+& ([scriptblock]::Create((irm https://dsh.r2049.cn/install.ps1)))
+irm https://dsh.r2049.cn/uninstall.ps1 | iex
+```
+
+### Path C: Existing DSH installation
 
 Add the exact package version through DSH's plugin manager for the `web` profile:
 
@@ -66,11 +114,10 @@ Restart Harness after installation.
 Do not install this package directly with npm. Only `dsh plugin` updates the selected profile and
 adds the bundle's configuration layer.
 
-### Path C: dsh-TUI Host
+### Path D: dsh-TUI Host
 
-Remote can run as a Host in a terminal-only [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)
-profile; it does not require the Desktop browser `connection` service. Install the plugin in the
-TUI profile:
+Use [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) as a terminal Host. Install the plugin in
+its profile, then start dsh-TUI:
 
 ```sh
 dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
@@ -86,14 +133,9 @@ Start dsh-TUI and use its native slash command:
 /remote logout
 ```
 
-`/remote login` opens a TUI-native QR scene and prints a clickable authorization URL below the QR
-code. Login defaults to Zhihu; GitHub is also supported. Host control is enabled by default, and
-`/remote logout` revokes the Host and rotates its local device identity. Host configuration is not
-exposed yet; the integration uses `https://dsh.r2049.cn`. Tab completion is available for the
-subcommands and login providers. The `/remote` Host-management surface supports TUI profiles on
-`dsh-v0.1.1-rc.2`, `dsh-v0.1.2-alpha.1`–`rc.1`,
-`dsh-v0.1.5-rc.1`, and `dsh-v0.1.6-alpha.1`; Remote workspace capabilities are advertised
-only when their official Harness carrier is available.
+`/remote login` shows a QR code and authorization URL; Zhihu is the default and GitHub is also
+available. `/remote logout` revokes the Host identity. Supported TUI versions are
+`dsh-v0.1.1-rc.2`, `dsh-v0.1.2-alpha.1`–`rc.1`, `dsh-v0.1.5-rc.1`, and `dsh-v0.1.6-alpha.1`.
 
 See the [dsh-TUI Remote guide](docs/dsh-tui.md) for the compatibility matrix, rc.2 ApiProxy setup,
 status fields, and troubleshooting.

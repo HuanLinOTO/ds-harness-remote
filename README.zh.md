@@ -38,7 +38,7 @@
 ## 主要特性
 
 - 从另一台设备继续活跃会话，查看最新进展
-- 发送新指令、调整任务方向，并在 Harness `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1`–`rc.1`、`dsh-v0.1.5-rc.1` 或 `dsh-v0.1.6-alpha.1` 中使用图片 Prompt
+- 发送新指令、调整任务方向，并在 `dsh-v0.1.1-rc.2` 至 `dsh-v0.1.6-alpha.1` 范围内的受支持 Harness 版本中使用图片 Prompt
 - 在支持实时会话控制的客户端中回答问题、处理权限请求
 - 打开同一账号下另一台已授权电脑上的 Workspace
 - 复用 Harness 原生界面，不另外维护一套桌面会话 UI
@@ -53,7 +53,55 @@
 在 Windows、macOS 或 Linux 上安装 [DSH Desktop](https://github.com/liguobao/dsh-desktop)。
 DSH Desktop 已默认集成并启用 Remote，无需另行安装插件。
 
-### 方式 B：已有 DSH 环境
+### 方式 B：自动安装
+
+直接从 GitHub 执行一条命令即可。如果没有 Node.js，脚本会从 npmmirror 安装，然后把 DSH、Remote 和 File Viewer 加入 `web` profile。
+
+```sh
+curl -fsSL https://dsh.r2049.cn/install.sh | bash
+```
+
+```powershell
+irm https://dsh.r2049.cn/install.ps1 | iex
+```
+
+GitHub Raw 备用地址：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.sh | bash
+```
+
+```powershell
+irm https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/install.ps1 | iex
+```
+
+安装后重启 DSH，在 **Remote** 设置中使用知乎或 GitHub 登录，并开启**允许控制当前设备**。
+然后在另一台设备登录同一账号并选择这台 Host。可以运行
+`dsh plugin --profile web list` 检查安装结果。
+
+安装脚本默认会将 Host 注册并启动为后台服务；如果默认的 `dsh`/`dsh-tui` 不在 `PATH`，
+请先设置 `DSH_SERVICE_COMMAND`：
+
+```sh
+curl -fsSL https://dsh.r2049.cn/install.sh | bash
+```
+
+卸载服务和 profile 插件：
+
+```sh
+curl -fsSL https://dsh.r2049.cn/uninstall.sh | bash
+```
+
+Windows PowerShell 对应命令：
+
+安装或删除 Windows 服务时，请以管理员身份运行 PowerShell。
+
+```powershell
+& ([scriptblock]::Create((irm https://dsh.r2049.cn/install.ps1)))
+irm https://dsh.r2049.cn/uninstall.ps1 | iex
+```
+
+### 方式 C：已有 DSH 环境
 
 通过 DSH 插件管理命令，将确切版本加入 `web` profile：
 
@@ -65,10 +113,10 @@ dsh plugin --profile web add ds-harness-remote@0.4.14
 
 不要直接用 npm 安装这个包。只有 `dsh plugin` 会更新指定 profile，并加入插件的 bundle 配置层。
 
-### 方式 C：dsh-TUI Host
+### 方式 D：dsh-TUI Host
 
-Remote 可以在纯终端 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) profile 中作为 Host
-运行，不再依赖 Desktop 浏览器的 `connection` 服务。先把插件安装进 TUI profile：
+可以将 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 作为终端 Host。先安装插件并启动
+dsh-TUI：
 
 ```sh
 dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
@@ -84,12 +132,9 @@ dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
 /remote logout
 ```
 
-`/remote login` 会打开 TUI 原生的二维码场景，二维码下方显示可点击的授权 URL；省略平台时默认
-使用知乎，也支持 GitHub。Host 控制默认开启，`/remote logout` 会撤销 Host 并轮换本地设备身份。
-目前不开放 Host 配置，固定使用 `https://dsh.r2049.cn`。子命令和登录平台均支持 Tab 补全。
-`/remote` Host 管理入口支持 `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1`–`rc.1`、
-`dsh-v0.1.5-rc.1` 和 `dsh-v0.1.6-alpha.1` 的 TUI
-profile；只有官方 Harness carrier 可用时，才会公布对应的 Remote Workspace 能力。
+`/remote login` 会显示二维码和授权 URL，默认使用知乎，也支持 GitHub；`/remote logout` 会撤销
+Host 身份。支持 `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1`–`rc.1`、`dsh-v0.1.5-rc.1` 和
+`dsh-v0.1.6-alpha.1`。
 
 完整兼容矩阵、rc.2 ApiProxy 挂载、状态字段和排障方式见
 [dsh-TUI Remote 使用指南](docs/dsh-tui.md)。

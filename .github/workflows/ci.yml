@@ -139,6 +139,24 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Build browser extension
+        run: NODE_ENV=production pnpm --dir apps/browser build
+
+      - name: Package browser extension
+        run: |
+          mkdir -p artifacts/browser
+          cd apps/browser
+          zip -qr "$GITHUB_WORKSPACE/artifacts/browser/dsh-remote-browser-${GITHUB_SHA}.zip" \
+            manifest.json popup.html styles.css media dist
+
+      - name: Upload browser extension
+        uses: actions/upload-artifact@v7
+        with:
+          name: dsh-remote-browser-${{ github.sha }}
+          path: artifacts/browser/dsh-remote-browser-${{ github.sha }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
   android-apk:
     name: Package Android APK
     needs:
