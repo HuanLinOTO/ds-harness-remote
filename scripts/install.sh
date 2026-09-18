@@ -109,3 +109,11 @@ EOF
       ;;
     *) die 'Service installation supports Linux systemd and macOS launchd.' ;;
 esac
+
+printf '\n'
+say 'The ds-harness-remote CLI is ready to use. Examples:'
+printf '  ds-harness-remote login zhihu     # sign in with a Zhihu QR code (default)\n'
+printf '  ds-harness-remote login github    # sign in with GitHub\n'
+printf '  ds-harness-remote status          # show login and Host status\n'
+printf '  ds-harness-remote logout          # sign out this device\n'
+say 'Inside dsh-TUI the equivalents are /remote login, /remote status, /remote logout.'

@@ -62,3 +62,11 @@ sc.exe delete $serviceName 2>$null | Out-Null
 New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName 'DSH Remote Host' -StartupType Automatic | Out-Null
 Start-Service -Name $serviceName
 Say "Installed and started Windows service $serviceName."
+
+Write-Host ''
+Say 'The ds-harness-remote CLI is ready to use. Examples:'
+Write-Host '  ds-harness-remote login zhihu     # sign in with a Zhihu QR code (default)'
+Write-Host '  ds-harness-remote login github    # sign in with GitHub'
+Write-Host '  ds-harness-remote status          # show login and Host status'
+Write-Host '  ds-harness-remote logout          # sign out this device'
+Say 'Inside dsh-TUI the equivalents are /remote login, /remote status, /remote logout.'
