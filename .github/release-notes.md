@@ -56,8 +56,8 @@ host picker, and extends DeepSeek Harness compatibility to the
 Install through DSH's plugin manager:
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.14
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
+dsh plugin --profile web add -w ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
 ```
 
 - [npm package](https://www.npmjs.com/package/ds-harness-remote/v/0.4.14)
@@ -107,8 +107,8 @@ IDE backend、在 Remote Host 选择器里显示已连接 Client，并把 DeepSe
 请通过 DSH Plugin 管理器安装：
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.14
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
+dsh plugin --profile web add -w ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
 ```
 
 - [npm 包](https://www.npmjs.com/package/ds-harness-remote/v/0.4.14)

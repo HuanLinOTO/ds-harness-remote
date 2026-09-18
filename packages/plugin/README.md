@@ -29,7 +29,7 @@ Continue your DeepSeek Harness sessions and experimental Codex workspaces from a
 Add the exact package version to the `web` profile, then restart Harness:
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.13
+dsh plugin --profile web add -w ds-harness-remote@0.4.13
 ```
 
 ### dsh-TUI Host
@@ -37,7 +37,7 @@ dsh plugin --profile web add ds-harness-remote@0.4.13
 Remote can also run as a Host in a terminal-only [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) profile:
 
 ```sh
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.13
+dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.13
 ```
 
 After starting dsh-TUI, manage Remote with its native slash command:

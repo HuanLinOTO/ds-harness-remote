@@ -81,7 +81,10 @@ command -v npm >/dev/null 2>&1 || die 'npm was not found next to Node.js.'
 export PATH="$(npm prefix --global)/bin:$PATH"
 if ! command -v pnpm >/dev/null 2>&1; then
   say 'Installing pnpm (required by the DSH plugin manager)'
-  npm --registry "$NPM_REGISTRY" install --global pnpm@9.15.4
+  # pnpm >= 11 is what DSH profiles are written for: their pnpm-workspace.yaml
+  # carries pnpm 11 settings and their packageManager pins pnpm@11. Installing
+  # pnpm 9 here would also shadow that pin with an older lockfile format.
+  npm --registry "$NPM_REGISTRY" install --global pnpm@11.21.0
 fi
 pnpm --version
 export npm_config_registry="$NPM_REGISTRY"
@@ -98,10 +101,13 @@ if [[ ":$INITIAL_PATH:" != *":${NPM_GLOBAL_BIN}:"* ]]; then
   persist_path "$NPM_GLOBAL_BIN"
 fi
 
+# -w is required: a DSH profile is itself a pnpm workspace, and pnpm < 11
+# refuses to add a dependency to a workspace root without it
+# (ERR_PNPM_ADDING_TO_ROOT), which aborts the install before the service step.
 say "Adding ds-harness-remote@${REMOTE_VERSION} to the ${DSH_PROFILE} profile"
-dsh plugin --profile "$DSH_PROFILE" add "$REMOTE_PACKAGE_DIR"
+dsh plugin --profile "$DSH_PROFILE" add -w "$REMOTE_PACKAGE_DIR"
 say "Adding dsh-file-viewer@${FILE_VIEWER_VERSION} to the ${DSH_PROFILE} profile"
-npm_config_registry="$NPM_REGISTRY" dsh plugin --profile "$DSH_PROFILE" add "dsh-file-viewer@${FILE_VIEWER_VERSION}"
+npm_config_registry="$NPM_REGISTRY" dsh plugin --profile "$DSH_PROFILE" add -w "dsh-file-viewer@${FILE_VIEWER_VERSION}"
 
 say 'Plugins installed. Configuring the Host service.'
 

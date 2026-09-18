@@ -88,8 +88,11 @@ ds-harness-remote status
 通过 DSH 插件管理命令，将确切版本加入 `web` profile：
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.14
+dsh plugin --profile web add -w ds-harness-remote@0.4.14
 ```
+
+`-w` 表示加到 profile 自身的 workspace root；pnpm 低于 11 时不加会直接报
+`ERR_PNPM_ADDING_TO_ROOT`。
 
 安装后请重启 Harness。
 
@@ -101,7 +104,7 @@ dsh plugin --profile web add ds-harness-remote@0.4.14
 dsh-TUI：
 
 ```sh
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
 ```
 
 启动 dsh-TUI 后，使用原生 Slash Command：

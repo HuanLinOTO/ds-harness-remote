@@ -89,8 +89,11 @@ swap `https://dsh.r2049.cn/app` for
 Add the exact package version through DSH's plugin manager for the `web` profile:
 
 ```sh
-dsh plugin --profile web add ds-harness-remote@0.4.14
+dsh plugin --profile web add -w ds-harness-remote@0.4.14
 ```
+
+`-w` targets the profile's own workspace root. It is required on pnpm below 11, which
+otherwise refuses the add with `ERR_PNPM_ADDING_TO_ROOT`.
 
 Restart Harness after installation.
 
@@ -103,7 +106,7 @@ Use [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) as a terminal Host. Instal
 its profile, then start dsh-TUI:
 
 ```sh
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
 ```
 
 Start dsh-TUI and use its native slash command:

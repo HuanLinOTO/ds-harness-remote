@@ -42,7 +42,9 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { throw 'npm was not found next to Node.js.' }
 if (-not (Get-Command pnpm.cmd -ErrorAction SilentlyContinue)) {
   Say 'Installing pnpm (required by the DSH plugin manager)'
-  npm.cmd --registry $registry install --global pnpm@9.15.4
+  # pnpm >= 11 is what DSH profiles are written for: their pnpm-workspace.yaml
+  # carries pnpm 11 settings and their packageManager pins pnpm@11.
+  npm.cmd --registry $registry install --global pnpm@11.21.0
   if ($LASTEXITCODE -ne 0) { throw 'pnpm installation failed.' }
 }
 Say "Installing @deepseek-ai/dsh ($dshVersion)"
@@ -55,10 +57,13 @@ $remotePackageDir = Join-Path ((npm.cmd root --global).Trim()) 'ds-harness-remot
 if (-not (Test-Path (Join-Path $remotePackageDir 'package.json'))) { throw "Global ds-harness-remote package was not found at $remotePackageDir" }
 Say "Adding ds-harness-remote@$remoteVersion to the $profile profile"
 $env:npm_config_registry = $registry
-dsh.cmd plugin --profile $profile add $remotePackageDir
+# -w is required: a DSH profile is itself a pnpm workspace, and pnpm < 11
+# refuses to add a dependency to a workspace root without it
+# (ERR_PNPM_ADDING_TO_ROOT), which aborts the install before the service step.
+dsh.cmd plugin --profile $profile add -w $remotePackageDir
 if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 Say "Adding dsh-file-viewer@$fileViewerVersion to the $profile profile"
-dsh.cmd plugin --profile $profile add "dsh-file-viewer@$fileViewerVersion"
+dsh.cmd plugin --profile $profile add -w "dsh-file-viewer@$fileViewerVersion"
 if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 Say 'Installation complete. Restart DSH to load the plugins.'
 

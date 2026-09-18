@@ -18,7 +18,7 @@ DSH Remote 已适配 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)。将插�
 安装到同一个 profile：
 
 ```sh
-dsh plugin --profile dsh-tui add ds-harness-remote@0.4.14
+dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
 ```
 
 ## 2. 启动前挂载 Remote carrier
