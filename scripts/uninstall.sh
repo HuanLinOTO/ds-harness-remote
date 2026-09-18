@@ -20,6 +20,22 @@ case "$(uname -s)" in
     ;;
 esac
 
+# The service entry point install.sh generated; it embeds this machine's paths.
+rm -f "${HOME}/.local/share/dsh-remote/start-host.sh"
+rmdir "${HOME}/.local/share/dsh-remote" >/dev/null 2>&1 || true
+
+# Drop the PATH block install.sh added; the marker pair is the only thing this
+# script is allowed to remove from a user's shell files.
+for rc in "${HOME}/.profile" "${HOME}/.bashrc" "${HOME}/.zshrc"; do
+  [[ -f "$rc" ]] || continue
+  grep -qF '# >>> dsh-remote installer >>>' "$rc" || continue
+  tmp="$(mktemp)"
+  sed '/^# >>> dsh-remote installer >>>$/,/^# <<< dsh-remote installer <<<$/d' "$rc" >"$tmp"
+  cat "$tmp" >"$rc"
+  rm -f "$tmp"
+  printf '[dsh-install] Removed the PATH entry from %s\n' "$rc"
+done
+
 if command -v dsh >/dev/null 2>&1; then
   dsh plugin --profile "$DSH_PROFILE" remove ds-harness-remote >/dev/null 2>&1 || true
   dsh plugin --profile "$DSH_PROFILE" remove dsh-file-viewer >/dev/null 2>&1 || true

@@ -12,6 +12,9 @@ NODE_HOME="${DSH_NODE_HOME:-${HOME}/.local/share/dsh-node/node-v${NODE_VERSION}}
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
 SERVICE_NAME="${DSH_SERVICE_NAME:-dsh-remote}"
 SERVICE_COMMAND="${DSH_SERVICE_COMMAND:-}"
+INITIAL_PATH="$PATH"
+PATH_BLOCK_BEGIN='# >>> dsh-remote installer >>>'
+PATH_BLOCK_END='# <<< dsh-remote installer <<<'
 
 say() { printf '[dsh-install] %s\n' "$*"; }
 die() { printf '[dsh-install] error: %s\n' "$*" >&2; exit 1; }
@@ -46,6 +49,32 @@ install_node() {
   say "Node.js installed at $NODE_HOME"
 }
 
+# The global bin directory is often outside the user's default PATH (nvm, or
+# the Node.js this script just downloaded), and the export below only affects
+# this process. Persist it so `dsh` and `ds-harness-remote` survive the install
+# for later shells too.
+persist_path() {
+  local bin_dir="$1" rc
+  local rcs=("${HOME}/.profile")
+  case "${SHELL:-}" in
+    */zsh) rcs+=("${HOME}/.zshrc") ;;
+    */bash) rcs+=("${HOME}/.bashrc") ;;
+  esac
+  for rc in "${rcs[@]}"; do
+    touch "$rc"
+    if grep -qF "$PATH_BLOCK_BEGIN" "$rc"; then
+      say "PATH entry already present in $rc"
+      continue
+    fi
+    {
+      printf '\n%s\n' "$PATH_BLOCK_BEGIN"
+      printf 'export PATH="%s:$PATH"\n' "$bin_dir"
+      printf '%s\n' "$PATH_BLOCK_END"
+    } >>"$rc"
+    say "Added ${bin_dir} to PATH in $rc"
+  done
+}
+
 if ! command -v node >/dev/null 2>&1; then install_node; fi
 command -v npm >/dev/null 2>&1 || die 'npm was not found next to Node.js.'
 
@@ -63,6 +92,11 @@ say "Installing ds-harness-remote CLI (${REMOTE_VERSION})"
 npm --registry "$NPM_REGISTRY" install --global "ds-harness-remote@${REMOTE_VERSION}"
 REMOTE_PACKAGE_DIR="$(npm root --global)/ds-harness-remote"
 [[ -f "$REMOTE_PACKAGE_DIR/package.json" ]] || die "Global ds-harness-remote package was not found at $REMOTE_PACKAGE_DIR"
+
+NPM_GLOBAL_BIN="$(npm prefix --global)/bin"
+if [[ ":$INITIAL_PATH:" != *":${NPM_GLOBAL_BIN}:"* ]]; then
+  persist_path "$NPM_GLOBAL_BIN"
+fi
 
 say "Adding ds-harness-remote@${REMOTE_VERSION} to the ${DSH_PROFILE} profile"
 dsh plugin --profile "$DSH_PROFILE" add "$REMOTE_PACKAGE_DIR"

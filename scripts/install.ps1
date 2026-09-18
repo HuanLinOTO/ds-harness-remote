@@ -62,15 +62,33 @@ dsh.cmd plugin --profile $profile add "dsh-file-viewer@$fileViewerVersion"
 if ($LASTEXITCODE -ne 0) { throw 'Installation command failed; service setup aborted.' }
 Say 'Installation complete. Restart DSH to load the plugins.'
 
-$command = if ($env:DSH_SERVICE_COMMAND) { $env:DSH_SERVICE_COMMAND } else { (Get-Command dsh-tui.cmd,dsh.cmd -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
-if (-not $command) { throw 'Cannot find dsh.cmd or dsh-tui.cmd. Set DSH_SERVICE_COMMAND to its executable.' }
+$command = if ($env:DSH_SERVICE_COMMAND) { $env:DSH_SERVICE_COMMAND } else { (Get-Command dsh.cmd -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
+if (-not $command) { throw 'Cannot find dsh.cmd. Set DSH_SERVICE_COMMAND to its executable.' }
+# Host credentials live in the current user's DSH_HOME, so the entry point has to
+# run as that user with their profile loaded. A machine service runs as
+# LocalSystem, which sees a different DSH_HOME and no login state at all, so
+# register a logon task instead: same user, no stored password, starts on every
+# sign-in. It must pass --profile as well, because a bare `dsh` exits 1 with
+# "--profile <name> is required".
+if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) {
+  Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
+  sc.exe delete $serviceName 2>$null | Out-Null
+}
 $cmd = Join-Path $env:SystemRoot 'System32\cmd.exe'
-$binaryPath = "`"$cmd`" /d /c `"`"$command`"`""
-Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
-sc.exe delete $serviceName 2>$null | Out-Null
-New-Service -Name $serviceName -BinaryPathName $binaryPath -DisplayName 'DSH Remote Host' -StartupType Automatic | Out-Null
-Start-Service -Name $serviceName
-Say "Installed and started Windows service $serviceName."
+$action = New-ScheduledTaskAction -Execute $cmd -Argument "/d /c `"`"$command`" --profile $profile`""
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+  -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName $serviceName -Action $action -Trigger $trigger -Settings $settings `
+  -Description 'DSH Remote Host' -Force | Out-Null
+Start-ScheduledTask -TaskName $serviceName
+$state = (Get-ScheduledTask -TaskName $serviceName).State
+if ($state -eq 'Running') {
+  Say "Host task $serviceName is running and starts at sign-in ($env:USERNAME)."
+} else {
+  $info = Get-ScheduledTaskInfo -TaskName $serviceName
+  Write-Warning "[dsh-install] Host task $serviceName was registered but reports state '$state' (last result $($info.LastTaskResult)). Inspect it in Task Scheduler."
+}
 
 Write-Host ''
 Say 'The ds-harness-remote CLI is ready to use. Examples:'
