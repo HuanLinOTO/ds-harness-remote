@@ -58,11 +58,11 @@ Linux. Remote is included and enabled by default, so no separate plugin installa
 Run one command directly from GitHub. If Node.js is missing, the script downloads it from npmmirror, then installs DSH, Remote, and File Viewer into the `web` profile.
 
 ```sh
-curl -fsSL https://dsh.r2049.cn/install.sh | bash
+curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
 
 ```powershell
-irm https://dsh.r2049.cn/install.ps1 | iex
+irm https://dsh.r2049.cn/app/install.ps1 | iex
 ```
 
 GitHub Raw fallback:
@@ -83,13 +83,13 @@ The installer also registers and starts the Host as a background service (set `D
 when the default `dsh`/`dsh-tui` executable is not on `PATH`):
 
 ```sh
-curl -fsSL https://dsh.r2049.cn/install.sh | bash
+curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
 
 Remove the service and profile plugins later with:
 
 ```sh
-curl -fsSL https://dsh.r2049.cn/uninstall.sh | bash
+curl -fsSL https://dsh.r2049.cn/app/uninstall.sh | bash
 ```
 
 On Windows, use these commands:
@@ -97,8 +97,8 @@ On Windows, use these commands:
 Run PowerShell as Administrator when installing or removing the Windows service.
 
 ```powershell
-& ([scriptblock]::Create((irm https://dsh.r2049.cn/install.ps1)))
-irm https://dsh.r2049.cn/uninstall.ps1 | iex
+& ([scriptblock]::Create((irm https://dsh.r2049.cn/app/install.ps1)))
+irm https://dsh.r2049.cn/app/uninstall.ps1 | iex
 ```
 
 The installer also places the `ds-harness-remote` CLI on `PATH`, so terminal login is available:

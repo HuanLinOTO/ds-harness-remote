@@ -58,11 +58,11 @@ DSH Desktop 已默认集成并启用 Remote，无需另行安装插件。
 直接从 GitHub 执行一条命令即可。如果没有 Node.js，脚本会从 npmmirror 安装，然后把 DSH、Remote 和 File Viewer 加入 `web` profile。
 
 ```sh
-curl -fsSL https://dsh.r2049.cn/install.sh | bash
+curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
 
 ```powershell
-irm https://dsh.r2049.cn/install.ps1 | iex
+irm https://dsh.r2049.cn/app/install.ps1 | iex
 ```
 
 GitHub Raw 备用地址：
@@ -83,13 +83,13 @@ irm https://raw.githubusercontent.com/liguobao/ds-harness-remote/main/scripts/in
 请先设置 `DSH_SERVICE_COMMAND`：
 
 ```sh
-curl -fsSL https://dsh.r2049.cn/install.sh | bash
+curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
 
 卸载服务和 profile 插件：
 
 ```sh
-curl -fsSL https://dsh.r2049.cn/uninstall.sh | bash
+curl -fsSL https://dsh.r2049.cn/app/uninstall.sh | bash
 ```
 
 Windows PowerShell 对应命令：
@@ -97,8 +97,8 @@ Windows PowerShell 对应命令：
 安装或删除 Windows 服务时，请以管理员身份运行 PowerShell。
 
 ```powershell
-& ([scriptblock]::Create((irm https://dsh.r2049.cn/install.ps1)))
-irm https://dsh.r2049.cn/uninstall.ps1 | iex
+& ([scriptblock]::Create((irm https://dsh.r2049.cn/app/install.ps1)))
+irm https://dsh.r2049.cn/app/uninstall.ps1 | iex
 ```
 
 安装脚本也会将 `ds-harness-remote` CLI 放到 `PATH`，可以直接在终端登录：
