@@ -2,8 +2,8 @@
 
 本清单按 2026-09-16 的兼容方向维护：Harness v0.1.1 rc.2 使用官方 ApiProxy，
 v0.1.2 alpha.1–rc.1 使用既有 Typert Remote Gateway，v0.1.5 rc.1 / v0.1.6 alpha.1 作为 Session V3
-兼容目标。Android 与 VS Code Client 通过 capability 探测兼容这些 Host carrier；Server、Remote Web 和 Admin 只在独立
-Server 仓库实现。
+兼容目标。Android 与 VS Code Client 通过 capability 探测兼容这些 Host carrier；完整 Server、Remote Web 和 Admin 在独立
+Server 仓库实现；本仓库 `apps/server` 另提供最小单账号 Relay Server。
 
 Desktop 已使用独立 Remote 工作区入口：本地选择账号下的 Host 与远端 Workspace，或通过
 只读目录浏览添加 Workspace，随后复用原生 Harness UI。当前实现已跑通真实设备、Web→Host
@@ -166,7 +166,7 @@ ApiProxy / Typert Remote contract，不得在 Plugin Host 恢复 `sessions.*`、
 
 ## 不在本仓库实现
 
-- Server、Remote Web、Admin runtime 及其数据库、队列和部署代码
+- 完整多账号 Server、Remote Web、Admin runtime 及其数据库、队列和部署代码（`apps/server` 最小自部署版本除外）
 - Shell、PTY、绕过 dsh-file-viewer provider 的任意文件访问、文件写入、远程桌面或通用 Harness tool RPC
 - 绕过 ApiProxy allowlist 的 Cordis service 反射
 
@@ -180,3 +180,8 @@ ApiProxy / Typert Remote contract，不得在 Plugin Host 恢复 `sessions.*`、
 - [x] 连接断开后旧 stream/answer 失效并安全回落 Local
 - [ ] Relay capture 无法解密 payload，篡改、重放和 identity mismatch 被拒绝
 - [x] 核心 check/test/build 与 Bundle 校验通过
+
+## 最小自部署 Server
+
+- [x] 环境变量单账号、登录/状态页、持久化设备凭据、Control/加密 Relay 转发
+- [ ] 真实 Desktop/Android/VS Code 跨机 E2E 与反向代理长期连接回归

@@ -9,6 +9,8 @@
   &nbsp;·&nbsp;
   <a href="docs/README.md">文档</a>
   &nbsp;·&nbsp;
+  <a href="apps/server/README.zh.md">自部署</a>
+  &nbsp;·&nbsp;
   <strong>下载：</strong>
   <a href="https://github.com/liguobao/dsh-desktop/releases/latest">Windows</a>
   &nbsp;·&nbsp;
@@ -118,7 +120,7 @@ Host 身份。支持 `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1`–`rc.1`、`dsh-v0
 4. 在另一台设备上打开 DSH Desktop、Remote Web 或 Android 客户端，并登录同一账号。
 5. 选择在线 Host，再选择已有 Workspace 或浏览远端目录后打开。
 
-公开服务目前使用托管的 Remote 中继，尚未提供受支持的自建中继方案。
+公开服务使用托管的 Remote 中继；单账号自建可使用仓库内的[最小 Server](apps/server/README.zh.md)，其 Web 页面仅提供设备状态。
 
 ## 授权恢复与多实例
 
@@ -269,3 +271,7 @@ Desktop 两端必须使用兼容的 Harness carrier。`0.4.14` 会在 Host 暴�
 ## License
 
 [MIT](packages/plugin/LICENSE)
+
+## 最小自部署 Server
+
+仓库内的 [`apps/server`](apps/server/README.zh.md) 提供可独立运行的单账号 Relay Server。通过 `DSH_SERVER_ACCOUNT`、`DSH_SERVER_PASSWORD` 配置账号密码；Web 提供登录和设备状态。Host 与客户端填写同一 Server 地址并使用该账号登录，设备凭据在重启后保留。

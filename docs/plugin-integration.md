@@ -438,3 +438,7 @@ server changed       → NO_SERVER（切换到该 Server 独立的本地状态�
 - Noise handshake secret 或解密后的业务 payload。
 
 可以记录经过截断或哈希处理的 deviceId、connectionId、错误码和连接阶段。生产环境必须校验证书，不允许“忽略 TLS 错误”。
+
+## 最小自部署 Server
+
+本仓库 `apps/server` 提供上述账号密码、设备注册/自有角色注册、刷新、设备详情和 Control/Relay API 子集。账号来自 `DSH_SERVER_ACCOUNT`，密码来自 `DSH_SERVER_PASSWORD`。配置自定义 Server 地址后选择账号密码登录。运行方法见 [README](../apps/server/README.zh.md)。

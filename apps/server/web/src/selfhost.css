@@ -1,0 +1,10 @@
+/* Small adaptations for the reduced self-hosted feature set. Upstream visual rules stay in upstream.css. */
+.auth-intro { margin-bottom: 28px; }
+.selfhost-content { padding-top: 32px; }
+.selfhost-auth-error, .selfhost-error, .selfhost-connection { margin-bottom: 20px; }
+.selfhost-connection .ant-typography:last-child { margin-bottom: 0; }
+.selfhost-address, .selfhost-account { overflow-wrap: anywhere; }
+.selfhost-address code { white-space: normal; }
+.workspace-page-header > div { min-width: 0; }
+.selfhost-device-name { display: inline-block; max-width: 240px; overflow-wrap: anywhere; }
+.selfhost-caption { margin-top: 20px; }

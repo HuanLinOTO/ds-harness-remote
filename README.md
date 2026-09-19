@@ -9,6 +9,8 @@
   &nbsp;·&nbsp;
   <a href="docs/README.md">Documentation</a>
   &nbsp;·&nbsp;
+  <a href="apps/server/README.md">Self-hosting</a>
+  &nbsp;·&nbsp;
   <strong>Download:</strong>
   <a href="https://github.com/liguobao/dsh-desktop/releases/latest">Windows</a>
   &nbsp;·&nbsp;
@@ -119,8 +121,8 @@ status fields, and troubleshooting.
 4. On another device, open DSH Desktop, Remote Web, or the Android client and sign in to the same account.
 5. Select the online Host, then choose an existing workspace or browse remote directories to open one.
 
-The public service currently uses the hosted Remote relay. A supported self-hosted relay
-option is not available yet.
+The public service uses the hosted Remote relay. For a minimal single-account deployment,
+see the [self-hosted Server](apps/server/README.md); its Web page shows device status only.
 
 ## Authorization recovery and multiple instances
 
@@ -288,3 +290,7 @@ DeepSeek and related names and marks belong to their respective owners.
 ## License
 
 [MIT](packages/plugin/LICENSE)
+
+## Minimal self-hosted Server
+
+Run the optional single-account Relay Server in [`apps/server`](apps/server/README.md). Set `DSH_SERVER_ACCOUNT` and `DSH_SERVER_PASSWORD`; its small Web page offers login and device status. Point both Host and Client at your Server URL and sign in with the same account. Device credentials survive restarts.

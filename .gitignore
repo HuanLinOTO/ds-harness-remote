@@ -19,3 +19,6 @@ __pycache__/
 .codegraph/
 artifacts/
 *.tgz
+
+# Minimal self-hosted Server credentials and local state
+apps/server/data/
