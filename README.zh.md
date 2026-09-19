@@ -61,7 +61,7 @@ macOS / Linux：
 curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
 
-Windows PowerShell（管理员）：
+Windows PowerShell：
 
 ```powershell
 irm https://dsh.r2049.cn/app/install.ps1 | iex
@@ -69,9 +69,9 @@ irm https://dsh.r2049.cn/app/install.ps1 | iex
 
 脚本会安装 Node.js（如缺失）、DSH、Remote 和 File Viewer 到 `web` profile，注册并启动
 以 `dsh` 运行的 Host 后台服务（Linux 为 systemd 系统服务，需要 sudo；Windows 为以当前用户
-身份运行的登录任务，保证 Host 使用你自己的凭证和 `DSH_HOME`），同时把
-`ds-harness-remote` CLI 写入 shell 配置的 `PATH`（若 `dsh` 不在 `PATH`，请设置
-`DSH_SERVICE_COMMAND`）：
+身份运行的登录任务，保证 Host 使用你自己的凭证和 `DSH_HOME`，无需管理员权限），同时把
+`ds-harness-remote` CLI 加入 `PATH`（macOS/Linux 写入 shell 配置，Windows 写入用户 `PATH`
+变量；若 `dsh` 不在 `PATH`，请设置 `DSH_SERVICE_COMMAND`）：
 
 ```sh
 ds-harness-remote login zhihu

@@ -61,7 +61,7 @@ macOS / Linux:
 curl -fsSL https://dsh.r2049.cn/app/install.sh | bash
 ```
 
-Windows PowerShell (as Administrator):
+Windows PowerShell:
 
 ```powershell
 irm https://dsh.r2049.cn/app/install.ps1 | iex
@@ -70,8 +70,9 @@ irm https://dsh.r2049.cn/app/install.ps1 | iex
 The script installs Node.js (if missing), DSH, Remote, and File Viewer into the `web` profile,
 registers the Host as a background service running `dsh` (a system-level systemd unit on Linux,
 installed with sudo; on Windows a logon task running as the current user, so the Host keeps your
-own credentials and `DSH_HOME`), and puts the `ds-harness-remote` CLI on `PATH` in your shell
-profile as well (set `DSH_SERVICE_COMMAND` if `dsh` is not on `PATH`):
+own credentials and `DSH_HOME` — no administrator rights needed), and puts the
+`ds-harness-remote` CLI on `PATH` (the shell profile on macOS/Linux, the user `PATH` variable on
+Windows; set `DSH_SERVICE_COMMAND` if `dsh` is not on `PATH`):
 
 ```sh
 ds-harness-remote login zhihu

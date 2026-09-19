@@ -39,7 +39,8 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Expand-Archive -Path $zip -DestinationPath $tmp -Force
     Move-Item -Path (Join-Path $tmp "node-v$nodeVersion-win-$arch") -Destination $nodeHome -Force
     $env:Path = "$nodeHome;$env:Path"
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    # Cast first: the user PATH variable can be unset, and TrimEnd on $null throws.
+    $userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
     if (-not (($userPath -split ';') -contains $nodeHome)) {
       [Environment]::SetEnvironmentVariable('Path', (($userPath.TrimEnd(';') + ';' + $nodeHome).Trim(';')), 'User')
     }
