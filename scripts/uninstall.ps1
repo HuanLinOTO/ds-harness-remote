@@ -1,22 +1,54 @@
-# Removes the DSH Remote autostart and plugins. Node.js and credentials are kept.
+# Removes the private WinSW installation, retaining DSH profiles and credentials.
+# Run as the installing user in an administrator PowerShell window.
 $ErrorActionPreference = 'Stop'
-$profile = if ($env:DSH_PROFILE) { $env:DSH_PROFILE } else { 'web' }
-$serviceName = if ($env:DSH_SERVICE_NAME) { $env:DSH_SERVICE_NAME } else { 'DSHRemote' }
-
-if (Get-ScheduledTask -TaskName $serviceName -ErrorAction SilentlyContinue) {
-  Stop-ScheduledTask -TaskName $serviceName -ErrorAction SilentlyContinue
-  Unregister-ScheduledTask -TaskName $serviceName -Confirm:$false
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+$dshAdminPrincipal = [Security.Principal.WindowsPrincipal]::new($identity)
+if (-not $dshAdminPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+  throw 'Open PowerShell with Run as administrator under the installing Windows account, then run this script again.'
 }
-# Machine service registered by an earlier release.
-if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) {
-  Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
-  sc.exe delete $serviceName 2>$null | Out-Null
+$installRoot = if ($env:DSH_INSTALL_DIR) { [IO.Path]::GetFullPath($env:DSH_INSTALL_DIR) } else { Join-Path $env:LOCALAPPDATA 'dsh-remote' }
+$statePath = Join-Path $installRoot 'install-state.json'
+if (-not (Test-Path $statePath)) {
+  throw "No installation record at $statePath. For an older global installation, use its original uninstaller."
 }
-if (Get-Command dsh.cmd -ErrorAction SilentlyContinue) {
-  dsh.cmd plugin --profile $profile remove ds-harness-remote *> $null
-  dsh.cmd plugin --profile $profile remove dsh-file-viewer *> $null
+$state = Get-Content -Raw $statePath | ConvertFrom-Json
+$ownerSid = $identity.User.Value
+if ($state.ownerSid -ne $ownerSid) { throw 'Run uninstall as the user who installed DSH Remote.' }
+$serviceName = $state.serviceName
+if ($serviceName -notmatch '^[A-Za-z][A-Za-z0-9_-]*$') { throw 'Invalid service name in installation record.' }
+$wrapper = Join-Path $installRoot 'host.exe'
+$service = Get-CimInstance Win32_Service -Filter "Name='$serviceName'"
+if ($service) {
+  if ($service.PathName.Trim('"') -ne $wrapper) { throw 'Service executable does not belong to this installation.' }
+  foreach ($operation in @('stop', 'uninstall')) {
+    & $wrapper $operation --no-elevate
+    if ($LASTEXITCODE -ne 0) { throw "WinSW $operation failed ($LASTEXITCODE); installation files were retained." }
+  }
+  if (Get-CimInstance Win32_Service -Filter "Name='$serviceName'") { throw 'Service deletion is still pending. Close Services and retry uninstall.' }
 }
-if (Get-Command npm.cmd -ErrorAction SilentlyContinue) {
-  npm.cmd uninstall --global ds-harness-remote @deepseek-ai/dsh *> $null
+$nodeHome = Join-Path $installRoot 'node'
+$prefix = Join-Path $installRoot 'packages'
+$node = Join-Path $nodeHome 'node.exe'
+$dshEntry = Join-Path $prefix 'node_modules\@deepseek-ai\dsh\lib\bin.js'
+if ((Test-Path $dshEntry) -and -not $state.pluginsRemoved) {
+  if (-not (Test-Path $node)) { throw 'Private Node is missing; restore the installation before removing plugins.' }
+  $env:Path = "$nodeHome;$prefix;$env:Path"
+  $env:DSH_HOME = $state.dshHome
+  # Remove together: a failed command must leave the runtime available for retry.
+  & $node $dshEntry plugin --profile $state.profile remove -w ds-harness-remote dsh-file-viewer
+  if ($LASTEXITCODE -ne 0) { throw 'Plugin removal failed; private runtime was retained. Correct the error and retry.' }
+  $state | Add-Member -NotePropertyName pluginsRemoved -NotePropertyValue $true -Force
+  $state | ConvertTo-Json | Set-Content -Encoding UTF8 $statePath
 }
-Write-Host "[dsh-install] Removed autostart, CLI, and plugins from the $profile profile. Node.js and credentials were kept."
+$binDir = Join-Path $installRoot 'bin'
+$userPath = [string][Environment]::GetEnvironmentVariable('Path', 'User')
+$remainingPath = ($userPath -split ';' | Where-Object { $_.TrimEnd('\') -ine $binDir.TrimEnd('\') }) -join ';'
+[Environment]::SetEnvironmentVariable('Path', $remainingPath, 'User')
+$env:Path = ($env:Path -split ';' | Where-Object { $_.TrimEnd('\') -notin @($binDir.TrimEnd('\'), $nodeHome.TrimEnd('\'), $prefix.TrimEnd('\')) }) -join ';'
+# Delete only installer-owned entries, never the whole configurable install root.
+foreach ($name in @('node', 'packages', 'bin', 'host.exe', 'host.xml', 'host.wrapper.log')) {
+  $path = Join-Path $installRoot $name
+  if (Test-Path $path) { Remove-Item -Recurse -Force $path }
+}
+Remove-Item $statePath
+Write-Host "[dsh-install] Removed service, plugins and private runtime. DSH profiles and credentials remain in $($state.dshHome)."

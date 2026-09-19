@@ -98,6 +98,12 @@ DSH_REMOTE_SERVER=ws://127.0.0.1:8080/ws/v1/connect pnpm --filter @dsh-remote/mo
 
 Android 不能使用 Expo Go，因为 `react-native-webrtc` 依赖原生模块。
 
+Windows 自动安装脚本将独立 Node.js/pnpm/DSH 放在 `%LOCALAPPDATA%\dsh-remote`（可用
+`DSH_INSTALL_DIR` 覆盖），用 WinSW `3.0.0-alpha.11` 交互式账户提示注册当前用户的服务；
+安装和卸载需在安装所属账户的管理员 PowerShell 中执行，脚本只检查权限、不自动提权；
+首次安装需 Windows 账户密码，禁止把密码写入 XML。服务与 CLI 共用固定 `DSH_HOME`，
+卸载保留 profile 和凭证，不清理旧全局 npm 环境。Windows 实机回归尚待完成。
+
 ## Validation Baseline
 
 截至 2026-09-16：
