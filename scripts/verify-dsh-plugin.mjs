@@ -93,6 +93,14 @@ assert.doesNotMatch(
 
 const clientBundle = readFileSync(join(root, 'packages/plugin/dist/client.github.js'), 'utf8')
 assert.match(clientBundle, /window\.__ModuleLoader__\.load/, 'browser client entry must register with the DSH module loader')
+assert.match(clientBundle, /status\.events/, 'browser client must open the Host status event stream')
+assert.match(clientBundle, /new EventSource/, 'browser client must push-render Host status through EventSource')
+assert.match(clientBundle, /useSyncExternalStore/, 'browser client must render Host status from the pushed stream')
+assert.doesNotMatch(
+  clientBundle,
+  /setInterval\(refresh/,
+  'browser client must not poll the loopback status endpoint on a fixed interval',
+)
 assert.match(clientBundle, /localeNamespace\s*=\s*"ds-harness-remote"/, 'browser client locale namespace must use the canonical plugin id')
 assert.match(clientBundle, /settings\.plugin\.item/, 'browser client must contribute its options inside Plugin configuration')
 assert.ok(

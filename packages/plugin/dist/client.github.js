@@ -1694,7 +1694,61 @@ Minimum version required to store current data is: ` + bestVersion + `.
   }
 
   // src/control-route.ts
-  var CONTROL_RPC_PREFIX = "/ds-harness-remote";
+  var CONTROL_RPC_PREFIX = "/ds-harness-remote", STATUS_STREAM_ENDPOINT = "status.events", STATUS_STREAM_PATH = `${CONTROL_RPC_PREFIX}/${STATUS_STREAM_ENDPOINT}`;
+
+  // src/status-stream.ts
+  function parseStatus(data) {
+    if (typeof data == "string")
+      try {
+        let parsed = JSON.parse(data);
+        return parsed === null || typeof parsed != "object" ? void 0 : parsed;
+      } catch {
+        return;
+      }
+  }
+  function createStatusFeed(options) {
+    let listeners = /* @__PURE__ */ new Set(), pollIntervalMs = options.pollIntervalMs ?? 1500, openTimeoutMs = options.openTimeoutMs ?? 4e3, createSource = options.createSource ?? ((url) => new EventSource(url)), status, source, openTimer, pollTimer, publish = (next) => {
+      status = next;
+      for (let listener of [...listeners]) listener(next);
+    }, teardown = () => {
+      openTimer !== void 0 && (clearTimeout(openTimer), openTimer = void 0), pollTimer !== void 0 && (clearInterval(pollTimer), pollTimer = void 0), source?.close(), source = void 0;
+    }, poll = () => {
+      options.readStatus().then((next) => {
+        pollTimer !== void 0 && publish(next);
+      }).catch(() => {
+      });
+    }, fallbackToPolling = (reason) => {
+      pollTimer !== void 0 || listeners.size === 0 || (openTimer !== void 0 && (clearTimeout(openTimer), openTimer = void 0), source?.close(), source = void 0, options.onFallback?.(reason), poll(), pollTimer = setInterval(poll, pollIntervalMs));
+    }, openStream = () => {
+      let opened;
+      try {
+        opened = createSource(options.url);
+      } catch {
+        fallbackToPolling("unsupported");
+        return;
+      }
+      source = opened;
+      let received = !1;
+      openTimer = setTimeout(() => {
+        received || fallbackToPolling("silent");
+      }, openTimeoutMs), opened.onmessage = (event) => {
+        received = !0, openTimer !== void 0 && (clearTimeout(openTimer), openTimer = void 0);
+        let next = parseStatus(event.data);
+        next !== void 0 && publish(next);
+      }, opened.onerror = () => {
+        opened.readyState === 2 && fallbackToPolling("unavailable");
+      };
+    };
+    return {
+      getSnapshot: () => status,
+      subscribe: (listener) => (listeners.add(listener), status !== void 0 && listener(status), listeners.size === 1 && openStream(), () => {
+        listeners.delete(listener), listeners.size === 0 && teardown();
+      }),
+      close: () => {
+        listeners.clear(), teardown();
+      }
+    };
+  }
 
   // src/client.ts
   var clientModuleId = "ds-harness-remote", pendingWorkspaceSelectionKey = "dsh-remote:pending-workspace-selection", deepSeekWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAACVBMVEUAAADy8vXx8fUsA3vyAAAAAXRSTlMAQObYZgAAAOxJREFUWMPtlsEOwyAMQxP+/6OnTZMGxHGcot3wDYgfhkJbs6urprzveGtu9d1NgEdto8w93GuA7zPS2RFg7ynsCOAokbtAmLr2YaeKgJ6fxpT8jCAC0qSqPyNoO5DXdvyouj4ClFAdYaDxK09uiBDCIYBf6CxLesnR0uF2pG+JmhCqrUb0AOvjjoQaYDTCEAAgMg5grhAeAQIB+/M15IcKlnUIp4CkTCd0AKb4zVsRSJVGYEVzT0agK107IMGMEurvromEpaX4wzk/IKw378kq4LafED6Oowxfk7AP2q8W16EdM3p29Eyvrv6vF0WIBfBziKyCAAAAAElFTkSuQmCC", gptWorkspaceIcon = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAclBMVEX////v7+++wMf////s7O3k5OTExcrX2Ny6vMTv8PPW19yXmqRqboJmaHd3eoaqrLPs7fGMjpfb3eKlpq1eYXOxs7pWWWd+gY5HSVdRVGVub3k+QU74+Pg4OkcvMT1ISlUoKjUiIy4fICueoKkaGyUSFB21Bp+qAAAAAXRSTlMAQObYZgAABChJREFUWMPtl916qjoQhlsdEwIECEgMYCBxx/u/xT1DrFUL1LO1DtY8LSLJvPnmB4gfH//sr7TPDfvdebf/xXZbkE/4zZ0MVhGHd9zJDsv+7F3//Z69tT5wljAu3tXw+TIlzXKJlhflYmJ+5uF5WpWhb54X+C/zZCmT2wJA4dJZwus0UYjIGqWyMhVbEp4yKNRRqlv0opW5PJLJ4rFJXvP4JKDRMqturBZjkMVJFYjR6iHQDQDI4+k2k51wZbWrqwp4mR/1CVYATyko9TFGxBUqL5IvMbXSWt0T8bkGgFLqgqZBI/Uxbx5UAxLaNcCNLBpttM7wbCc1pmJOpWAsDtey68UaQMyrFgb9uxLPjqg3+nGluyKN0XUdWw0BJ0NvTFFqgzpr9J+Dh4w0Ga1qkqBNswagxdRgFPAbgHRQG5jumGWyMxrTIaRRa4AzFs0YrNMXgI4MJWnsKYFhGNMnIh/mBOPsV8CZBFjN9w8ArowxnZzDr5IcvxTaKpxJCVsoI3SWysz1UM4AqQdzlCgho1IKrK+x1mKFzisANtgEU8E7GwHDgOqxe4w9tnM166wbaA2xBMBLrTWcAGYGdCiYVUJUrMCF+7l6gklrW1RwPi8ByjuActANqhKzVWoYrFGcCFzbDgNaBrTWpncFQMcI2DfWoAiDqRCiHcYM/ZdCEKkZqfR8spj4F0CiJjv2gHL6URNoCQDaYacL6O1oFDO2eQDUFP7AKdCRdC4CRDZaNifbjA41l/uYb/SZMAFNTBGzY7sG4J2jTsJgToOzIzXF3HZqBpSOAGduXbkGEKV1OqVGqRJpRxtvwbSw5IqAiUJItwBCOT9R32FCGo3nCkAN3t0UTBRC6zDONcBeOee9pr4T+ASbnDOdc5OmtREwEEB5w8Wqgt4bOV5c7Lt9iiK8zdP/IsBbutUGX4gNwEVCqd3FUt/xYnRWt7BvPBYQjwjAGXa3ASguHVAZ/WXKlA3eZDX1wRegFsr7E2wAlB9xFbx/7MV70kFT8aqNgLL3F8nFBmA3hrn/IJHjKJOK2oj1WI4Z4FzwN/81AOhgYD6v2xbIvaZIurLC9AfvB1WLTYAoXejF1xeBL5cpBIyEbmxkZymIXwDQh1BAfOrhI1lfwtgz8tozF5T4ttf3+32AyxC6klwAgw/YVTHpoK82xYt3wLP/Bw4AAI4D7/01TLKXBj9NEz2wEuGiKpoy68S/FwCLMQAZ3gXhihaCa25vQo6RyToOz9PE6wYjJgGi1YnqZX8qMIK+TDlnargGzSv4NvFjlwXf/nfLLMrAB4O/Xl3BH0d+RIASFgDA8IYMIXgr2+cBsbDdPSwAAHjSZFmb3txETCKIxc0uWwI8rxsLJcTiVndNwyMgKljbbNN2/zcEAja2+4RgIDYN2Bu/WtAOaEodnu2dnzz/7I/Y/w/LaEcX/MdfAAAAAElFTkSuQmCC";
@@ -2363,20 +2417,12 @@ Minimum version required to store current data is: ` + bestVersion + `.
             })
           ]);
           applyView(view), setHostStatus(status?.host);
-        }, refreshHostStatus = async () => {
-          setHostStatus((await props.control("status")).host);
         };
         React.useEffect(() => {
           load().catch((reason) => setError(messageOf(reason)));
         }, []), React.useEffect(() => {
-          if (association === void 0) return;
-          refreshHostStatus().catch(() => {
-          });
-          let timer = window.setInterval(() => {
-            refreshHostStatus().catch(() => {
-            });
-          }, 3e4);
-          return () => window.clearInterval(timer);
+          if (association !== void 0)
+            return props.statusFeed.subscribe((status) => setHostStatus(status.host));
         }, [association !== void 0]);
         let save = async (event) => {
           if (event?.preventDefault(), !(!writable || !serverDirty)) {
@@ -2875,12 +2921,8 @@ Minimum version required to store current data is: ` + bestVersion + `.
           setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setOpen(!0), await refreshRemote();
         };
         React.useEffect(() => {
-          if (!open || selectedHost !== void 0) return;
-          let timer = window.setInterval(() => {
-            props.control("status").then(setStatus).catch(() => {
-            });
-          }, 1500);
-          return () => window.clearInterval(timer);
+          if (!(!open || selectedHost !== void 0))
+            return props.statusFeed.subscribe(setStatus);
         }, [open, selectedHost]);
         let chooseAnotherHost = () => {
           setSelectedHost(void 0), setWorkspaces([]), setCodexWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setDirectory(void 0), setPath(""), setAddingWorkspace(!1), setError(void 0);
@@ -3421,12 +3463,8 @@ Minimum version required to store current data is: ` + bestVersion + `.
             setError(messageOf(reason)), setSupported(!1);
           });
         }, []), React.useEffect(() => {
-          if (!open) return;
-          refreshStatus();
-          let timer = window.setInterval(() => {
-            refreshStatus();
-          }, 1500);
-          return () => window.clearInterval(timer);
+          if (open)
+            return props.statusFeed.subscribe(setStatus);
         }, [open]);
         let switchMode = async (mode, targetDeviceId) => {
           setBusy(!0), setError(void 0);
@@ -3559,20 +3597,12 @@ Minimum version required to store current data is: ` + bestVersion + `.
         ) : null;
       }
       function RemoteSessionHeaderAction(props) {
-        let { t } = props, [status, setStatus] = React.useState(void 0), [busy, setBusy] = React.useState(!1), [routeOpen, setRouteOpen] = React.useState(!1);
+        let { t } = props, status = React.useSyncExternalStore(
+          props.statusFeed.subscribe,
+          props.statusFeed.getSnapshot,
+          props.statusFeed.getSnapshot
+        ), [busy, setBusy] = React.useState(!1), [routeOpen, setRouteOpen] = React.useState(!1);
         if (React.useEffect(() => {
-          let active = !0, refresh = () => {
-            props.control("status").then((next) => {
-              active && setStatus(next);
-            }).catch(() => {
-            });
-          };
-          refresh();
-          let timer = window.setInterval(refresh, 1500);
-          return () => {
-            active = !1, window.clearInterval(timer);
-          };
-        }, []), React.useEffect(() => {
           if (status?.mode === "remote")
             return hideLocalSessionActions();
         }, [status?.mode]), React.useEffect(() => (document.documentElement.classList.toggle(
@@ -3822,8 +3852,14 @@ Minimum version required to store current data is: ` + bestVersion + `.
           }
           if (!result.ok) throw new Error(result.error?.message ?? t("remoteRequestFailed"));
           return result.value;
-        };
-        ctx.effect(() => {
+        }, statusFeed = createStatusFeed({
+          url: STATUS_STREAM_PATH,
+          readStatus: () => control("status"),
+          onFallback: (reason) => {
+            console.warn("ds-harness-remote: status event stream unavailable, polling status instead:", reason);
+          }
+        });
+        ctx.effect(() => () => statusFeed.close(), "ds-harness-remote: status stream"), ctx.effect(() => {
           let disposed = !1, unsubscribeWorkspaces, unsubscribeSessions, selection, opening = !1, reconcile = () => {
             if (disposed || opening || selection === void 0) return;
             let pending = selection, workspaceSnapshot = ctx.workspaces.list.getSnapshot();
@@ -3847,24 +3883,15 @@ Minimum version required to store current data is: ` + bestVersion + `.
         }, "ds-harness-remote: resume selected workspace"), ctx.inject(["fileViewer"], (fileViewerContext) => {
           let viewer = fileViewerContext.get("fileViewer");
           viewer !== void 0 && fileViewerContext.effect(() => {
-            let active = !0, unregister, latestSaveAsAllowed = !1, latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES, sync = async () => {
-              try {
-                let status = await control("status");
-                if (!active) return;
-                let supported = shouldUseRemoteFileViewer(status);
-                latestSaveAsAllowed = shouldAllowRemoteFileSaveAs(status), latestSaveAsMaxBytes = remoteFileSaveAsMaxBytes(status), supported && unregister === void 0 ? unregister = viewer.registerContentProvider(createRemoteFileContentProvider(
-                  (endpoint, payload) => control(endpoint, payload),
-                  { saveAsAllowed: () => latestSaveAsAllowed, saveAsMaxBytes: () => latestSaveAsMaxBytes }
-                )) : !supported && unregister !== void 0 && (unregister(), unregister = void 0, latestSaveAsAllowed = !1, latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES);
-              } catch {
-              }
-            };
-            sync();
-            let timer = window.setInterval(() => {
-              sync();
-            }, 1500);
+            let unregister, latestSaveAsAllowed = !1, latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES, unsubscribe = statusFeed.subscribe((status) => {
+              let supported = shouldUseRemoteFileViewer(status);
+              latestSaveAsAllowed = shouldAllowRemoteFileSaveAs(status), latestSaveAsMaxBytes = remoteFileSaveAsMaxBytes(status), supported && unregister === void 0 ? unregister = viewer.registerContentProvider(createRemoteFileContentProvider(
+                (endpoint, payload) => control(endpoint, payload),
+                { saveAsAllowed: () => latestSaveAsAllowed, saveAsMaxBytes: () => latestSaveAsMaxBytes }
+              )) : !supported && unregister !== void 0 && (unregister(), unregister = void 0, latestSaveAsAllowed = !1, latestSaveAsMaxBytes = REMOTE_FILE_SAVE_AS_MAX_BYTES);
+            });
             return () => {
-              active = !1, window.clearInterval(timer), unregister?.();
+              unsubscribe(), unregister?.();
             };
           }, "ds-harness-remote: remote file viewer provider");
         }), ctx.effect(() => ctx.locale.register(localeNamespace, { zh, en }), "ds-harness-remote: dictionaries"), ctx.effect(installStyle, "ds-harness-remote: client styles"), ctx.slots.inject("shell.overlay", () => ctx.slots.register({
@@ -3872,7 +3899,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           id: "ds-harness-remote-global-context",
           order: 20,
           locale: localeNamespace,
-          inject: () => ({ control })
+          inject: () => ({ control, statusFeed })
         }, RemoteSessionHeaderAction)), ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
           name: "sidebar.footer.action",
           id: "ds-harness-remote-workspace",
@@ -3880,6 +3907,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           locale: localeNamespace,
           inject: () => ({
             control,
+            statusFeed,
             preferredQrProvider: ctx.locale.getLocale().active === "zh" ? "zhihu" : "github"
           })
         }, RemoteWorkspaceAction)), ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
@@ -3888,7 +3916,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           id: "ds-harness-remote",
           order: 30,
           locale: localeNamespace,
-          inject: () => ({ control })
+          inject: () => ({ control, statusFeed })
         }, RemotePluginOptions));
       }
       function isMissingControlRoute(reason) {
