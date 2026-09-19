@@ -120,6 +120,21 @@ Host 身份。支持 `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1`–`rc.1`、`dsh-v0
 
 公开服务目前使用托管的 Remote 中继，尚未提供受支持的自建中继方案。
 
+## 授权恢复与多实例
+
+每个同时运行的 Host 都需要独立设备身份。共享 `DSH_HOME` 的 profile 也共享 Remote
+凭据；如果两个实例都需要在线，请分别设置独立的 `DSH_HOME` 并授权。
+当另一连接替换当前 Host（`CONNECTION_REPLACED`）时，自动重连会停止，避免两个实例反复互踢。
+
+过期凭据通过跨进程锁串行刷新。Server 拒绝握手时，Host 可刷新凭据后重试一次。
+若刷新被拒绝，请执行 `/remote login [github|zhihu]`，或在 Remote 设置中重新授权 Host。
+日志以 `phase: credential_refresh` 标记刷新失败，不输出凭据。
+
+`SERVER_CREDENTIALS_BUSY` 表示其他进程持有刷新锁。若此前异常退出，请停止共享该
+`DSH_HOME` 的**所有**实例，仅移除 `remote/servers/<serverHash>/<role>/` 下对应凭据旁的
+`server-credentials.json.refresh-lock` 目录，然后重新授权并启动。
+锁不会按存续时间被强行抢占，以免暂停中的进程恢复后继续使用旧 token。
+
 ## 界面截图
 
 ### 桌面端

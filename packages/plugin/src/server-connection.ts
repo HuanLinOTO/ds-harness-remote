@@ -81,6 +81,7 @@ export class HostServerConnection {
   private lastActiveAt?: number
   private reconnectRequested = false
   private resumeQueued = false
+  private authRecoveryAttempted = false
   private rtcFactory?: RtcPeerConnectionFactory
   private negotiatedCapabilities: string[] = ['transport.relay']
   private controlFrameLimits: ControlFrameByteLimits = {}
@@ -156,14 +157,26 @@ export class HostServerConnection {
 
   private async run(): Promise<void> {
     let delayMs = this.config.reconnect.initialDelayMs
+    this.authRecoveryAttempted = false
     while (!this.stopped) {
       try {
         await this.connectOnce()
         delayMs = this.config.reconnect.initialDelayMs
       } catch (error) {
         const code = errorCode(error)
+        if (code === 'CREDENTIALS_REFRESHED') continue
         this.terminalError = code
-        this.logger.warn('server control connection failed', { code, retryable: isRetryable(error) })
+        this.logger.warn('server control connection failed', {
+          code, retryable: isRetryable(error),
+          ...(error instanceof ServerApiError && error.phase !== undefined ? { phase: error.phase } : {}),
+        })
+        if (TERMINAL_AUTH_ERRORS.has(code)) {
+          this.logger.warn(code === 'CONNECTION_REPLACED'
+            ? 'Another instance is using this Host identity. Stop it or use a separate DSH_HOME; automatic reconnect is paused.'
+            : code === 'SERVER_CREDENTIALS_BUSY'
+              ? 'Credential refresh is locked. Stop other instances; after a crash, stop all instances before removing server-credentials.json.refresh-lock and authorizing again.'
+              : 'Host authorization failed. Run /remote login or authorize this Host again in Remote settings.')
+        }
         if (TERMINAL_AUTH_ERRORS.has(code) || !this.config.reconnect.enabled) return
       }
       if (this.stopped) return
@@ -222,6 +235,7 @@ export class HostServerConnection {
           this.lastActiveAt = Date.now()
           if (frame.type === 'hello.ack') {
             const payload = requireHelloAck(frame.payload)
+            this.authRecoveryAttempted = false
             this.controlFrameLimits = {
               maxControlFrameBytes: payload.maxControlFrameBytes,
               maxRelayFrameBytes: payload.maxRelayFrameBytes,
@@ -262,8 +276,22 @@ export class HostServerConnection {
       socket.onclose = event => {
         const close = async (): Promise<void> => {
           await messageQueue.catch(() => undefined)
+          if (this.stopped) { finish(); return }
+          if (event.code === 4003) {
+            finish(new ControlConnectionError('CONNECTION_REPLACED', 'Another instance connected with this Host identity.'))
+            return
+          }
           if (event.code === 4002) {
-            try { await this.api.refreshCredentials() } catch (error) { finish(asError(error)); return }
+            if (this.authRecoveryAttempted) {
+              finish(new ControlConnectionError('AUTH_INVALID', 'Server rejected refreshed credentials.'))
+              return
+            }
+            try { await this.api.refreshCredentials(credentials.accessToken) } catch (error) { finish(asError(error)); return }
+            // Only a successfully refreshed credential consumes the hello retry.
+            // Transient refresh errors must remain eligible for normal backoff.
+            this.authRecoveryAttempted = true
+            finish(new ControlConnectionError('CREDENTIALS_REFRESHED', 'Retry hello with refreshed credentials.'))
+            return
           }
           if (event.code === 4004) { finish(new ControlConnectionError('DEVICE_REVOKED', 'The Server revoked this Host device.')); return }
           if (acknowledged) this.terminalError = closeCode(event.code)
@@ -794,6 +822,8 @@ export class HostServerConnection {
 }
 
 const TERMINAL_AUTH_ERRORS = new Set([
+  'CONNECTION_REPLACED',
+  'SERVER_CREDENTIALS_BUSY',
   'ACCOUNT_AUTH_REQUIRED',
   'AUTH_INVALID',
   'DEVICE_OWNERSHIP_REQUIRED',
@@ -998,9 +1028,10 @@ function rtcDiagnostics(rtc: RtcDataChannelTransport): RtcConnectionDiagnostics 
   }
 }
 function errorCode(error: unknown): string { return error instanceof ServerApiError || error instanceof ControlConnectionError ? error.code : 'CONNECTION_FAILED' }
-function isRetryable(error: unknown): boolean { return error instanceof ServerApiError ? error.retryable : errorCode(error) !== 'DEVICE_REVOKED' }
+function isRetryable(error: unknown): boolean { return !TERMINAL_AUTH_ERRORS.has(errorCode(error)) && (!(error instanceof ServerApiError) || error.retryable) }
 function closeCode(code: number): string {
   if (code === 4002) return 'AUTH_INVALID'
+  if (code === 4003) return 'CONNECTION_REPLACED'
   if (code === 4004) return 'DEVICE_REVOKED'
   if (code === 4007) return 'RATE_LIMITED'
   if (code === 4011) return 'UNSUPPORTED_VERSION'

@@ -122,6 +122,24 @@ status fields, and troubleshooting.
 The public service currently uses the hosted Remote relay. A supported self-hosted relay
 option is not available yet.
 
+## Authorization recovery and multiple instances
+
+Each running Host needs its own device identity. Profiles sharing the same `DSH_HOME`
+share Remote credentials; use a separate `DSH_HOME` and authorize each instance if
+both must stay online. When another connection replaces this Host (`CONNECTION_REPLACED`),
+automatic reconnect stops to prevent the two instances from repeatedly disconnecting each other.
+
+Expired credentials refresh under a cross-process lock. If the Server rejects a
+handshake, the Host can refresh and retry it once. If refresh is rejected, use
+`/remote login [github|zhihu]` or authorize the Host again in Remote settings.
+The log marks refresh failures with `phase: credential_refresh` without exposing credentials.
+
+`SERVER_CREDENTIALS_BUSY` means another process holds the refresh lock. After an
+abnormal exit, stop **all** instances sharing that `DSH_HOME`, remove only the
+`server-credentials.json.refresh-lock` directory beside the affected credentials
+under `remote/servers/<serverHash>/<role>/`, then authorize again and restart.
+Locks are never taken over based on age: a suspended process could still use the old token.
+
 ## Screenshots
 
 ### Desktop

@@ -287,6 +287,17 @@ Content-Type: application/json
 
 Server 每次刷新都会轮换 refresh token。插件必须将整组新凭证原子落盘后再废弃旧值；旧 token 重用会撤销整个 token family。不要并发刷新，同一设备应使用 single-flight/互斥锁。
 
+Plugin 使用凭据文件旁的 `server-credentials.json.refresh-lock` 目录锁，在获得锁后重新
+读取凭据，串行执行读取、刷新与原子落盘。等待 15 秒仍未获得锁时返回
+`SERVER_CREDENTIALS_BUSY`，不按锁龄抢占。进程异常退出后，应停止所有共享该目录的实例，
+移除遗留锁并重新授权，避免重用可能已被 Server 消耗的 refresh token。
+刷新失败日志只标记 `phase: credential_refresh` 与错误码，不记录响应正文或 token。
+
+同一 deviceId 只保留一个控制连接。收到 `4003` 时 Plugin 进入 `CONNECTION_REPLACED`
+并停止自动重连；同时运行的 Host 应使用独立 `DSH_HOME` 并分别授权。
+收到 `4002` 时，Plugin 使用被拒绝的 access token 对照锁内最新凭据，必要时刷新，
+随后重试握手一次；新凭据仍被拒绝时停止恢复，成功完成握手才重置恢复预算。
+
 建议在 access token 到期前 60 秒刷新。收到 `TOKEN_EXPIRED` 可刷新后重试一次；收到 `AUTH_INVALID` 或 `DEVICE_REVOKED` 应停止自动重试，清理设备凭证并提示用户重新登录/接入。
 
 ## 7. 建立 WebSocket

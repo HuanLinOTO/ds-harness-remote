@@ -14,6 +14,9 @@ transport 状态机；普通 UI、文案和辅助脚本不单独补测试。
 
 ## 已完成基线
 
+- [x] Issue #70：Plugin 刷新跨进程互斥、握手恢复单次重试、重复 Host 连接停止抢占及授权恢复提示
+- [ ] Issue #70：Windows 双实例与异常退出遗留锁的实机回归（已有进程级锁与状态机测试）
+
 - [x] pnpm monorepo、共享 Protocol/Crypto/Transport/Client Core
 - [x] Host 账号密码/主机匹配码接入、Client 账号接入、device token rotation 与按 Server/角色隔离的身份状态
 - [x] 同账号 membership、受保护 peer descriptor 与本地 pinned trust 双重授权
