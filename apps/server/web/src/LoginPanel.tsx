@@ -1,8 +1,10 @@
 // Password-only subset of upstream components/LoginPanel.tsx; keep its layout/classes.
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
+import { GithubOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import { api, type Account } from './api'
 import { ThemeToggle } from './ThemeToggle'
+import { SiteFooter } from './SiteFooter'
 export function LoginPanel({ onAuthSuccess, initialError }: { onAuthSuccess: (account: Account) => void; initialError?: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(initialError ?? '')
@@ -15,10 +17,10 @@ export function LoginPanel({ onAuthSuccess, initialError }: { onAuthSuccess: (ac
     } catch (err) { setError(err instanceof Error ? err.message : '登录失败，请重试。') }
     finally { setLoading(false) }
   }
-  return <main className="auth-page">
-    <div className="auth-language-menu"><ThemeToggle className="auth-theme-toggle" /></div>
+  return <><main className="auth-page">
+    <div className="auth-language-menu"><a className="auth-github-link" href="https://github.com/liguobao/dsh-harness-remote" target="_blank" rel="noreferrer"><GithubOutlined /> GitHub</a><ThemeToggle className="auth-theme-toggle" /></div>
     <section className="auth-content">
-      <div className="auth-logo-stack"><a className="auth-home-link" href="/" aria-label="返回登录页"><Typography.Title>DeepSeek Harness Remote</Typography.Title></a></div>
+      <div className="auth-logo-stack"><a className="auth-home-link" href="/" aria-label="返回首页"><img className="auth-brand-icon" src="/brand-whale.webp" alt="" width="48" height="48" /><Typography.Title>DeepSeek Harness Remote</Typography.Title></a></div>
       <Card className="auth-panel">
         <div className="auth-intro"><Typography.Title level={3} className="auth-title">登录</Typography.Title></div>
         {error && <Alert className="selfhost-auth-error" type="error" showIcon message={error} />}
@@ -29,5 +31,5 @@ export function LoginPanel({ onAuthSuccess, initialError }: { onAuthSuccess: (ac
         </Form>
       </Card>
     </section>
-  </main>
+  </main><SiteFooter /></>
 }

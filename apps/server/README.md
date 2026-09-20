@@ -2,7 +2,11 @@
 
 **English** · [中文](README.zh.md)
 
-A single-account Remote relay with credentials configured through environment variables and a Web page for sign-in and device status.
+A single-account Remote relay with credentials configured through environment variables. Its Web UI includes a landing page, sign-in, and device status page. The Server is deployed separately from the Host plugin bundle.
+
+## Self-hosted Web flow
+
+The `/` landing page links to `/app/login`; a successful sign-in continues to `/app/remote`. Point both Host and Client at the same Server URL and use the same account and password. Device credentials are persisted by the Server, while Web sessions use an HttpOnly cookie.
 
 ## Docker deployment
 
@@ -14,6 +18,8 @@ docker compose up -d --build
 ```
 
 Open <http://localhost:8080>. Device credentials persist in the `server-data` volume. Stop the service with `docker compose down`.
+
+The GitHub Tag workflow builds the production image. Put an HTTPS reverse proxy in front of it instead of exposing the Node listener directly to the public internet.
 
 ## Local setup
 
@@ -52,3 +58,18 @@ For public access, use an HTTPS reverse proxy and set `DSH_SERVER_PUBLIC_URL` to
 - Single-process operation with persistent data. Device credentials survive restarts; Web users sign in again. Changing the password requires devices to reauthorize.
 
 Tests: `pnpm --filter @dsh-remote/server test`. Cross-machine and long-running validation remain pending. UI sources: [web/UPSTREAM.md](web/UPSTREAM.md).
+
+## Release Tag checks
+
+A release tag must match the versions in the root `package.json` and `packages/plugin/package.json`, for example `v0.4.15`. The Tag workflow runs workspace checks, tests, builds, npm plugin packing, browser-extension packaging, and SHA256 checksums; the Server image is built from the same tag.
+
+Run the checks locally before creating a tag:
+
+```bash
+pnpm --filter './packages/**' -r build
+pnpm -r check
+pnpm -r test
+NODE_ENV=production pnpm -r build
+node scripts/verify-dsh-plugin.mjs
+pnpm --dir packages/plugin pack --pack-destination /tmp/dsh-release-assets
+```

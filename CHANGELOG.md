@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.4.15
+
+- Refreshes the self-hosted Server Web experience with the original landing, login, and device-list presentation.
+- Aligns self-hosted branding, favicon assets, theme switching, GitHub links, and product-page layout across the public, login, and Remote pages.
+- Serves the bundled branding assets from the self-hosted Server and documents the release/tag packaging checks.
+
+
 - Pushes the Desktop Web UI Host status over one loopback
   `text/event-stream` connection (`/ds-harness-remote/status.events`) instead of
   polling the unary `status` control endpoint every 1.5 seconds. The first frame

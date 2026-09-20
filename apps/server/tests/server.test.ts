@@ -23,7 +23,7 @@ async function start(pass = password) {
 }
 async function device(role: 'host' | 'client' = 'client') {
   const keys = generateKeyPair()
-  const descriptor = { deviceId: randomUUID(), identityKey: keys.publicKey, name: 'test-device', role, platform: 'linux', clientVersion: '0.4.14' }
+  const descriptor = { deviceId: randomUUID(), identityKey: keys.publicKey, name: 'test-device', role, platform: 'linux', clientVersion: '0.4.15' }
   const result = await request('/devices/register', 'POST', { v: 1, device: descriptor }, accountToken)
   expect(result.status).toBe(200)
   return { ...descriptor, keys, ...result.data }

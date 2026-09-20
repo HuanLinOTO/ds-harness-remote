@@ -1,5 +1,43 @@
 ## English
 
+`v0.4.15` packages the self-hosted Server Web refresh and the matching `0.4.15` Plugin, VS Code extension, and Android metadata.
+
+### What changed
+
+- Adds the original-style self-hosted landing page, login flow, and device list.
+- Aligns branding, favicon assets, color themes, GitHub links, Remote page layout, and footer sizing across the self-hosted pages.
+- Serves the bundled `icon.png` and `brand-whale.webp` assets from the self-hosted Server.
+- Documents self-hosting and the Tag packaging checks in `apps/server/README.md`.
+
+### Verification
+
+- `pnpm -r check` passes.
+- `node scripts/verify-dsh-plugin.mjs` passes for `ds-harness-remote@0.4.15`.
+- Plugin tarball packaging passes for `ds-harness-remote-0.4.15.tgz`.
+- Server tests pass (11 tests).
+- The full workspace test run still has 3 existing Plugin failures in Client capability expectations and saved Client startup timing; these are recorded for CI follow-up.
+
+## 中文
+
+`v0.4.15` 发布自部署 Server Web 页面更新，并同步 Plugin、VS Code 扩展和 Android 的 `0.4.15` 版本元数据。
+
+### 主要变更
+
+- 增加原版风格的自部署首页、登录流程和设备列表。
+- 统一自部署页面的品牌图标、favicon、颜色主题、GitHub 链接、Remote 页面布局和页脚宽度。
+- Server 直接提供 `icon.png` 与 `brand-whale.webp` 品牌资源。
+- 在 `apps/server/README.zh.md` 中补充自部署和 Tag 打包检查说明。
+
+### 验证
+
+- `pnpm -r check` 通过。
+- `node scripts/verify-dsh-plugin.mjs` 通过，插件版本为 `ds-harness-remote@0.4.15`。
+- `ds-harness-remote-0.4.15.tgz` 打包通过。
+- Server 测试 11 项全部通过。
+- 全量 workspace 测试仍有 3 个既有 Plugin 测试失败，涉及 Client capability 断言和保存 Client 启动时序，待 CI 后续处理。
+
+## English
+
 `v0.4.14` is the cumulative upgrade from `v0.4.13`. It adds configurable ACP
 (Agent Client Protocol) IDE backends, surfaces connected Clients in the Remote
 host picker, and extends DeepSeek Harness compatibility to the

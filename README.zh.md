@@ -76,7 +76,7 @@ irm https://dsh.r2049.cn/app/install.ps1 | iex
 通过 DSH 插件管理命令，将确切版本加入 `web` profile：
 
 ```sh
-dsh plugin --profile web add -w ds-harness-remote@0.4.14
+dsh plugin --profile web add -w ds-harness-remote@0.4.15
 ```
 
 `-w` 表示加到 profile 自身的 workspace root；pnpm 低于 11 时不加会直接报
@@ -88,28 +88,7 @@ dsh plugin --profile web add -w ds-harness-remote@0.4.14
 
 ### 方式 D：dsh-TUI Host
 
-可以将 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 作为终端 Host。先安装插件并启动
-dsh-TUI：
-
-```sh
-dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
-```
-
-启动 dsh-TUI 后，使用原生 Slash Command：
-
-```text
-/remote                    # 查看 Host 实时状态
-/remote login              # 默认使用知乎二维码登录
-/remote login github
-/remote status
-/remote logout
-```
-
-`/remote login` 会显示二维码和授权 URL，默认使用知乎，也支持 GitHub；`/remote logout` 会撤销
-Host 身份。支持 `dsh-v0.1.1-rc.2`、`dsh-v0.1.2-alpha.1`–`rc.1`、`dsh-v0.1.5-rc.1` 和
-`dsh-v0.1.6-alpha.1`。
-
-完整兼容矩阵、rc.2 ApiProxy 挂载、状态字段和排障方式见
+将 [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) 作为终端 Host 的配置，请参阅
 [dsh-TUI Remote 使用指南](docs/dsh-tui.md)。
 
 ## 快速开始
@@ -231,7 +210,7 @@ WebSocket Relay。所有路径都承载同一份 Noise 密文，并保持相同�
 会话流量现在只通过官方 rc.2 `ApiProxy` 或 v0.1.2 Typert Remote Gateway 承载；
 本插件不提供旧 RPC 的适配层或 wire format 翻译。
 
-Plugin `0.4.14` 同时兼容 DeepSeek Harness `dsh-v0.1.1-rc.2` 与
+Plugin `0.4.15` 同时兼容 DeepSeek Harness `dsh-v0.1.1-rc.2` 与
 `dsh-v0.1.2-alpha.1`–`rc.1`：rc.2 继续使用官方 legacy `ApiProxy`，v0.1.2 使用官方
 Typert Remote Gateway；另外支持 `dsh-v0.1.5-rc.1` 与 `dsh-v0.1.6-alpha.1` 的 Session V3
 官方 Typert Remote Gateway——`0.1.6` 上报的 patch 为 `6`，会选中同一个 Session V3
@@ -242,7 +221,7 @@ Remote Web/Desktop 和 Android App 还会把已发布旧会话中仍然上报的
 agent preset 归一为 `ptc`，因此旧会话可以在 `dsh-v0.1.5-rc.1` 或 `dsh-v0.1.6-alpha.1`
 上恢复，而无需修改 DeepSeek Harness 本身。
 
-Desktop 两端必须使用兼容的 Harness carrier。`0.4.14` 会在 Host 暴露 rc.2 ApiProxy 时
+Desktop 两端必须使用兼容的 Harness carrier。`0.4.15` 会在 Host 暴露 rc.2 ApiProxy 时
 选择 legacy ApiProxy 路径，Session V3 Desktop Client 也可以通过 Remote 侧的历史与事件归一化
 打开 legacy v0.1.2 Typert Remote Host。legacy Typert Client 仍会在切换原生 UI 或修改 Workspace
 前拒绝 Session V3 Host。
@@ -283,14 +262,6 @@ Harness `0.1.6-alpha.2` 的原生工作区文件树与只读预览通过官方 A
 原生侧栏功能面向 Harness Session，CodeX 内存投影不自动获得原生文件/终端能力。
 
 在 **Host 本机 → Remote 插件设置** 中开启「远程终端」（切换即保存并立即生效），填写「远程预览端口」后点右侧「保存访问设置」；两项运行时访问控制都无需重启 Host。
-TUI profile 可在已有 Remote 配置中加入：
-
-```yaml
-terminal:
-  enabled: true
-loopback:
-  ports: [3000, 5173]
-```
 
 终端默认关闭，尝试使用时会提示在 Host 开启；不要用该开关修复账号登录或普通连接错误。
 终端以 Host 用户身份执行命令，独立于 Agent 审批；只列出本 Remote 设备创建的终端，断线不重放输入。

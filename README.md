@@ -76,7 +76,7 @@ Follow [Quick start](#quick-start) to sign in. See the [installation guide](docs
 Add the exact package version through DSH's plugin manager for the `web` profile:
 
 ```sh
-dsh plugin --profile web add -w ds-harness-remote@0.4.14
+dsh plugin --profile web add -w ds-harness-remote@0.4.15
 ```
 
 `-w` targets the profile's own workspace root. It is required on pnpm below 11, which
@@ -89,29 +89,8 @@ adds the bundle's configuration layer.
 
 ### Path D: dsh-TUI Host
 
-Use [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI) as a terminal Host. Install the plugin in
-its profile, then start dsh-TUI:
-
-```sh
-dsh plugin --profile dsh-tui add -w ds-harness-remote@0.4.14
-```
-
-Start dsh-TUI and use its native slash command:
-
-```text
-/remote                    # live Host status
-/remote login              # Zhihu QR login by default
-/remote login github
-/remote status
-/remote logout
-```
-
-`/remote login` shows a QR code and authorization URL; Zhihu is the default and GitHub is also
-available. `/remote logout` revokes the Host identity. Supported TUI versions are
-`dsh-v0.1.1-rc.2`, `dsh-v0.1.2-alpha.1`–`rc.1`, `dsh-v0.1.5-rc.1`, and `dsh-v0.1.6-alpha.1`.
-
-See the [dsh-TUI Remote guide](docs/dsh-tui.md) for the compatibility matrix, rc.2 ApiProxy setup,
-status fields, and troubleshooting.
+For terminal Host setup with [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI), see the
+[dsh-TUI Remote guide](docs/dsh-tui.md).
 
 ## Quick start
 
@@ -248,7 +227,7 @@ Remote business RPC surface (`sessions.*`, `session.*`, `permissions.respond`,
 `ApiProxy` or the v0.1.2 Typert Remote Gateway, and this plugin does not provide
 an adapter or wire-format translation for the old RPC surface.
 
-Plugin `0.4.14` supports DeepSeek Harness `dsh-v0.1.1-rc.2` through the legacy
+Plugin `0.4.15` supports DeepSeek Harness `dsh-v0.1.1-rc.2` through the legacy
 official `ApiProxy`, and `dsh-v0.1.2-alpha.1`–`rc.1` through the
 official Typert Remote Gateway. It also supports
 `dsh-v0.1.5-rc.1` and `dsh-v0.1.6-alpha.1` Session V3 through the official Typert Remote
@@ -260,7 +239,7 @@ Remote Web/Desktop and the Android app also normalize released sessions that
 still report the retired `code` agent preset to `ptc`, so old sessions can
 resume on `dsh-v0.1.5-rc.1` or `dsh-v0.1.6-alpha.1` without changing DeepSeek Harness itself.
 
-Desktop endpoints must use a compatible Harness carrier. Plugin `0.4.14` selects the legacy
+Desktop endpoints must use a compatible Harness carrier. Plugin `0.4.15` selects the legacy
 ApiProxy path for rc.2 Hosts when that Host exposes it, and Session V3 Desktop clients can open
 legacy v0.1.2 Typert Remote Hosts through Remote-side history and event normalization. Legacy
 Typert clients still reject Session V3 Hosts before switching the native UI or mutating a Workspace.
@@ -302,14 +281,6 @@ Reads follow the Host Session filesystem permissions, including authorized files
 These native sidebar features target Harness Sessions, not the CodeX in-memory projection.
 
 On the **Host computer → Remote plugin settings**, toggle **Remote terminal** (it saves and applies immediately), then enter **Remote preview ports** and use the adjacent **Save access settings** button. Both runtime access controls apply without restarting the Host.
-A TUI profile can add these fields to its existing Remote configuration:
-
-```yaml
-terminal:
-  enabled: true
-loopback:
-  ports: [3000, 5173]
-```
 
 Terminal access defaults off and reports how to enable it when attempted. This switch does not fix ordinary login or connection errors.
 Terminals run as the Host user independently of Agent approvals. Only terminals created by the current Remote device are exposed; input is never replayed after disconnect.

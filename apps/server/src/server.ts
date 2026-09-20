@@ -83,11 +83,13 @@ export function createRemoteServer(config: Config) {
     const method = req.method
     if (req.headers.origin && req.headers.origin !== url.origin) throw new ApiError('AUTH_INVALID', 403)
     if (req.headers['sec-fetch-site'] === 'cross-site') throw new ApiError('AUTH_INVALID', 403)
-    if (method === 'GET' && (['/', '/app', '/app/login'].includes(path) || path.startsWith('/assets/'))) {
-      const name = path.startsWith('/assets/') ? path.slice(1) : 'index.html'
+    const staticAsset = path.startsWith('/assets/') || ['/icon.png', '/brand-whale.webp', '/landing-atmosphere.webp'].includes(path)
+    if (method === 'GET' && (['/', '/app', '/app/login'].includes(path) || staticAsset)) {
+      const name = staticAsset ? path.slice(1) : 'index.html'
       const asset = assets.get(name)
       if (!asset) throw new ApiError('METHOD_NOT_FOUND', 404)
-      res.setHeader('Content-Type', name.endsWith('.js') ? 'text/javascript; charset=utf-8' : name.endsWith('.css') ? 'text/css; charset=utf-8' : 'text/html; charset=utf-8')
+      const contentType = name.endsWith('.js') ? 'text/javascript; charset=utf-8' : name.endsWith('.css') ? 'text/css; charset=utf-8' : name.endsWith('.png') ? 'image/png' : name.endsWith('.webp') ? 'image/webp' : 'text/html; charset=utf-8'
+      res.setHeader('Content-Type', contentType)
       res.end(asset); return
     }
     if (method === 'GET' && path === '/healthz') { json(res, 200, { status: 'ok' }); return }
