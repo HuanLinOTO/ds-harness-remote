@@ -4,23 +4,12 @@
 
 ## 0.4.15
 
-- Adds the native workspace file tree and read-only previews through official Harness APIs, while retaining the optional dsh-file-viewer provider. Moves the development baseline to Harness `0.1.6-alpha.2`.
-- Adds opt-in remote terminals. The Host-local **Remote terminal** switch saves and takes effect immediately without a restart; terminals run as the Host user, independently of Agent approvals. Terminal ownership is isolated by device, input authority by connection, and input is never replayed after disconnect.
-- Adds **Preview service** to the Remote Header for HTTP/WebSocket development services on explicitly allowed Host `127.0.0.1` ports. Preview uses a separate random local origin and closes on disconnect or leaving Remote. It currently supports Desktop and browsers connected to a local Harness, not Remote Web, Android, or VS Code preview UI.
-- Applies **Remote preview ports** live through the adjacent **Save access settings** button. Terminal and preview access settings can only be changed on the Host; remote settings calls cannot enable them. Terminals are off and the port allowlist is empty by default.
-- Adds the minimal open-source self-hosted Server: an environment-configured single account, persistent device credentials and refresh, device discovery, Control/Noise handshake forwarding, and encrypted Relay. Includes a Dockerfile, Compose configuration, deployment documentation, and a version-tag-gated GHCR image workflow. This version is single-process and Relay-only; it does not provide Remote Web conversations, multi-account administration, WebRTC, or TURN.
-- Refreshes the self-hosted landing, login, and device-status pages with consistent branding, favicon assets, theme switching, GitHub links, and layout. Bundles `icon.png` and `brand-whale.webp` and documents release/tag packaging checks.
-- Fixes Host authorization recovery (#70): serializes credential refresh across processes, rereads credentials under the lock, retries a rejected handshake once after refresh, and stops automatic reconnect when another Host replaces the connection (`4003` / `CONNECTION_REPLACED`). Documents separate `DSH_HOME` directories for concurrent Hosts and recovery from an abandoned credential lock.
-- Replaces repeated Desktop Host-status polling with one shared loopback SSE subscription for the Remote Header, workspace chooser, settings, and file viewer. Sends an initial full status and subsequent changes, with keep-alives while idle; older Hosts and unsupported carriers retain the unary status fallback.
-- Adds self-contained macOS/Linux and Windows Host installation and uninstall scripts with background-service setup, CLI availability, and corrected profile installation using `-w`. Windows uses a private Node.js/pnpm/DSH runtime and WinSW under `%LOCALAPPDATA%\dsh-remote`, with a shared fixed `DSH_HOME` for the service and CLI; uninstall preserves profiles and credentials.
-- Adds a packaged Chrome/Edge extension ZIP to release assets. Synchronizes Plugin, VS Code, and Android version metadata to `0.4.15`.
-
-### Verification
-
-- The final tag points to `b02277e`, which fixes the Client capability assertions and saved Client startup timing in tests. The earlier report of three failing Plugin tests no longer applies to this tag.
-- [Tag CI](https://github.com/liguobao/ds-harness-remote/actions/runs/35507163143) and the [Release workflow](https://github.com/liguobao/ds-harness-remote/actions/runs/35507163128) pass: frozen-lockfile install, workspace checks/tests/production build, committed Host bundle verification, Plugin packaging, browser-extension packaging, and Android APK build/upload. Server coverage includes 11 core tests.
-- Docker image build/container startup, self-hosted cross-machine and reverse-proxy endurance checks, Windows installation/multiple-instance checks, and native sidebar/terminal/preview cross-machine and real-network regression remain pending. The GHCR workflow configuration is not deployment acceptance.
-- The known Metro `@noble/hashes/crypto.js` package-exports fallback warning remains tracked in `TODO.md`.
+- Adds the native workspace file tree and read-only previews for Harness `0.1.6-alpha.2`.
+- Adds remote terminals and development-service previews, enabled locally on the Host with settings that apply immediately. Previews currently require Desktop or a browser connected to a local Harness.
+- Adds a single-account self-hosted relay with Docker deployment files, plus refreshed landing, login, and device-status pages. Remote Web conversations are not included.
+- Adds macOS/Linux and Windows Host installation scripts and a downloadable Chrome/Edge extension ZIP.
+- Fixes Host authorization recovery and repeated connection replacement between instances (#70).
+- Switches Desktop Host status to live updates, reducing polling.
 
 ## 0.4.14
 
