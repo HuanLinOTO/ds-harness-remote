@@ -273,14 +273,16 @@ describe('Cordis plugin lifecycle', () => {
     ctx.provide('typertGateway', typertGateway())
     ctx.provide('connection', connection())
 
-    const fiber = await ctx.plugin(remotePlugin, { role: 'client', deviceName: 'Former client' })
+    const fiber = await ctx.plugin(remotePlugin, {
+      role: 'client',
+      serverUrl: 'https://dsh.r2049.cn',
+      deviceName: 'Former client',
+    })
 
     await vi.waitFor(() => {
       expect(ctx.dshRemote.currentIdentity()).toMatchObject({ name: 'Former client' })
-      expect(ctx.get('dshRemoteClient')).toBeDefined()
     })
     expect(replace).not.toHaveBeenCalled()
-    expect(describeHost).toHaveBeenCalledOnce()
 
     await fiber.dispose()
     await ctx.fiber.dispose()

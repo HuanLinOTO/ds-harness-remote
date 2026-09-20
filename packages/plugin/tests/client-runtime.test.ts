@@ -25,12 +25,12 @@ afterEach(async () => {
 
 describe('ClientModeRuntime Host account control', () => {
   it('uses a conservative compatibility profile for legacy and unknown Hosts', () => {
-    expect(remoteHostFeatures()).toEqual({ commandList: false, fileViewer: false, apiProxy: true, remoteGateway: false, codex: false })
-    expect(remoteHostFeatures('not-semver')).toEqual({ commandList: false, fileViewer: false, apiProxy: true, remoteGateway: false, codex: false })
-    expect(remoteHostFeatures('0.3.15')).toEqual({ commandList: false, fileViewer: false, apiProxy: true, remoteGateway: false, codex: false })
-    expect(remoteHostFeatures('0.3.16')).toEqual({ commandList: true, fileViewer: false, apiProxy: true, remoteGateway: false, codex: false })
-    expect(remoteHostFeatures('v0.3.17')).toEqual({ commandList: true, fileViewer: true, apiProxy: true, remoteGateway: false, codex: false })
-    expect(remoteHostFeatures('0.3.99-beta.1')).toEqual({ commandList: true, fileViewer: true, apiProxy: true, remoteGateway: false, codex: false })
+    expect(remoteHostFeatures()).toEqual({ commandList: false, fileViewer: false, terminal: false, apiProxy: true, remoteGateway: false, codex: false })
+    expect(remoteHostFeatures('not-semver')).toEqual({ commandList: false, fileViewer: false, terminal: false, apiProxy: true, remoteGateway: false, codex: false })
+    expect(remoteHostFeatures('0.3.15')).toEqual({ commandList: false, fileViewer: false, terminal: false, apiProxy: true, remoteGateway: false, codex: false })
+    expect(remoteHostFeatures('0.3.16')).toEqual({ commandList: true, fileViewer: false, terminal: false, apiProxy: true, remoteGateway: false, codex: false })
+    expect(remoteHostFeatures('v0.3.17')).toEqual({ commandList: true, fileViewer: true, terminal: false, apiProxy: true, remoteGateway: false, codex: false })
+    expect(remoteHostFeatures('0.3.99-beta.1')).toEqual({ commandList: true, fileViewer: true, terminal: false, apiProxy: true, remoteGateway: false, codex: false })
   })
 
   it('prefers encrypted Host capability discovery while retaining the legacy fallback', async () => {
@@ -42,6 +42,7 @@ describe('ClientModeRuntime Host account control', () => {
     await expect(probeRemoteHostFeatures(alphaClient as never, '0.3.15')).resolves.toEqual({
       commandList: true,
       fileViewer: false,
+      terminal: false,
       apiProxy: false,
       remoteGateway: true,
       codex: true,
@@ -53,6 +54,7 @@ describe('ClientModeRuntime Host account control', () => {
     await expect(probeRemoteHostFeatures(alphaClient as never, '0.4.11')).resolves.toEqual({
       commandList: true,
       fileViewer: false,
+      terminal: false,
       apiProxy: false,
       remoteGateway: true,
       sessionFormat: 3,
@@ -65,6 +67,7 @@ describe('ClientModeRuntime Host account control', () => {
     await expect(probeRemoteHostFeatures(alphaClient as never, '0.4.19')).resolves.toEqual({
       commandList: false,
       fileViewer: false,
+      terminal: false,
       apiProxy: false,
       remoteGateway: false,
       codex: true,
@@ -78,6 +81,7 @@ describe('ClientModeRuntime Host account control', () => {
     await expect(probeRemoteHostFeatures(legacyClient as never, '0.3.17')).resolves.toEqual({
       commandList: true,
       fileViewer: true,
+      terminal: false,
       apiProxy: true,
       remoteGateway: false,
       codex: false,
