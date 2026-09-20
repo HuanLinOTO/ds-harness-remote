@@ -59,6 +59,8 @@ export interface HostRemoteStatus {
 export class HostPluginRuntime {
   readonly connections: ConnectionController
   private readonly terminalOwners = new Map<string, string>()
+  private terminalEnabled: boolean
+  private readonly loopback: LoopbackHost
   private identity?: HostIdentity
   private readonly serverApi?: HostServerApi
   private serverConnection?: HostServerConnection
@@ -76,6 +78,8 @@ export class HostPluginRuntime {
     private readonly localGateway?: LocalTypertGateway,
     private readonly fileViewerHost?: () => FileViewerHostServiceLike | undefined,
   ) {
+    this.terminalEnabled = config.terminal.enabled
+    this.loopback = new LoopbackHost(config.loopback.ports)
     this.codex = new CodexRemoteDomain(config.codex, logger)
     this.connections = new ConnectionController(this.identities, (context, send) => {
       const harnessApi = this.apiProxy === undefined
@@ -94,7 +98,7 @@ export class HostPluginRuntime {
             (event, data) => send(createEvent(event, data)),
             this.logger,
             this.harnessVersion,
-            new TerminalPolicy(config.terminal.enabled, context.peerDeviceId, this.terminalOwners),
+            new TerminalPolicy(() => this.terminalEnabled, context.peerDeviceId, this.terminalOwners),
           )
         : undefined
       const fileViewer = new RemoteFileViewerBridge(
@@ -116,12 +120,20 @@ export class HostPluginRuntime {
         () => this.hostCapabilities(),
         codex,
         acp,
-        new LoopbackHost(config.loopback.ports),
+        this.loopback,
       )
     }, this.logger)
     if (config.serverUrl !== undefined) {
       this.serverApi = new HostServerApi(config.serverUrl, new ServerCredentialStore(identities.directory))
     }
+  }
+
+  setTerminalEnabled(enabled: boolean): void {
+    this.terminalEnabled = enabled
+  }
+
+  setLoopbackPorts(ports: readonly number[]): void {
+    this.loopback.setPorts(ports)
   }
 
   async start(): Promise<void> {
@@ -378,14 +390,14 @@ export class HostPluginRuntime {
 
   private hostCapabilities(): string[] {
     const capabilities: string[] = []
-    if (this.config.loopback.ports.length > 0) capabilities.push('loopback.http-ws.v1')
+    if (this.loopback.hasPorts()) capabilities.push('loopback.http-ws.v1')
     if (this.localGateway?.supportsCarrier === true) {
       capabilities.push(
         harnessSessionGeneration(this.harnessVersion) === 'v3' ? 'harness.remote.v3' : 'harness.remote.v1',
         'harness.remote.transfer.v1',
       )
     }
-    if (this.localGateway?.supportsCarrier && this.config.terminal.enabled) capabilities.push('harness.terminal.v1')
+    if (this.localGateway?.supportsCarrier && this.terminalEnabled) capabilities.push('harness.terminal.v1')
     if (this.apiProxy !== undefined) {
       capabilities.push('harness.api.v1', 'harness.api.transfer.v1')
     }

@@ -50,6 +50,7 @@ interface ConnectedRemote {
 export interface RemoteHostFeatures {
   commandList: boolean
   fileViewer: boolean
+  terminal: boolean
   apiProxy: boolean
   remoteGateway: boolean
   sessionFormat?: 3
@@ -133,6 +134,8 @@ export interface HostConnectionHandle {
 }
 
 export interface HostAuthorizationControl {
+  setTerminalEnabled?(enabled: boolean): void
+  setLoopbackPorts?(ports: readonly number[]): void
   hostStatus(): {
     deviceId?: string
     configured: boolean
@@ -1291,6 +1294,7 @@ export function remoteHostFeatures(clientVersion?: string): RemoteHostFeatures {
   return {
     commandList: isVersionAtLeast(clientVersion, REMOTE_COMMAND_LIST_MIN_VERSION),
     fileViewer: isVersionAtLeast(clientVersion, REMOTE_FILE_VIEWER_MIN_VERSION),
+    terminal: false,
     apiProxy: true,
     remoteGateway: false,
     codex: false,
@@ -1317,6 +1321,7 @@ export async function probeRemoteHostFeatures(
   const apiProxy = capabilities.has('harness.api.v1')
   const remoteV1 = capabilities.has('harness.remote.v1')
   const remoteV3 = capabilities.has('harness.remote.v3')
+  const terminal = capabilities.has('harness.terminal.v1')
   const codex = capabilities.has('codex.appserver.v1')
   if (remoteV1 && remoteV3) {
     throw new ClientModeError('INVALID_MESSAGE', 'The remote Host advertised conflicting Harness Session formats.')
@@ -1329,6 +1334,7 @@ export async function probeRemoteHostFeatures(
   return {
     commandList: remoteGateway || (apiProxy && fallback.commandList),
     fileViewer: capabilities.has('fileviewer.read.v1'),
+    terminal,
     apiProxy,
     remoteGateway,
     ...(sessionFormat === undefined ? {} : { sessionFormat }),

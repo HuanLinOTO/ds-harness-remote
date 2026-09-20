@@ -4646,16 +4646,23 @@ function headerPairs(headers) {
   return Object.entries(headers).flatMap(([name2, value]) => value === void 0 ? [] : (Array.isArray(value) ? value : [value]).map((item) => [name2, item]));
 }
 var LoopbackHost = class {
+  handles = /* @__PURE__ */ new Map();
+  ports;
+  closed = false;
+  timer;
   constructor(ports) {
-    this.ports = ports;
+    this.ports = [...ports];
     this.timer = setInterval(() => {
       for (const [id4, handle] of this.handles) if (Date.now() - handle.touched > 6e4) this.close(id4);
     }, 1e4);
     this.timer.unref();
   }
-  handles = /* @__PURE__ */ new Map();
-  closed = false;
-  timer;
+  setPorts(ports) {
+    this.ports = [...ports];
+  }
+  hasPorts() {
+    return this.ports.length > 0;
+  }
   async call(input2) {
     if (this.closed) throw new RpcError("TRANSPORT_CLOSED", "Preview connection closed.");
     const value = loopbackRequestSchema.parse(input2);
@@ -4667,7 +4674,7 @@ var LoopbackHost = class {
     if (value.op === "http.open" || value.op === "ws.open") {
       if (!this.ports.includes(value.port)) throw new RpcError(
         "LOOPBACK_PORT_DENIED",
-        "This preview port is not allowed. Add it to loopback.ports in the Host Remote settings and restart the Host. / \u8BF7\u5728 Host Remote \u8BBE\u7F6E\u4E2D\u5141\u8BB8\u6B64\u9884\u89C8\u7AEF\u53E3\u5E76\u91CD\u542F Host\u3002"
+        "This preview port is not allowed. Add it to loopback.ports in the Host Remote settings and save the access settings. / \u8BF7\u5728 Host Remote \u8BBE\u7F6E\u4E2D\u5141\u8BB8\u6B64\u9884\u89C8\u7AEF\u53E3\u5E76\u4FDD\u5B58\u8BBF\u95EE\u8BBE\u7F6E\u3002"
       );
       if (this.handles.has(value.id)) throw new RpcError("REQUEST_CONFLICT", "Preview handle is already in use.");
       if (this.handles.size >= LOOPBACK_MAX_CONNECTIONS) throw new RpcError("RATE_LIMITED", "Too many active preview requests.");
@@ -4866,7 +4873,7 @@ var LoopbackPreview = class {
     if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new RpcError("INVALID_MESSAGE", "Enter a port between 1024 and 65535.");
     this.lifetime.signal.throwIfAborted();
     const description = await this.client.rpc("loopback.call", { op: "describe" }, this.lifetime.signal);
-    if (!description.ports.includes(port)) throw new RpcError("LOOPBACK_PORT_DENIED", "Allow this port in the Host Remote settings (loopback.ports), restart the Host, and reconnect. / \u8BF7\u5728 Host Remote \u8BBE\u7F6E\u4E2D\u5141\u8BB8\u6B64\u7AEF\u53E3\uFF0C\u91CD\u542F Host \u540E\u91CD\u65B0\u8FDE\u63A5\u3002");
+    if (!description.ports.includes(port)) throw new RpcError("LOOPBACK_PORT_DENIED", "Allow this port in the Host Remote settings (loopback.ports), then save the access settings. / \u8BF7\u5728 Host Remote \u8BBE\u7F6E\u4E2D\u5141\u8BB8\u6B64\u7AEF\u53E3\uFF0C\u7136\u540E\u4FDD\u5B58\u8BBF\u95EE\u8BBE\u7F6E\u3002");
     let pending = this.servers.get(port);
     if (pending === void 0) {
       if (this.servers.size >= 16) throw new RpcError("RATE_LIMITED", "Too many preview origins.");
@@ -20819,6 +20826,7 @@ function remoteHostFeatures(clientVersion) {
   return {
     commandList: isVersionAtLeast(clientVersion, REMOTE_COMMAND_LIST_MIN_VERSION),
     fileViewer: isVersionAtLeast(clientVersion, REMOTE_FILE_VIEWER_MIN_VERSION),
+    terminal: false,
     apiProxy: true,
     remoteGateway: false,
     codex: false
@@ -20840,6 +20848,7 @@ async function probeRemoteHostFeatures(client, clientVersion) {
   const apiProxy = capabilities.has("harness.api.v1");
   const remoteV1 = capabilities.has("harness.remote.v1");
   const remoteV3 = capabilities.has("harness.remote.v3");
+  const terminal = capabilities.has("harness.terminal.v1");
   const codex = capabilities.has("codex.appserver.v1");
   if (remoteV1 && remoteV3) {
     throw new ClientModeError("INVALID_MESSAGE", "The remote Host advertised conflicting Harness Session formats.");
@@ -20852,6 +20861,7 @@ async function probeRemoteHostFeatures(client, clientVersion) {
   return {
     commandList: remoteGateway || apiProxy && fallback.commandList,
     fileViewer: capabilities.has("fileviewer.read.v1"),
+    terminal,
     apiProxy,
     remoteGateway,
     ...sessionFormat === void 0 ? {} : { sessionFormat },
@@ -21375,16 +21385,18 @@ var PluginControlRuntime = class {
   async setDevelopment(payload) {
     if (this.settings === void 0) throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
     const value = record4(payload);
-    if (typeof value.terminalEnabled !== "boolean" || !Array.isArray(value.ports) || value.ports.some((port) => !Number.isInteger(port))) {
-      throw new ClientModeError("INVALID_MESSAGE", "A terminal switch and loopback ports are required.");
-    }
+    if (value.terminalEnabled !== void 0 && typeof value.terminalEnabled !== "boolean") throw new ClientModeError("INVALID_MESSAGE", "The terminal switch must be a boolean.");
+    if (value.ports !== void 0 && (!Array.isArray(value.ports) || value.ports.some((port) => !Number.isInteger(port)))) throw new ClientModeError("INVALID_MESSAGE", "Loopback ports must be integers.");
+    if (value.terminalEnabled === void 0 && value.ports === void 0) throw new ClientModeError("INVALID_MESSAGE", "A terminal switch or loopback ports are required.");
     const current = editableConfig(resolveConfig(this.settings.get()));
     const next = resolveConfig({
       ...current,
-      terminal: { enabled: value.terminalEnabled },
-      loopback: { ports: value.ports }
+      terminal: { enabled: value.terminalEnabled === void 0 ? current.terminal?.enabled ?? false : value.terminalEnabled },
+      loopback: { ports: value.ports === void 0 ? current.loopback?.ports ?? [] : value.ports }
     });
     await this.settings.replace(editableConfig(next));
+    if (value.terminalEnabled !== void 0) this.host?.setTerminalEnabled?.(value.terminalEnabled);
+    if (value.ports !== void 0) this.host?.setLoopbackPorts?.(value.ports);
     return this.settingsView();
   }
   async setCodex(payload) {
@@ -21617,9 +21629,9 @@ var TerminalPolicy = class {
   }
   attachments = /* @__PURE__ */ new Map();
   check(endpoint, payload) {
-    if (!this.enabled) throw new RpcError(
+    if (!(typeof this.enabled === "function" ? this.enabled() : this.enabled)) throw new RpcError(
       "TERMINAL_DISABLED",
-      "Remote terminal is disabled on this Host. Enable Remote terminal in the Host Remote settings (terminal.enabled: true), restart the Host, and reconnect. / \u8FDC\u7A0B\u7EC8\u7AEF\u672A\u5F00\u542F\uFF0C\u8BF7\u5728 Host \u7684 Remote \u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u8FDC\u7A0B\u7EC8\u7AEF\u300D\uFF0C\u91CD\u542F Host \u540E\u91CD\u65B0\u8FDE\u63A5\u3002"
+      "Remote terminal is disabled on this Host. Enable Remote terminal in the Host Remote settings; the switch saves and applies immediately. / \u8FDC\u7A0B\u7EC8\u7AEF\u672A\u5F00\u542F\uFF0C\u8BF7\u5728 Host \u7684 Remote \u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u8FDC\u7A0B\u7EC8\u7AEF\u300D\uFF0C\u5F00\u5173\u5207\u6362\u540E\u7ACB\u5373\u4FDD\u5B58\u5E76\u751F\u6548\u3002"
     );
     const args = external_exports.object({ args: external_exports.record(external_exports.unknown()) }).strict().parse(payload).args;
     const sessionId = id2.parse(args.agentId ?? args.sessionId);
@@ -24063,7 +24075,7 @@ var HARNESS_REMOTE_ALLOWLIST = [
 ];
 var allowedEndpoints = new Set(HARNESS_REMOTE_ALLOWLIST);
 var HarnessRemoteBridge = class {
-  constructor(gateway, publish, logger, harnessVersion, terminal = new TerminalPolicy(false, "", /* @__PURE__ */ new Map())) {
+  constructor(gateway, publish, logger, harnessVersion, terminal = new TerminalPolicy(() => false, "", /* @__PURE__ */ new Map())) {
     this.gateway = gateway;
     this.publish = publish;
     this.logger = logger;
@@ -26148,6 +26160,8 @@ var HostPluginRuntime = class {
     this.logger = logger;
     this.localGateway = localGateway;
     this.fileViewerHost = fileViewerHost;
+    this.terminalEnabled = config.terminal.enabled;
+    this.loopback = new LoopbackHost(config.loopback.ports);
     this.codex = new CodexRemoteDomain(config.codex, logger);
     this.connections = new ConnectionController(this.identities, (context, send) => {
       const harnessApi = this.apiProxy === void 0 ? void 0 : new HarnessApiBridge(
@@ -26163,7 +26177,7 @@ var HostPluginRuntime = class {
         (event, data2) => send(createEvent(event, data2)),
         this.logger,
         this.harnessVersion,
-        new TerminalPolicy(config.terminal.enabled, context.peerDeviceId, this.terminalOwners)
+        new TerminalPolicy(() => this.terminalEnabled, context.peerDeviceId, this.terminalOwners)
       ) : void 0;
       const fileViewer = new RemoteFileViewerBridge(
         () => this.fileViewerHost?.(),
@@ -26184,7 +26198,7 @@ var HostPluginRuntime = class {
         () => this.hostCapabilities(),
         codex,
         acp,
-        new LoopbackHost(config.loopback.ports)
+        this.loopback
       );
     }, this.logger);
     if (config.serverUrl !== void 0) {
@@ -26193,6 +26207,8 @@ var HostPluginRuntime = class {
   }
   connections;
   terminalOwners = /* @__PURE__ */ new Map();
+  terminalEnabled;
+  loopback;
   identity;
   serverApi;
   serverConnection;
@@ -26201,6 +26217,12 @@ var HostPluginRuntime = class {
   codex;
   localCodexPeer;
   localCodexPublish = async () => void 0;
+  setTerminalEnabled(enabled) {
+    this.terminalEnabled = enabled;
+  }
+  setLoopbackPorts(ports) {
+    this.loopback.setPorts(ports);
+  }
   async start() {
     if (this.closed) throw new Error("remote runtime is closed");
     this.identity = await this.identities.loadOrCreate(this.config.deviceName);
@@ -26425,14 +26447,14 @@ var HostPluginRuntime = class {
   }
   hostCapabilities() {
     const capabilities = [];
-    if (this.config.loopback.ports.length > 0) capabilities.push("loopback.http-ws.v1");
+    if (this.loopback.hasPorts()) capabilities.push("loopback.http-ws.v1");
     if (this.localGateway?.supportsCarrier === true) {
       capabilities.push(
         harnessSessionGeneration(this.harnessVersion) === "v3" ? "harness.remote.v3" : "harness.remote.v1",
         "harness.remote.transfer.v1"
       );
     }
-    if (this.localGateway?.supportsCarrier && this.config.terminal.enabled) capabilities.push("harness.terminal.v1");
+    if (this.localGateway?.supportsCarrier && this.terminalEnabled) capabilities.push("harness.terminal.v1");
     if (this.apiProxy !== void 0) {
       capabilities.push("harness.api.v1", "harness.api.transfer.v1");
     }

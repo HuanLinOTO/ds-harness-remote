@@ -301,7 +301,7 @@ Harness `0.1.6-alpha.2` workspace files and read-only previews use the official 
 Reads follow the Host Session filesystem permissions, including authorized files outside cwd; directory listings stay within the workspace.
 These native sidebar features target Harness Sessions, not the CodeX in-memory projection.
 
-On the **Host computer → Remote plugin settings**, enable **Remote terminal**, enter **Loopback preview ports**, save, then restart the Host and reconnect.
+On the **Host computer → Remote plugin settings**, toggle **Remote terminal** (it saves and applies immediately), then enter **Remote preview ports** and use the adjacent **Save access settings** button. Both runtime access controls apply without restarting the Host.
 A TUI profile can add these fields to its existing Remote configuration:
 
 ```yaml

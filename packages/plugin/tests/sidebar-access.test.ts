@@ -22,7 +22,7 @@ describe('native sidebar access boundaries', () => {
   })
   it('returns actionable Host-only guidance while disabled for calls and streams', async () => {
     const { bridge, dispatch, open } = setup('device-a', undefined, false)
-    await expect(bridge.call(create)).rejects.toMatchObject({ code: 'TERMINAL_DISABLED', message: expect.stringContaining('terminal.enabled') })
+    await expect(bridge.call(create)).rejects.toMatchObject({ code: 'TERMINAL_DISABLED', message: expect.stringContaining('Host Remote settings') })
     await expect(bridge.openStream({ streamId: 'stream', endpoint: 'terminal/follow', payload: { args: {} } })).rejects.toMatchObject({ code: 'TERMINAL_DISABLED' })
     expect(dispatch).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled()
   })

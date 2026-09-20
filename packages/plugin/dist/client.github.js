@@ -1771,11 +1771,13 @@ Minimum version required to store current data is: ` + bestVersion + `.
   }
   var localeNamespace = "ds-harness-remote", en = {
     terminalRemote: "Remote terminal",
-    terminalRemoteHint: "Allow trusted Remote devices to run an interactive shell as this Host user. Off by default; independent of Agent approvals.",
-    previewPorts: "Loopback preview ports",
+    terminalRemoteHint: "Allow trusted Remote devices to run an interactive shell as this Host user. Off by default; independent of Agent approvals. Toggling saves and applies immediately.",
+    terminalRemoteUnavailable: "Remote terminal is unavailable. Enable Remote terminal in the Host Remote settings, then restart the Host.",
+    previewPorts: "Remote preview ports",
     previewPortsHint: "Allow specific Host ports (1024\u201365535), separated by commas. Empty disables preview. HTTP, WebSocket and hot reload are supported.",
     developmentSave: "Save access settings",
-    developmentSaved: "Access settings saved. Restart the Host and reconnect to apply them.",
+    developmentSaved: "Remote preview ports saved. Changes apply immediately.",
+    terminalSaved: "Remote terminal setting saved. Applies immediately.",
     previewOpen: "Preview service",
     previewPort: "Host port",
     previewLocalOnly: "Preview requires Desktop or a browser connected to Harness on this computer.",
@@ -2005,11 +2007,13 @@ Minimum version required to store current data is: ` + bestVersion + `.
     codexVirtualSessions: "Sessions"
   }, zh = {
     terminalRemote: "\u8FDC\u7A0B\u7EC8\u7AEF",
-    terminalRemoteHint: "\u5141\u8BB8\u53D7\u4FE1\u4EFB\u7684 Remote \u8BBE\u5907\u4EE5\u6B64 Host \u7528\u6237\u8EAB\u4EFD\u8FD0\u884C\u4EA4\u4E92\u5F0F Shell\u3002\u9ED8\u8BA4\u5173\u95ED\uFF0C\u72EC\u7ACB\u4E8E Agent \u5BA1\u6279\u3002",
-    previewPorts: "Loopback \u9884\u89C8\u7AEF\u53E3",
+    terminalRemoteHint: "\u5141\u8BB8\u53D7\u4FE1\u4EFB\u7684 Remote \u8BBE\u5907\u4EE5\u6B64 Host \u7528\u6237\u8EAB\u4EFD\u8FD0\u884C\u4EA4\u4E92\u5F0F Shell\u3002\u9ED8\u8BA4\u5173\u95ED\uFF0C\u72EC\u7ACB\u4E8E Agent \u5BA1\u6279\uFF1B\u5207\u6362\u540E\u7ACB\u5373\u4FDD\u5B58\u5E76\u751F\u6548\u3002",
+    terminalRemoteUnavailable: "\u8FDC\u7A0B\u7EC8\u7AEF\u4E0D\u53EF\u7528\u3002\u8BF7\u5728 Host \u7684 Remote \u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u8FDC\u7A0B\u7EC8\u7AEF\u300D\uFF0C\u7136\u540E\u91CD\u542F Host\u3002",
+    previewPorts: "\u8FDC\u7A0B\u9884\u89C8\u7AEF\u53E3",
     previewPortsHint: "\u586B\u5199\u5141\u8BB8\u8BBF\u95EE\u7684 Host \u7AEF\u53E3\uFF081024\u201365535\uFF09\uFF0C\u4EE5\u9017\u53F7\u5206\u9694\u3002\u7559\u7A7A\u7981\u7528\u9884\u89C8\uFF1B\u652F\u6301 HTTP\u3001WebSocket \u548C\u70ED\u66F4\u65B0\u3002",
     developmentSave: "\u4FDD\u5B58\u8BBF\u95EE\u8BBE\u7F6E",
-    developmentSaved: "\u8BBF\u95EE\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u91CD\u542F Host \u5E76\u91CD\u65B0\u8FDE\u63A5\u540E\u751F\u6548\u3002",
+    developmentSaved: "\u8FDC\u7A0B\u9884\u89C8\u7AEF\u53E3\u5DF2\u4FDD\u5B58\uFF0C\u7ACB\u5373\u751F\u6548\u3002",
+    terminalSaved: "\u8FDC\u7A0B\u7EC8\u7AEF\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u7ACB\u5373\u751F\u6548\u3002",
     previewOpen: "\u9884\u89C8\u670D\u52A1",
     previewPort: "Host \u7AEF\u53E3",
     previewLocalOnly: "\u9884\u89C8\u9700\u8981 Desktop\uFF0C\u6216\u8FDE\u63A5\u5230\u672C\u673A Harness \u7684\u6D4F\u89C8\u5668\u3002",
@@ -2249,7 +2253,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
       controlUnavailable: !0,
       connected: !1,
       transport: "Disconnected",
-      remoteFeatures: { commandList: !1, fileViewer: !1, codex: !1 },
+      remoteFeatures: { commandList: !1, fileViewer: !1, terminal: !1, codex: !1 },
       hostAuthorizationAvailable: !1
     };
   }
@@ -2430,7 +2434,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
         }
       }
       function RemotePluginOptions(props) {
-        let { t } = props, [open, setOpen] = React.useState(!1), [serverUrl, setServerUrl] = React.useState(""), [codexEnabled, setCodexEnabled] = React.useState(!0), [terminalEnabled, setTerminalEnabled] = React.useState(!1), [previewPorts, setPreviewPorts] = React.useState(""), role = "host", [registrationCode, setRegistrationCode] = React.useState(""), [associations, setAssociations] = React.useState({}), [loaded, setLoaded] = React.useState(!1), [writable, setWritable] = React.useState(!1), [busy, setBusy] = React.useState(!1), [codexBusy, setCodexBusy] = React.useState(!1), [acpBackends, setAcpBackends] = React.useState([]), [acpAvailability, setAcpAvailability] = React.useState({}), [acpChecking, setAcpChecking] = React.useState({}), [acpCheckResults, setAcpCheckResults] = React.useState({}), [addingAcp, setAddingAcp] = React.useState(!1), [acpName, setAcpName] = React.useState(""), [acpCommand, setAcpCommand] = React.useState(""), [acpArguments, setAcpArguments] = React.useState("acp"), [reconnectBusy, setReconnectBusy] = React.useState(!1), [hostStatus, setHostStatus] = React.useState(void 0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [settingsView, setSettingsView] = React.useState(void 0), persistedServerUrl = settingsView?.config.serverUrl ?? "https://dsh.r2049.cn", association = associations.client ?? associations.host, serverDirty = settingsView !== void 0 && serverUrl !== persistedServerUrl, draftDirty = serverDirty, applyView = (view) => {
+        let { t } = props, [open, setOpen] = React.useState(props.view === "page"), [serverUrl, setServerUrl] = React.useState(""), [codexEnabled, setCodexEnabled] = React.useState(!0), [terminalEnabled, setTerminalEnabled] = React.useState(!1), [terminalBusy, setTerminalBusy] = React.useState(!1), [portsBusy, setPortsBusy] = React.useState(!1), [previewPorts, setPreviewPorts] = React.useState(""), role = "host", [registrationCode, setRegistrationCode] = React.useState(""), [associations, setAssociations] = React.useState({}), [loaded, setLoaded] = React.useState(!1), [writable, setWritable] = React.useState(!1), [busy, setBusy] = React.useState(!1), [codexBusy, setCodexBusy] = React.useState(!1), [acpBackends, setAcpBackends] = React.useState([]), [acpAvailability, setAcpAvailability] = React.useState({}), [acpChecking, setAcpChecking] = React.useState({}), [acpCheckResults, setAcpCheckResults] = React.useState({}), [addingAcp, setAddingAcp] = React.useState(!1), [acpName, setAcpName] = React.useState(""), [acpCommand, setAcpCommand] = React.useState(""), [acpArguments, setAcpArguments] = React.useState("acp"), [reconnectBusy, setReconnectBusy] = React.useState(!1), [hostStatus, setHostStatus] = React.useState(void 0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [settingsView, setSettingsView] = React.useState(void 0), persistedServerUrl = settingsView?.config.serverUrl ?? "https://dsh.r2049.cn", association = associations.client ?? associations.host, serverDirty = settingsView !== void 0 && serverUrl !== persistedServerUrl, draftDirty = serverDirty, applyView = (view) => {
           setSettingsView(view), setServerUrl(view.config.serverUrl ?? "https://dsh.r2049.cn"), setCodexEnabled(view.config.codex?.enabled ?? !0), setTerminalEnabled(view.config.terminal?.enabled ?? !1), setPreviewPorts((view.config.loopback?.ports ?? []).join(", ")), setAcpBackends((view.config.acp?.backends ?? []).map((item) => ({ id: item.id, enabled: item.enabled !== !1 }))), setAcpAvailability(view.acpAvailability ?? {}), setAssociations(view.associations ?? (view.association === void 0 ? {} : { host: view.association })), setWritable(view.writable), setLoaded(!0);
         }, load = async () => {
           let [view, status] = await Promise.all([
@@ -2501,6 +2505,27 @@ Minimum version required to store current data is: ` + bestVersion + `.
           } finally {
             setCodexBusy(!1);
           }
+        }, setTerminalRemote = async (enabled) => {
+          let previous = terminalEnabled, portsDraft = previewPorts;
+          setTerminalEnabled(enabled), setTerminalBusy(!0), setError(void 0), setNotice(void 0);
+          try {
+            let view = await props.control("settings.development.set", { terminalEnabled: enabled });
+            applyView(view), setPreviewPorts(portsDraft), setNotice({ key: "terminalSaved" });
+          } catch (reason) {
+            setTerminalEnabled(previous), setError(messageOf(reason));
+          } finally {
+            setTerminalBusy(!1);
+          }
+        }, savePreviewPorts = async () => {
+          setPortsBusy(!0), setError(void 0), setNotice(void 0);
+          try {
+            let ports = previewPorts.trim() === "" ? [] : previewPorts.split(/[,，]/).map((value) => Number(value.trim())), view = await props.control("settings.development.set", { ports });
+            applyView(view), setNotice({ key: "developmentSaved" });
+          } catch (reason) {
+            setError(messageOf(reason));
+          } finally {
+            setPortsBusy(!1);
+          }
         }, checkAcp = async (backend) => {
           setAcpChecking((current) => ({ ...current, [backend]: !0 })), setAcpCheckResults((current) => ({ ...current, [backend]: void 0 })), setError(void 0);
           try {
@@ -2559,35 +2584,34 @@ Minimum version required to store current data is: ` + bestVersion + `.
               type: "checkbox",
               role: "switch",
               checked: terminalEnabled,
-              disabled: busy || !writable,
+              disabled: busy || terminalBusy || !writable,
               "aria-label": t("terminalRemote"),
-              onChange: (event) => setTerminalEnabled(event.target.checked)
+              onChange: (event) => void setTerminalRemote(event.target.checked)
             })
           ),
           React.createElement(
-            "label",
+            "div",
             { className: "dshRemotePathField" },
             React.createElement("span", null, t("previewPorts")),
-            React.createElement("input", {
-              value: previewPorts,
-              maxLength: 128,
-              disabled: busy || !writable,
-              placeholder: "3000, 5173",
-              onChange: (event) => setPreviewPorts(event.target.value)
-            }),
+            React.createElement(
+              "div",
+              { className: "dshRemotePortsRow" },
+              React.createElement("input", {
+                value: previewPorts,
+                maxLength: 128,
+                disabled: !writable,
+                placeholder: "3000, 5173",
+                "aria-label": t("previewPorts"),
+                onChange: (event) => setPreviewPorts(event.target.value)
+              }),
+              React.createElement("button", {
+                type: "button",
+                disabled: portsBusy || terminalBusy || !writable,
+                onClick: () => void savePreviewPorts()
+              }, t("developmentSave"))
+            ),
             React.createElement("small", null, t("previewPortsHint"))
-          ),
-          React.createElement("button", {
-            type: "button",
-            disabled: busy || !writable,
-            onClick: () => {
-              setBusy(!0), setError(void 0), setNotice(void 0);
-              let ports = previewPorts.trim() === "" ? [] : previewPorts.split(/[,，]/).map((value) => Number(value.trim()));
-              props.control("settings.development.set", { terminalEnabled, ports }).then((view) => {
-                applyView(view), setNotice({ key: "developmentSaved" });
-              }).catch((reason) => setError(messageOf(reason))).finally(() => setBusy(!1));
-            }
-          }, t("developmentSave"))
+          )
         ), codexSetting = React.createElement(
           "div",
           { className: "dshRemoteAuthorizationSetting" },
@@ -2661,9 +2685,9 @@ Minimum version required to store current data is: ` + bestVersion + `.
             } }, t("addAcp"))
           )
         );
-        return React.createElement(
-          "li",
-          { className: `dshRemotePluginCard${open ? " isOpen" : ""}` },
+        return props.view === "summary" ? React.createElement("span", null, t("pluginDescription")) : React.createElement(
+          props.view === "page" ? "div" : "li",
+          { className: `dshRemotePluginCard${open ? " isOpen" : ""}${props.view === "page" ? " dshRemotePluginModern" : ""}` },
           React.createElement(
             "div",
             { className: "dshRemotePluginCardHeader" },
@@ -2773,7 +2797,10 @@ Minimum version required to store current data is: ` + bestVersion + `.
               React.createElement(
                 "div",
                 { className: "dshRemoteSettingsFooter" },
-                error !== void 0 ? React.createElement("p", { className: "dshRemoteError", role: "alert" }, error) : notice === void 0 ? null : React.createElement("p", { className: "dshRemoteNotice", role: "status" }, t(notice.key, notice.params)),
+                React.createElement("p", {
+                  className: error !== void 0 ? "dshRemoteError" : "dshRemoteNotice",
+                  role: error !== void 0 ? "alert" : "status"
+                }, error ?? (notice === void 0 ? "" : t(notice.key, notice.params))),
                 draftDirty ? React.createElement(
                   React.Fragment,
                   null,
@@ -2814,7 +2841,10 @@ Minimum version required to store current data is: ` + bestVersion + `.
               React.createElement(
                 "div",
                 { className: "dshRemoteSettingsFooter" },
-                error !== void 0 ? React.createElement("p", { className: "dshRemoteError", role: "alert" }, error) : notice === void 0 ? null : React.createElement("p", { className: "dshRemoteNotice", role: "status" }, t(notice.key, notice.params)),
+                React.createElement("p", {
+                  className: error !== void 0 ? "dshRemoteError" : "dshRemoteNotice",
+                  role: error !== void 0 ? "alert" : "status"
+                }, error ?? (notice === void 0 ? "" : t(notice.key, notice.params))),
                 React.createElement("button", { type: "button", className: "dshRemoteDiscard", disabled: busy || !draftDirty, onClick: discard }, t("discard")),
                 React.createElement("button", { type: "submit", className: "dshRemoteSave", disabled: busy || !writable || !serverDirty }, t(busy ? "saving" : "save"))
               )
@@ -2823,7 +2853,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
         );
       }
       function RemoteWorkspaceAction(props) {
-        let { t } = props, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [selectedHost, setSelectedHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(!1), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginMethod, setLoginMethod] = React.useState(props.preferredQrProvider), [loginMethodManuallySelected, setLoginMethodManuallySelected] = React.useState(!1), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0);
+        let { t } = props, [open, setOpen] = React.useState(!1), [status, setStatus] = React.useState(void 0), [devices, setDevices] = React.useState([]), [selectedHost, setSelectedHost] = React.useState(void 0), [workspaces, setWorkspaces] = React.useState([]), [codexWorkspaces, setCodexWorkspaces] = React.useState([]), [workspaceBackend, setWorkspaceBackend] = React.useState("harness"), [codexWorkspaceId, setCodexWorkspaceId] = React.useState(void 0), [directory, setDirectory] = React.useState(void 0), [path, setPath] = React.useState(""), [addingWorkspace, setAddingWorkspace] = React.useState(!1), [showAllWorkspaces, setShowAllWorkspaces] = React.useState(!1), [showAllCodexWorkspaces, setShowAllCodexWorkspaces] = React.useState(!1), [devicesOpen, setDevicesOpen] = React.useState(!1), workspaceListId = "dsh-remote-workspace-list", codexWorkspaceHeadingId = "dsh-remote-codex-workspace-heading", codexWorkspaceListId = "dsh-remote-codex-workspace-list", [busy, setBusy] = React.useState(!1), [needsAuthorization, setNeedsAuthorization] = React.useState(!1), [email, setEmail] = React.useState(""), [password, setPassword] = React.useState(""), [loginServerUrl, setLoginServerUrl] = React.useState("https://dsh.r2049.cn"), [loginMethod, setLoginMethod] = React.useState(props.preferredQrProvider), [loginMethodManuallySelected, setLoginMethodManuallySelected] = React.useState(!1), [qrSession, setQrSession] = React.useState(void 0), [qrImage, setQrImage] = React.useState(void 0), [qrExpired, setQrExpired] = React.useState(!1), [progress, setProgress] = React.useState(void 0), progressRun = React.useRef(0), qrFlowRun = React.useRef(0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0);
         React.useEffect(() => {
           open || setDevicesOpen(!1);
         }, [open]), React.useEffect(() => {
@@ -2851,6 +2881,8 @@ Minimum version required to store current data is: ` + bestVersion + `.
           props.control("status").then(setStatus).catch(() => {
           });
         }, []), React.useEffect(() => {
+          status?.serverUrl !== void 0 && loginServerUrl === "https://dsh.r2049.cn" && setLoginServerUrl(status.serverUrl);
+        }, [status?.serverUrl]), React.useEffect(() => {
           let remoteActive = status?.mode === "remote";
           return document.documentElement.classList.toggle("dshRemoteTargetActive", remoteActive), () => {
             remoteActive && document.documentElement.classList.remove("dshRemoteTargetActive");
@@ -2996,10 +3028,15 @@ Minimum version required to store current data is: ` + bestVersion + `.
         let chooseAnotherHost = () => {
           setSelectedHost(void 0), setWorkspaces([]), setCodexWorkspaces([]), setShowAllWorkspaces(!1), setShowAllCodexWorkspaces(!1), setWorkspaceBackend("harness"), setCodexWorkspaceId(void 0), setDirectory(void 0), setPath(""), setAddingWorkspace(!1), setError(void 0);
         }, signInClient = async () => {
-          if (!(email.trim() === "" || password === "")) {
+          if (!(email.trim() === "" || password === "" || loginServerUrl.trim() === "")) {
             setBusy(!0), setError(void 0);
             try {
-              await props.control("client.account.login", { email: email.trim(), password }), setDevices(await props.control("devices")), setStatus(await props.control("status")), setNeedsAuthorization(!1), setPassword("");
+              await props.control("settings.configure", {
+                role: "client",
+                serverUrl: loginServerUrl.trim(),
+                email: email.trim(),
+                password
+              }), setDevices(await props.control("devices")), setStatus(await props.control("status")), setNeedsAuthorization(!1), setPassword("");
             } catch (reason) {
               setError(messageOf(reason));
             } finally {
@@ -3272,6 +3309,15 @@ Minimum version required to store current data is: ` + bestVersion + `.
                       "aria-labelledby": "dsh-remote-password-tab"
                     },
                     React.createElement("input", {
+                      type: "url",
+                      value: loginServerUrl,
+                      disabled: busy,
+                      autoComplete: "url",
+                      placeholder: t("serverUrl"),
+                      "aria-label": t("serverUrl"),
+                      onChange: (event) => setLoginServerUrl(event.target.value)
+                    }),
+                    React.createElement("input", {
                       type: "email",
                       value: email,
                       disabled: busy,
@@ -3289,7 +3335,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
                       "aria-label": t("password"),
                       onChange: (event) => setPassword(event.target.value)
                     }),
-                    React.createElement("button", { type: "button", disabled: busy || email.trim() === "" || password === "", onClick: () => void signInClient() }, t(busy ? "signingIn" : "startSignIn"))
+                    React.createElement("button", { type: "button", disabled: busy || loginServerUrl.trim() === "" || email.trim() === "" || password === "", onClick: () => void signInClient() }, t(busy ? "signingIn" : "startSignIn"))
                   )
                 ) : null,
                 needsAuthorization ? null : React.createElement(
@@ -3665,46 +3711,6 @@ Minimum version required to store current data is: ` + bestVersion + `.
           ) : null
         ) : null;
       }
-      function RemotePreviewAction(props) {
-        let [open, setOpen] = React.useState(!1), [port, setPort] = React.useState("5173"), [busy, setBusy] = React.useState(!1), [error, setError] = React.useState(void 0), launch = async () => {
-          if (!(["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) || window.location.hostname.endsWith(".localhost"))) {
-            setError(props.t("previewLocalOnly"));
-            return;
-          }
-          setBusy(!0), setError(void 0);
-          try {
-            let result = await props.control("preview.open", { port: Number(port) });
-            props.openPreviewUrl(result.url), setOpen(!1);
-          } catch (reason) {
-            setError(messageOf(reason));
-          } finally {
-            setBusy(!1);
-          }
-        };
-        return React.createElement(
-          "span",
-          { className: "dshRemotePreviewAction" },
-          React.createElement("button", { type: "button", "aria-expanded": open, onClick: () => setOpen((value) => !value) }, props.t("previewOpen")),
-          open ? React.createElement(
-            "span",
-            { className: "dshRemotePreviewForm" },
-            React.createElement("input", {
-              type: "number",
-              min: 1024,
-              max: 65535,
-              value: port,
-              "aria-label": props.t("previewPort"),
-              onChange: (event) => setPort(event.target.value)
-            }),
-            React.createElement("button", {
-              type: "button",
-              disabled: busy || !Number.isInteger(Number(port)) || Number(port) < 1024 || Number(port) > 65535,
-              onClick: () => void launch()
-            }, props.t("previewOpen")),
-            error === void 0 ? null : React.createElement("span", { role: "alert" }, error)
-          ) : null
-        );
-      }
       function RemoteSessionHeaderAction(props) {
         let { t } = props, status = React.useSyncExternalStore(
           props.statusFeed.subscribe,
@@ -3760,7 +3766,6 @@ Minimum version required to store current data is: ` + bestVersion + `.
             onClick: () => setRouteOpen((value) => !value)
           }, React.createElement("i", { "aria-hidden": !0 }), networkLabel),
           networkOnline ? React.createElement("span", { className: "dshRemoteEncrypted" }, t("remoteLinkEncrypted")) : null,
-          networkOnline ? React.createElement(RemotePreviewAction, props) : null,
           React.createElement("button", { type: "button", className: "dshRemoteHeaderExitLink", disabled: busy, onClick: () => void exit() }, t("exitRemote")),
           routeOpen ? React.createElement("div", {
             className: "dshRemoteRouteBackdrop",
@@ -3882,6 +3887,16 @@ Minimum version required to store current data is: ` + bestVersion + `.
           'html.dshRemoteTargetActive button[aria-label="\u6DFB\u52A0\u5DE5\u4F5C\u533A"],html.dshRemoteTargetActive button[aria-label="Add workspace"]{display:none!important}',
           'html.dshRemoteCodexTargetActive [data-composer-card] button[aria-haspopup="listbox"][aria-label="\u6307\u4EE4"],html.dshRemoteCodexTargetActive [data-composer-card] button[aria-haspopup="listbox"][aria-label="Commands"]{display:none!important}',
           "[data-dsh-remote-hidden-action]{display:none!important}",
+          // The 0.1.6 right sidebar occupies the same shell header area as the
+          // remote status strip. Hide the strip while that sidebar is expanded;
+          // the sidebar itself remains the active context for terminal/files.
+          ":has([data-sidebar-right-open]) .dshRemoteSessionHeader{display:none!important}",
+          // TerminalRecovery renders a retry action in the conversation header.
+          // A failed remote terminal is reported when its tab is opened/closed;
+          // keeping this background recovery action out of the top-left header
+          // avoids overlapping the session controls.
+          '[title^="\u6062\u590D\u7EC8\u7AEF\u5931\u8D25"],[title^="Terminal recovery failed"]{display:none!important}',
+          ".dshRemoteTerminalUnavailable{box-sizing:border-box;margin:12px;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);font-size:13px;line-height:1.5}",
           ".dshRemoteModeButton{min-height:36px;border:0;background:transparent;color:var(--dsw-alias-label-primary);display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:8px}.dshRemoteModeButton:is(button){cursor:pointer}",
           ".dshRemoteModeButton:is(button):hover{background:var(--dsw-alias-interactive-bg-hover)}",
           ".dshRemoteSidebarEntry{box-sizing:border-box;position:relative;min-width:0;display:block;overflow:hidden}.dshRemoteSidebarEntry .dshRemoteModeButton{box-sizing:border-box;width:100%;min-width:0}.dshRemoteSidebarEntry.isWide{width:calc(100% + 8px);height:34px;margin:4px -4px}.dshRemoteSidebarEntry.isWide .dshRemoteModeButton{height:34px;min-height:34px;padding:6px 48px 6px 10px;border-radius:12px}.dshRemoteSidebarEntry.isRail{width:36px;height:54px}.dshRemoteSidebarEntry.isRail .dshRemoteModeButton{width:36px;height:36px;min-height:36px;justify-content:center;gap:0;margin:8px 0 10px;padding:0;border-radius:50%}.dshRemoteSidebarEntry.isActive .dshRemoteModeButton{color:var(--dsw-alias-label-secondary);background:transparent}.dshRemoteSidebarLabel{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteExitLink{position:absolute;top:50%;right:10px;transform:translateY(-50%);white-space:nowrap;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;font:inherit;font-size:12px;line-height:20px;cursor:pointer}.dshRemoteExitLink:hover{color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteExitLink:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px;border-radius:2px}.dshRemoteExitLink:disabled{opacity:.45;cursor:default;text-decoration:none}",
@@ -3909,7 +3924,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           ".dshRemoteWorkspaceLists{overflow:visible}",
           ".dshRemoteDirectoryList{min-height:72px;display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteDirectoryList>button{min-height:52px;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:8px 4px;cursor:pointer}.dshRemoteDirectoryList>button:hover,.dshRemoteDirectoryList>button.isSelected{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteDirectoryList>button.isSelected{color:var(--dsw-alias-label-primary)}.dshRemoteDirectoryList>button>span:first-child,.dshRemoteDirectoryList>button>.dshRemoteWorkspaceIcon{grid-row:1/3}.dshRemoteWorkspaceIcon{box-sizing:border-box;width:22px;height:22px;align-self:center;object-fit:contain}.dshRemoteWorkspaceIcon.isGpt{border-radius:6px}.dshRemoteDirectoryList>button>span:not(:first-child),.dshRemoteDirectoryList>button>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteDirectoryList>button>small{grid-column:2;color:var(--dsw-alias-label-secondary)}.dshRemoteDirectoryList>p,.dshRemoteHint{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}",
           ".dshRemoteAddWorkspace{box-sizing:border-box;width:40px;height:40px;display:inline-grid;place-items:center;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;cursor:pointer}.dshRemoteAddWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteAddWorkspace:disabled{opacity:.5;cursor:default}.dshRemoteAddWorkspaceIcon{width:20px;height:20px}.dshRemoteCodexWorkspaceGroup{margin-top:16px}.dshRemoteWorkspaceSourceHeading{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 4px 7px}.dshRemoteWorkspaceSourceText{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteWorkspaceSourceText>strong{font-size:13px}.dshRemoteWorkspaceSourceText>small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteCodexWorkspaceList{min-height:0}.dshRemoteDirectoryList>.dshRemoteWorkspaceMore,.dshRemoteCodexWorkspaceGroup>.dshRemoteWorkspaceMore{box-sizing:border-box;width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);padding:8px 4px;text-align:center;font-size:16px;cursor:pointer}.dshRemoteWorkspaceMore>span{display:block;line-height:1;transform:translateY(-2px)}.dshRemoteWorkspaceMore:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:transparent}.dshRemoteWorkspaceMore:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteWorkspaceMore:disabled{opacity:.5;cursor:default}",
-          ".dshRemotePreviewAction,.dshRemotePreviewForm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.dshRemotePreviewForm input{width:90px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);padding:6px}.dshRemotePreviewForm [role=alert]{max-width:360px;white-space:normal}.dshRemoteDevelopmentSettings{margin:16px 0}.dshRemoteDevelopmentSettings .dshRemotePathField{margin:8px 0}.dshRemoteDevelopmentSettings button{min-height:36px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:6px 12px}",
+          ".dshRemotePreviewAction,.dshRemotePreviewForm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.dshRemotePreviewForm input{width:90px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);padding:6px}.dshRemotePreviewForm [role=alert]{max-width:360px;white-space:normal}.dshRemoteDevelopmentSettings{margin:16px 0}.dshRemoteDevelopmentSettings .dshRemotePathField{margin:8px 0}.dshRemoteDevelopmentSettings .dshRemotePortsRow{display:flex;gap:8px;align-items:stretch}.dshRemoteDevelopmentSettings .dshRemotePortsRow>input{flex:1;min-width:0;min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemoteDevelopmentSettings button{min-height:36px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:6px 12px;white-space:nowrap}",
           ".dshRemoteFolderBrowser{margin-top:14px}.dshRemoteFolderBrowser>p,.dshRemoteFolderList>p{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}.dshRemoteFolderList{max-height:260px;overflow:auto;border-block:1px solid var(--dsw-alias-border-l2)}.dshRemoteFolderList>button{width:100%;min-height:42px;display:flex;align-items:center;gap:9px;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:7px 6px;text-align:left;cursor:pointer}.dshRemoteFolderList>button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteFolderBrowser>small{display:block;margin-top:8px;color:var(--dsw-alias-state-warn-label)}",
           ".dshRemotePathField{display:flex;flex-direction:column;gap:6px;margin-top:20px}.dshRemotePathField>span{font-size:13px;font-weight:600}.dshRemotePathField>input{min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemotePathField>small{color:var(--dsw-alias-label-secondary)}",
           ".dshRemoteOpenBar{position:sticky;bottom:-96px;display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:20px;padding:14px 0;background:var(--dsw-alias-bg-layer-1);border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteOpenBar>div{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteOpenBar span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteOpenBar strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.dshRemoteOpenBar>button,.dshRemoteEnable>button{min-height:40px;flex:0 0 auto;border:0;border-radius:8px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-1);padding:8px 16px;cursor:pointer}.dshRemoteOpenBar>button:disabled,.dshRemoteEnable>button:disabled{opacity:.5;cursor:default}",
@@ -3932,6 +3947,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           ".dshRemoteHostAccount{display:grid;gap:8px;border-top:1px solid var(--dsw-alias-border-l3);padding-top:12px}.dshRemoteHostAccount p{margin:0;color:var(--dsw-alias-label-secondary);font-size:13px}",
           ".dshRemoteLogin{display:grid;grid-template-columns:1fr 1fr;gap:8px}.dshRemoteLogin button{grid-column:1/-1}",
           ".dshRemotePluginCard{list-style:none;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:12px;transition:border-color .16s,background .16s}",
+          ".dshRemotePluginModern{border:0!important;border-radius:0;background:transparent;box-shadow:none}.dshRemotePluginModern>.dshRemotePluginCardHeader{display:none}.dshRemotePluginModern>.dshRemotePluginCardBody{border-top:0;margin:0;padding:0}",
           ".dshRemotePluginCard:hover{border-color:var(--dsw-alias-label-dimmed)}.dshRemotePluginCard.isOpen{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-label-dimmed)}",
           ".dshRemotePluginCardHeader{display:flex;align-items:center}.dshRemotePluginCardToggle{appearance:none;width:100%;min-width:0;font:inherit;color:inherit;text-align:left;cursor:pointer;background:transparent;border:0;border-radius:12px;display:flex;align-items:center;gap:12px;padding:14px 16px}.dshRemotePluginCardToggle:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}",
           ".dshRemotePluginCardHeading{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}.dshRemotePluginCardHeading>strong{color:var(--dsw-alias-label-primary);font-size:15px;font-weight:600;line-height:1.4}.dshRemotePluginCardHeading>span{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:1.5}.dshRemotePluginCardStatus{white-space:nowrap;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);border-radius:999px;padding:1px 8px;font-size:11px;font-weight:500;line-height:17px}.dshRemotePluginCardStatus.isOnline{color:var(--dsw-alias-state-success-primary)}.dshRemotePluginCardStatus.isReconnecting{color:var(--dsw-alias-state-warn-label)}.dshRemotePluginCardStatus.isOffline{color:var(--dsw-alias-state-error-primary)}.dshRemotePluginCardChevron{color:var(--dsw-alias-label-tertiary);font-size:18px;line-height:14px;transition:transform .16s}.dshRemotePluginCard.isOpen .dshRemotePluginCardChevron{transform:rotate(180deg)}",
@@ -4005,15 +4021,12 @@ Minimum version required to store current data is: ` + bestVersion + `.
               unsubscribe(), unregister?.();
             };
           }, "ds-harness-remote: remote file viewer provider");
-        }), ctx.effect(() => ctx.locale.register(localeNamespace, { zh, en }), "ds-harness-remote: dictionaries"), ctx.effect(installStyle, "ds-harness-remote: client styles"), ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+        }), ctx.effect(() => ctx.locale.register(localeNamespace, { zh, en }), "ds-harness-remote: dictionaries"), ctx.effect(installStyle, "ds-harness-remote: client styles"), ctx.effect(() => installTerminalAvailabilityNotice(statusFeed, t), "ds-harness-remote: terminal availability notice"), ctx.slots.inject("shell.overlay", () => ctx.slots.register({
           name: "shell.overlay",
           id: "ds-harness-remote-global-context",
           order: 20,
           locale: localeNamespace,
-          inject: () => ({ control, statusFeed, openPreviewUrl: (url) => {
-            let sidebar = ctx.get("sidebarRight");
-            sidebar !== void 0 ? sidebar.openTab("browser", { params: { url } }) : window.open(url, "_blank", "noopener,noreferrer");
-          } })
+          inject: () => ({ control, statusFeed })
         }, RemoteSessionHeaderAction)), ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
           name: "sidebar.footer.action",
           id: "ds-harness-remote-workspace",
@@ -4024,17 +4037,45 @@ Minimum version required to store current data is: ` + bestVersion + `.
             statusFeed,
             preferredQrProvider: ctx.locale.getLocale().active === "zh" ? "zhihu" : "github"
           })
-        }, RemoteWorkspaceAction)), ctx.slots.inject("settings.plugin.item", () => ctx.slots.register({
-          name: "settings.plugin.item",
+        }, RemoteWorkspaceAction));
+        let registerSettingsItem = (slotName) => {
+          try {
+            ctx.slots.inject(slotName, () => ctx.slots.register({
+              name: slotName,
+              label: () => t("pluginTitle"),
+              key: "ds-harness-remote",
+              id: "ds-harness-remote",
+              order: 30,
+              locale: localeNamespace,
+              inject: () => ({ control, statusFeed })
+            }, RemotePluginOptions));
+          } catch {
+          }
+        };
+        registerSettingsItem("plugins.item"), registerSettingsItem("settings.plugin.item"), ctx.slots.inject("plugins.bundle.config", () => ctx.slots.register({
+          name: "plugins.bundle.config",
           key: "ds-harness-remote",
-          id: "ds-harness-remote",
-          order: 30,
           locale: localeNamespace,
           inject: () => ({ control, statusFeed })
         }, RemotePluginOptions));
       }
       function isMissingControlRoute(reason) {
         return reason instanceof Error && reason.message.startsWith(`transport failure for ${CONTROL_RPC_PREFIX}/`) && (reason.message.endsWith(": HTTP 404") || reason.message.endsWith(": HTTP 405"));
+      }
+      function installTerminalAvailabilityNotice(feed, t) {
+        let latest, notice, update = () => {
+          let terminal = document.querySelector("[data-sidebar-terminal]"), unavailable = latest?.mode === "remote" && latest.remoteFeatures?.terminal !== !0;
+          if (!terminal || !unavailable) {
+            notice?.remove(), notice = void 0;
+            return;
+          }
+          notice !== void 0 && notice.isConnected || (notice = document.createElement("div"), notice.className = "dshRemoteTerminalUnavailable", notice.setAttribute("role", "alert"), notice.textContent = t("terminalRemoteUnavailable"), terminal.prepend(notice));
+        }, unsubscribe = feed.subscribe((status) => {
+          latest = status, update();
+        }), observer = new MutationObserver(update);
+        return observer.observe(document.body, { childList: !0, subtree: !0 }), update(), () => {
+          unsubscribe(), observer.disconnect(), notice?.remove();
+        };
       }
       function messageOf(reason) {
         return reason instanceof Error ? reason.message : String(reason);

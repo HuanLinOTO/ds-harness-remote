@@ -179,7 +179,7 @@ export class HarnessRemoteBridge {
     private readonly publish: PublishRemoteFrame,
     private readonly logger?: SafeLogger,
     private readonly harnessVersion?: string,
-    private readonly terminal = new TerminalPolicy(false, "", new Map()),
+    private readonly terminal = new TerminalPolicy(() => false, "", new Map()),
   ) {}
 
   async call(input: unknown): Promise<TypertRpcResult> {

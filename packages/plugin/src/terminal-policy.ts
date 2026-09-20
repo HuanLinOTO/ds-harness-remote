@@ -10,12 +10,12 @@ const id = z.string().regex(/^[\w-]{1,128}$/)
 /** Host-lifetime device ownership survives transport reconnects; never supplied by the client. */
 export class TerminalPolicy {
   private readonly attachments = new Map<string, string>()
-  constructor(private readonly enabled: boolean, private readonly deviceId: string,
+  constructor(private readonly enabled: boolean | (() => boolean), private readonly deviceId: string,
     private readonly owners: Map<string, string>) {}
 
   check(endpoint: string, payload: unknown): { key?: string; created?: boolean } {
-    if (!this.enabled) throw new RpcError('TERMINAL_DISABLED',
-      'Remote terminal is disabled on this Host. Enable Remote terminal in the Host Remote settings (terminal.enabled: true), restart the Host, and reconnect. / 远程终端未开启，请在 Host 的 Remote 设置中开启「远程终端」，重启 Host 后重新连接。')
+    if (!(typeof this.enabled === 'function' ? this.enabled() : this.enabled)) throw new RpcError('TERMINAL_DISABLED',
+      'Remote terminal is disabled on this Host. Enable Remote terminal in the Host Remote settings; the switch saves and applies immediately. / 远程终端未开启，请在 Host 的 Remote 设置中开启「远程终端」，开关切换后立即保存并生效。')
     const args = z.object({ args: z.record(z.unknown()) }).strict().parse(payload).args
     const sessionId = id.parse(args.agentId ?? args.sessionId)
     if (endpoint === 'terminal/environment' || endpoint === 'terminal/shells' || endpoint === 'terminal/list') return {}

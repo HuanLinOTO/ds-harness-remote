@@ -18,7 +18,7 @@ export class LoopbackPreview {
     if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new RpcError('INVALID_MESSAGE', 'Enter a port between 1024 and 65535.')
     this.lifetime.signal.throwIfAborted()
     const description = await this.client.rpc<{ ports: number[] }>('loopback.call', { op: 'describe' }, this.lifetime.signal)
-    if (!description.ports.includes(port)) throw new RpcError('LOOPBACK_PORT_DENIED', 'Allow this port in the Host Remote settings (loopback.ports), restart the Host, and reconnect. / 请在 Host Remote 设置中允许此端口，重启 Host 后重新连接。')
+    if (!description.ports.includes(port)) throw new RpcError('LOOPBACK_PORT_DENIED', 'Allow this port in the Host Remote settings (loopback.ports), then save the access settings. / 请在 Host Remote 设置中允许此端口，然后保存访问设置。')
     let pending = this.servers.get(port)
     if (pending === undefined) {
       if (this.servers.size >= 16) throw new RpcError('RATE_LIMITED', 'Too many preview origins.')

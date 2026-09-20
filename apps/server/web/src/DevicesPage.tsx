@@ -39,9 +39,9 @@ export function DevicesPage({ account, onSignedOut }: { account: string; onSigne
       <div className="app-area"><div className="workspace-view"><div className="hosts-page">
         <header className="workspace-page-header"><div><Title level={2}>我的设备</Title><Paragraph className="selfhost-account">{account}</Paragraph></div><Space className="workspace-page-actions" wrap><Button onClick={() => void load()} loading={loading}>刷新</Button></Space></header>
         {error && <Alert className="selfhost-error" type="error" showIcon message={error} />}
-        <Card className="page-card selfhost-connection" title="服务地址"><Paragraph><Text code className="selfhost-address">{result?.serverUrl ?? '加载中…'}</Text></Paragraph><Paragraph>Host 和客户端均使用此地址登录。</Paragraph></Card>
+        <Card className="page-card selfhost-connection" title="服务地址"><Paragraph><Text code className="selfhost-address">{result?.serverUrl ?? '加载中…'}</Text></Paragraph><Paragraph>Host 和客户端使用此地址。</Paragraph></Card>
         <Card className="page-card hosts-list-card" title="设备状态" extra={result ? <Text type="secondary">{devices.filter(d => d.online).length} / {devices.length} 台在线</Text> : undefined}>
-          {!error && !loading && !devices.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={<Space direction="vertical" size={4}><Text strong>暂无设备</Text><Text type="secondary">启用 Remote Host 并登录。</Text></Space>} /> : <Table<Device> rowKey="deviceId" columns={columns} dataSource={devices} loading={loading} pagination={false} scroll={{ x: 'max-content' }} />}
+          {!error && !loading && !devices.length ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无设备" /> : <Table<Device> rowKey="deviceId" columns={columns} dataSource={devices} loading={loading} pagination={false} scroll={{ x: 'max-content' }} />}
         </Card>
         {updated && <Paragraph className="selfhost-caption" type="secondary">更新于 {updated}</Paragraph>}
       </div></div></div>
