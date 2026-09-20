@@ -17,6 +17,7 @@ import {
   TRANSFER_IDLE_MS,
 } from '@dsh-remote/protocol'
 import { z } from 'zod'
+import { TerminalPolicy, TERMINAL_CALLS, TERMINAL_STREAMS } from './terminal-policy.js'
 import { harnessSessionGeneration } from './harness-version.js'
 import type { SafeLogger } from './logging.js'
 import { listRemoteDirectory } from './remote-directory-browser.js'
@@ -147,6 +148,15 @@ export const HARNESS_REMOTE_ALLOWLIST = [
   'subagents/interruptByParent',
   'subagents/list',
   'subagents/prompt',
+  'workspaceFiles/list',
+  'workspaceFiles/stat',
+  'workspaceFiles/read',
+  'workspaceFiles/readBytes',
+  'workspaceFiles/readAll',
+  'workspaceFiles/readRelated',
+  'workspaceFiles/changes',
+  'officeToPdf/render',
+  'officeToPdf/generation',
   'workspace/archiveSession',
   'workspace/create',
   'workspace/delete',
@@ -169,11 +179,20 @@ export class HarnessRemoteBridge {
     private readonly publish: PublishRemoteFrame,
     private readonly logger?: SafeLogger,
     private readonly harnessVersion?: string,
+    private readonly terminal = new TerminalPolicy(false, "", new Map()),
   ) {}
 
   async call(input: unknown): Promise<TypertRpcResult> {
     const params = callSchema.parse(input) as HarnessRemoteCallParams
     this.assertAllowed(params.endpoint)
+    if (TERMINAL_STREAMS.has(params.endpoint)) throw new RpcError('METHOD_NOT_ALLOWED', 'Use a stream for this terminal endpoint.')
+    if (['settings/update', 'settings/replace', 'settings/mutate'].includes(params.endpoint)) {
+      const args = requestArgs(params.payload)
+      if (args.ns === 'ds-harness-remote' || args.ns === 'dsh-remote') {
+        throw new RpcError('PERMISSION_DENIED', 'Remote access settings can only be changed locally on the Host.')
+      }
+    }
+    const reservation = params.endpoint.startsWith('terminal/') ? this.terminal.check(params.endpoint, params.payload) : undefined
     if (params.endpoint === 'session/canOpenWorkspacePath') {
       return { ok: true, value: true }
     }
@@ -190,8 +209,9 @@ export class HarnessRemoteBridge {
         endpoint: params.endpoint,
         durationMs: Math.round(performance.now() - startedAt),
       })
-      return result
+      return reservation === undefined ? result : this.terminal.result(params.endpoint, params.payload, result, reservation)
     } catch (error) {
+      if (reservation !== undefined) this.terminal.result(params.endpoint, params.payload, { ok: false, error: { code: 'FAILED', message: '', details: {} } }, reservation)
       if (params.endpoint === 'directoryPicker/list') {
         const result = await this.directoryList(params.payload, signal)
         this.logger?.debug('harness remote call ok', {
@@ -325,13 +345,24 @@ export class HarnessRemoteBridge {
   async openStream(input: unknown): Promise<{ opened: true; streamId: string }> {
     const params = streamOpenSchema.parse(input) as HarnessRemoteStreamOpenParams
     this.assertAllowed(params.endpoint)
+    if (params.endpoint.startsWith('settings/')) throw new RpcError('METHOD_NOT_ALLOWED', 'Settings endpoints are not streams.')
+    if (TERMINAL_CALLS.has(params.endpoint)) throw new RpcError('METHOD_NOT_ALLOWED', 'This terminal endpoint is not a stream.')
+    if (TERMINAL_STREAMS.has(params.endpoint)) this.terminal.check(params.endpoint, params.payload)
     if (this.streams.has(params.streamId)) throw new RpcError('REQUEST_CONFLICT', 'The Harness Remote stream is already open.')
     if (this.streams.size >= MAX_ACTIVE_STREAMS) {
       throw new RpcError('RATE_LIMITED', 'Too many Harness Remote streams are open.', undefined, true)
     }
     const controller = new AbortController()
-    const source = await this.gateway.open(params.endpoint, params.payload, controller.signal)
     this.streams.set(params.streamId, { controller })
+    let source: AsyncIterable<unknown>
+    try {
+      source = await this.gateway.open(params.endpoint, params.payload, controller.signal)
+      controller.signal.throwIfAborted()
+    } catch (error) {
+      this.streams.delete(params.streamId)
+      controller.abort()
+      throw error
+    }
     void this.pump(params.streamId, source, controller.signal)
     return { opened: true, streamId: params.streamId }
   }
@@ -355,7 +386,7 @@ export class HarnessRemoteBridge {
   }
 
   private assertAllowed(endpoint: string): void {
-    if (!allowedEndpoints.has(endpoint)) {
+    if (!allowedEndpoints.has(endpoint) && !TERMINAL_CALLS.has(endpoint) && !TERMINAL_STREAMS.has(endpoint)) {
       throw new RpcError('METHOD_NOT_ALLOWED', 'The requested Harness Remote endpoint is not allowed.')
     }
     if (endpoint === '$events' && !this.gateway.supportsCarrier) {

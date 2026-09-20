@@ -177,6 +177,8 @@ function fakeChannel(
 
 function config(): ResolvedConfig {
   return {
+    terminal: { enabled: false },
+    loopback: { ports: [] },
     enabled: true,
     role: 'host',
     serverUrl: undefined,

@@ -790,6 +790,8 @@ describe('ClientModeRuntime Host account control', () => {
 
 function config(): ResolvedConfig {
   return {
+    terminal: { enabled: false },
+    loopback: { ports: [] },
     enabled: true,
     role: 'both',
     serverUrl: 'https://dsh.r2049.cn',

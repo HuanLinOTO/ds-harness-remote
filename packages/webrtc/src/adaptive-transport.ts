@@ -1,3 +1,4 @@
+import { waitForRelayCapacity } from './websocket-backpressure.js'
 import {
   PROTOCOL_VERSION,
   acceptNegotiatedCapabilities,
@@ -137,6 +138,7 @@ export class AdaptiveTransport extends BaseTransport {
       return
     }
     if (this.socket?.readyState !== WebSocket.OPEN) throw new Error('adaptive transport is not connected')
+    await waitForRelayCapacity(this.socket)
     this.sendControl('relay', {
       connectionId: this.connectionId,
       targetDeviceId: this.options.targetDeviceId,

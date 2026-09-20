@@ -217,7 +217,7 @@ WebSocket Relay。所有路径都承载同一份 Noise 密文，并保持相同�
 
 - 会话流量经过端到端加密；服务端只中继密文，不保存会话明文或设备私钥。
 - Server membership 与 Host 本地固定的 peer identity 必须同时授权连接。
-- Remote 不开放直接 Shell、PTY、通用工具 RPC 或远程桌面。Harness 工具仍可以在 Host 上修改文件或运行命令，并继续受 Harness 原有权限控制。
+- 交互终端需在 Host 本地开启 `terminal.enabled`（默认关闭），以 Host 用户身份运行，独立于 Agent 审批；不开放通用工具 RPC 或远程桌面。
 - Workspace 选择器只列出文件夹，并且只返回受限的只读目录元数据。
 - 可选 File Viewer 只通过已认证、已加密的分块读取访问文件，并继续执行 provider 根目录与 locator 授权。
 - 远端文件预览不能写入、删除、上传、执行文件，也不能调用远端系统的“外部打开”。
@@ -275,3 +275,30 @@ Desktop 两端必须使用兼容的 Harness carrier。`0.4.14` 会在 Host 暴�
 ## 最小自部署 Server
 
 仓库内的 [`apps/server`](apps/server/README.zh.md) 提供可独立运行的单账号 Relay Server。通过 `DSH_SERVER_ACCOUNT`、`DSH_SERVER_PASSWORD` 配置账号密码；Web 提供登录和设备状态。Host 与客户端填写同一 Server 地址并使用该账号登录，设备凭据在重启后保留。
+
+## 原生侧栏与开发服务预览
+
+Harness `0.1.6-alpha.2` 的原生工作区文件树与只读预览通过官方 API 接入，旧 dsh-file-viewer 仍可用。
+文件读取遵循 Host Session 文件系统权限，可能包含工作区外的已授权文件；目录树仍限于工作区。
+原生侧栏功能面向 Harness Session，CodeX 内存投影不自动获得原生文件/终端能力。
+
+在 **Host 本机 → Remote 插件设置** 中开启「远程终端」、填写「Loopback 预览端口」并保存，重启 Host 后重新连接。
+TUI profile 可在已有 Remote 配置中加入：
+
+```yaml
+terminal:
+  enabled: true
+loopback:
+  ports: [3000, 5173]
+```
+
+终端默认关闭，尝试使用时会提示在 Host 开启；不要用该开关修复账号登录或普通连接错误。
+终端以 Host 用户身份执行命令，独立于 Agent 审批；只列出本 Remote 设备创建的终端，断线不重放输入。
+
+在 Desktop / 连接本机 Harness 的浏览器中，Remote 顶栏点击「预览服务」，输入已授权端口，
+即可在原生浏览器侧栏访问 Host 的 `127.0.0.1` HTTP 服务。支持 WebSocket 与采用当前 origin 的热更新，
+可使用 P2P 或 Relay；相对资源路径保持不变。仅绑定 IPv6 的服务需要另行监听 `127.0.0.1`。
+预览使用随机独立本机 origin，退出 Remote 或断线即关闭；不适用于远程 Web 页面、Android 或 VS Code 预览 UI。
+Host 未配置端口时默认拒绝。它允许与授权开发服务交互，并非只读 HTTP；不支持任意内网地址、CONNECT、
+HTTPS upstream、跨 origin 重定向或代码中硬编码的远端 localhost URL。请求体最多 1 MiB、响应最多 64 MiB。
+设置须在 Host 本地修改，不能从 Remote 会话开启自身的访问权限。

@@ -233,7 +233,7 @@ validation status.
 
 - Session traffic is end-to-end encrypted. The service relays ciphertext without storing session plaintext or device private keys.
 - Server membership and the Host's locally pinned peer identity must both authorize a connection.
-- Remote does not expose a direct shell, PTY, general tool RPC, or remote desktop. Harness tools may still modify files or run commands on the Host under Harness's normal permission controls.
+- Interactive terminals require the Host-local `terminal.enabled` switch (off by default). They run as the Host user, independently of Agent approvals. General tool RPC and remote desktop remain unavailable.
 - The workspace picker lists folders only and returns bounded, read-only directory metadata.
 - Optional File Viewer access is limited to authenticated, encrypted range reads and continues to enforce provider root and locator authorization.
 - Remote file preview cannot write, delete, upload, execute, or open a path in an external application.
@@ -294,3 +294,30 @@ DeepSeek and related names and marks belong to their respective owners.
 ## Minimal self-hosted Server
 
 Run the optional single-account Relay Server in [`apps/server`](apps/server/README.md). Set `DSH_SERVER_ACCOUNT` and `DSH_SERVER_PASSWORD`; its small Web page offers login and device status. Point both Host and Client at your Server URL and sign in with the same account. Device credentials survive restarts.
+
+## Native sidebar and development previews
+
+Harness `0.1.6-alpha.2` workspace files and read-only previews use the official APIs; the existing dsh-file-viewer bridge remains available.
+Reads follow the Host Session filesystem permissions, including authorized files outside cwd; directory listings stay within the workspace.
+These native sidebar features target Harness Sessions, not the CodeX in-memory projection.
+
+On the **Host computer → Remote plugin settings**, enable **Remote terminal**, enter **Loopback preview ports**, save, then restart the Host and reconnect.
+A TUI profile can add these fields to its existing Remote configuration:
+
+```yaml
+terminal:
+  enabled: true
+loopback:
+  ports: [3000, 5173]
+```
+
+Terminal access defaults off and reports how to enable it when attempted. This switch does not fix ordinary login or connection errors.
+Terminals run as the Host user independently of Agent approvals. Only terminals created by the current Remote device are exposed; input is never replayed after disconnect.
+
+In Desktop or a browser connected to Harness on the same computer, choose **Preview service** in the Remote header and enter an authorized port.
+The native browser sidebar opens the Host's IPv4 `127.0.0.1` HTTP service through P2P or Relay, including WebSocket and same-origin hot reload.
+Relative asset paths are preserved. IPv6-only services must also listen on `127.0.0.1`.
+Previews use separate random local origins and close on disconnect or leaving Remote. Remote Web pages, Android and VS Code preview UIs are not included.
+No ports are allowed by default. Authorized services may accept writes: this is not read-only HTTP access.
+Arbitrary network destinations, CONNECT, HTTPS upstreams, cross-origin redirects and hard-coded remote localhost URLs are unsupported.
+Request bodies are capped at 1 MiB and responses at 64 MiB. Access settings can only be changed locally on the Host.

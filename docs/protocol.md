@@ -942,6 +942,66 @@ permission id、decision enum 或额外响应状态机。
 扩展可调用业务面。直接调用若收到 `RESPONSE_TOO_LARGE`，Client 必须以相同请求自动重试一次
 该分块路径；其他错误不得触发隐式重试。
 
+### Native sidebar: read-only files and opt-in terminal
+
+Harness `0.1.6-alpha.2` 原生侧栏通过现有 `harness.remote.*` carrier 传输；不新增 Harness wire format。
+固定只读 allowlist：`workspaceFiles/list|stat|read|readBytes|readAll|readRelated|changes`，以及
+`officeToPdf/generation|render`。Host 官方 Session lookup、组合文件系统、分页与大小限制继续生效。
+注意：上游 `list` / `changes` 限于工作区；文件读取遵循 Session 文件系统权限，允许工作区外的已授权文件，
+不能把“只读”表述成“只能读取 cwd 内文件”。旧 `fileviewer.read.v1` 仍使用 provider 授权。
+
+`terminal.enabled` 默认 false。开启并重启 Host 后，在加密 capability 探测中宣告 `harness.terminal.v1`。
+只允许 unary `terminal/environment|shells|list|create|write|resize|rename|close` 与 stream
+`terminal/follow|retain`；不允许 wildcard、exec、spawn 或改变官方终端语义。
+关闭时，任何终端调用都返回 `TERMINAL_DISABLED`，提示用户在 Host 本地开启开关并重启重连。
+这个提示不能用于一般登录/连接失败。开关是对受信任 Remote 设备的 Shell 授权，不是 Agent 审批：
+终端继承 Host 执行环境系统用户权限，cwd 不是 filesystem sandbox。
+
+Host 生命周期内记录 `(sessionId, terminalId) -> authenticated deviceId`，最多 256 个归属记录；
+Client 不能接管本地创建或其它设备的终端。list 仅返回本设备归属；write/resize 还必须命中当前连接
+建立的 attachment。断开结束 follow/retain，不重放 write；重新连接通过官方快照恢复已保留的终端。
+进程回收遵循上游保留/空闲策略，Host 重启不恢复进程。终端关闭成功移除归属。
+
+Host 访问设置禁止由 Remote `settings/update|replace|mutate` 修改（命名空间
+`ds-harness-remote`、`dsh-remote`，包括 legacy ApiProxy）；只能通过 Host 本地设置入口修改。
+加密发送串行化，队列最多 8 MiB / 256 消息；Relay 等待 WebSocket 缓冲回落至 512 KiB，
+最多等待 10 秒，失败关闭通道。Client stream 队列最多 4 MiB / 256 帧，超限终止流并要求恢复。
+这些上限不保证终端每一行输出都可保留；恢复使用上游有界屏幕快照。
+
+### Restricted loopback preview
+
+Capability `loopback.http-ws.v1`，唯一方法 `loopback.call`，schema 和共享类型在
+`packages/protocol/src/loopback.ts`。所有请求必须经已有 membership + trusted identity + Noise 通道。
+Host `loopback.ports` 是本地配置的端口白名单，默认空，最多 16 个，范围 1024–65535；改变配置需重启。
+目标固定 IPv4 `127.0.0.1`，不接受 hostname、URL、DNS、CONNECT、TLS 或任意 TCP 通道。
+请求 HTTP body 允许 POST/PUT 等开发服务操作；这不是只读文件通道，授权端口意味着允许与该服务交互。
+
+请求为以下严格对象：
+
+- `{op:"describe"}` → `{ports:number[]}`。
+- `{op:"http.open", id:UUID, port, path, method, headers:[name,value][], body?:base64}` → `{status,headers}`。
+- `{op:"http.read", id}` → `{data:base64,done:boolean}`，按需读取最多 64 KiB，一次仅一个在途 read。
+- `{op:"ws.open", id, port, path, headers, protocols:string[]}` → `{protocol:string}`。
+- `{op:"ws.send", id, data:base64, binary:boolean}` → `{sent:true}`；按顺序发送，不重放。
+- `{op:"ws.read", id}` → `{messages:[{data,binary}],closed:boolean}`，最多等待 20 秒；仅一个在途 read。
+- `{op:"close", id}` → `{closed:true}`，幂等清理 HTTP/WS handle。
+
+handle 按加密连接隔离；最多 16 个。HTTP 头等待 20 秒，请求体最大 1 MiB，响应最多 64 MiB；
+WS 单消息最大 256 KiB、待消费队列最大 1 MiB / 256 消息。60 秒没有 RPC 活动回收 handle；
+断线清理全部 handle。禁止 Host 自动跟随 HTTP 或 WS 重定向；不记录 headers/body/URL 查询内容。
+
+Client Plugin 在本机 `127.0.0.1` 的随机端口创建代理，每个 Host 端口使用独立随机
+`dsh-<192-bit secret>.localhost` origin。必须验证完整 Host 与有值的 Origin，拒绝 service worker 注册，
+移除 hop-by-hop headers、Cookie Domain 和跨 origin 重定向。上游 Origin 按已授权目标重写，
+HTTP 请求/响应和 WS 消息在端到端加密通道中传输，Relay 只处理密文。
+浏览器→本机代理与 Host→loopback 服务是本机 HTTP/WS，不宣称这两段是 TLS。
+
+第一版入口是 Desktop / 浏览器连接本机 Harness 时的 Remote Header「预览服务」，输入授权端口后
+打开原生 Browser tab；相对资源路径与使用当前 origin 的 HMR WebSocket 可正常转发。
+硬编码远端 localhost 地址、外部重定向、HTTPS upstream、远程 Web preview gateway、Android/VS Code
+预览 UI 不在本版范围。浏览器必须支持 `.localhost` 的 loopback 解析；预览域名是临时访问凭据，
+退出 Remote 或断线关闭监听器。普通公网网页仍由原生侧栏浏览器直接访问。
+
 ### File Viewer read bridge
 
 `fileviewer.read.v1` 仅用于把已安装 `dsh-file-viewer` 的现有只读能力带到 Remote UI，
@@ -1293,7 +1353,7 @@ Server/Host 可协商更小限制，但必须在 hello/system.info 中公布。�
 2. Membership、双方账号一致性、Host/Client 本机 pinned peer 和 connection identity key 绑定必须同时成立。
 3. Remote RPC/Event 不以明文经过或落盘到 Server。
 4. TLS/WSS 不能替代 Noise secure channel。
-5. Client 不能请求通用 shell/filesystem RPC 绕过 Harness。
+5. Client 不能请求通用 shell/filesystem RPC 绕过 Harness；显式开启的原生 terminal 与 loopback 例外遵循下述独立边界。
 6. Permission 只能映射 Harness 当前 request，默认 fail closed。
 7. `harness.api.call.method`、`harness.remote.call.endpoint` 与 `codex.app.call.method` 必须命中各自编译期固定 allowlist；禁止通过对象反射、Typert/Cordis registry、service 名或任意 endpoint 扩权。
 8. 当前 Harness v1 只允许 Remote `allow_once`/`deny`，不得伪造 session grant。

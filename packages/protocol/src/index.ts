@@ -1,3 +1,4 @@
+export * from './loopback.js'
 import { z } from 'zod'
 
 export const PROTOCOL_VERSION = 1
@@ -109,6 +110,7 @@ export const rpcMethods = [
   'harness.remote.transfer.close',
   'harness.remote.stream.open',
   'harness.remote.stream.close',
+  'loopback.call',
   'fileviewer.call',
   'codex.app.call',
   'codex.app.respond',

@@ -63,6 +63,7 @@ export class PluginControlRuntime {
 
   private async handle(endpoint: string, payload: unknown, signal: AbortSignal): Promise<RpcResult<unknown>> {
     try {
+      if (endpoint === 'settings.development.set') return ok(await this.setDevelopment(payload))
       if (endpoint === 'settings.get') return ok(await this.settingsView())
       if (endpoint === 'settings.configure') return ok(await this.configure(payload))
       if (endpoint === 'settings.server.set') return ok(await this.setServer(payload))
@@ -172,6 +173,21 @@ export class PluginControlRuntime {
       await this.authorizeOwnedRole(current.serverUrl, currentRole, role)
     }
     await this.settings.replace({ ...current, role })
+    return this.settingsView()
+  }
+
+  private async setDevelopment(payload: unknown): Promise<PluginSettingsView> {
+    if (this.settings === undefined) throw new ClientModeError('SETTINGS_UNAVAILABLE', 'DSH user settings are unavailable in this profile.')
+    const value = record(payload)
+    if (typeof value.terminalEnabled !== 'boolean' || !Array.isArray(value.ports) || value.ports.some((port) => !Number.isInteger(port))) {
+      throw new ClientModeError('INVALID_MESSAGE', 'A terminal switch and loopback ports are required.')
+    }
+    const current = editableConfig(resolveConfig(this.settings.get()))
+    const next = resolveConfig({ ...current,
+      terminal: { enabled: value.terminalEnabled },
+      loopback: { ports: value.ports },
+    })
+    await this.settings.replace(editableConfig(next))
     return this.settingsView()
   }
 
@@ -327,6 +343,8 @@ function editableConfig(config: ResolvedConfig): Config {
     enabled: config.enabled,
     role: config.role,
     ...(config.serverUrl === undefined ? {} : { serverUrl: config.serverUrl }),
+    terminal: config.terminal,
+    loopback: config.loopback,
     forceRelay: config.forceRelay,
     logLevel: config.logLevel,
     reconnect: config.reconnect.enabled

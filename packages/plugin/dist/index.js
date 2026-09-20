@@ -1,8 +1,13 @@
 var __defProp = Object.defineProperty;
-var __export = (target, all) => {
+var __export = (target2, all) => {
   for (var name2 in all)
-    __defProp(target, name2, { get: all[name2], enumerable: true });
+    __defProp(target2, name2, { get: all[name2], enumerable: true });
 };
+
+// src/loopback-preview.ts
+import { randomBytes, randomUUID } from "node:crypto";
+import { createServer } from "node:http";
+import { WebSocketServer } from "ws";
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/external.js
 var external_exports = {};
@@ -208,15 +213,15 @@ var ZodParsedType = util.arrayToEnum([
   "map",
   "set"
 ]);
-var getParsedType = (data) => {
-  const t = typeof data;
+var getParsedType = (data2) => {
+  const t = typeof data2;
   switch (t) {
     case "undefined":
       return ZodParsedType.undefined;
     case "string":
       return ZodParsedType.string;
     case "number":
-      return Number.isNaN(data) ? ZodParsedType.nan : ZodParsedType.number;
+      return Number.isNaN(data2) ? ZodParsedType.nan : ZodParsedType.number;
     case "boolean":
       return ZodParsedType.boolean;
     case "function":
@@ -226,22 +231,22 @@ var getParsedType = (data) => {
     case "symbol":
       return ZodParsedType.symbol;
     case "object":
-      if (Array.isArray(data)) {
+      if (Array.isArray(data2)) {
         return ZodParsedType.array;
       }
-      if (data === null) {
+      if (data2 === null) {
         return ZodParsedType.null;
       }
-      if (data.then && typeof data.then === "function" && data.catch && typeof data.catch === "function") {
+      if (data2.then && typeof data2.then === "function" && data2.catch && typeof data2.catch === "function") {
         return ZodParsedType.promise;
       }
-      if (typeof Map !== "undefined" && data instanceof Map) {
+      if (typeof Map !== "undefined" && data2 instanceof Map) {
         return ZodParsedType.map;
       }
-      if (typeof Set !== "undefined" && data instanceof Set) {
+      if (typeof Set !== "undefined" && data2 instanceof Set) {
         return ZodParsedType.set;
       }
-      if (typeof Date !== "undefined" && data instanceof Date) {
+      if (typeof Date !== "undefined" && data2 instanceof Date) {
         return ZodParsedType.date;
       }
       return ZodParsedType.object;
@@ -482,7 +487,7 @@ function getErrorMap() {
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path, errorMaps, issueData } = params;
+  const { data: data2, path, errorMaps, issueData } = params;
   const fullPath = [...path, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
@@ -498,7 +503,7 @@ var makeIssue = (params) => {
   let errorMessage = "";
   const maps = errorMaps.filter((m) => !!m).slice().reverse();
   for (const map of maps) {
-    errorMessage = map(fullIssue, { data, defaultError: errorMessage }).message;
+    errorMessage = map(fullIssue, { data: data2, defaultError: errorMessage }).message;
   }
   return {
     ...issueData,
@@ -700,13 +705,13 @@ var ZodType = class {
     const result = this._parse(input2);
     return Promise.resolve(result);
   }
-  parse(data, params) {
-    const result = this.safeParse(data, params);
+  parse(data2, params) {
+    const result = this.safeParse(data2, params);
     if (result.success)
       return result.data;
     throw result.error;
   }
-  safeParse(data, params) {
+  safeParse(data2, params) {
     const ctx = {
       common: {
         issues: [],
@@ -716,13 +721,13 @@ var ZodType = class {
       path: params?.path || [],
       schemaErrorMap: this._def.errorMap,
       parent: null,
-      data,
-      parsedType: getParsedType(data)
+      data: data2,
+      parsedType: getParsedType(data2)
     };
-    const result = this._parseSync({ data, path: ctx.path, parent: ctx });
+    const result = this._parseSync({ data: data2, path: ctx.path, parent: ctx });
     return handleResult(ctx, result);
   }
-  "~validate"(data) {
+  "~validate"(data2) {
     const ctx = {
       common: {
         issues: [],
@@ -731,12 +736,12 @@ var ZodType = class {
       path: [],
       schemaErrorMap: this._def.errorMap,
       parent: null,
-      data,
-      parsedType: getParsedType(data)
+      data: data2,
+      parsedType: getParsedType(data2)
     };
     if (!this["~standard"].async) {
       try {
-        const result = this._parseSync({ data, path: [], parent: ctx });
+        const result = this._parseSync({ data: data2, path: [], parent: ctx });
         return isValid(result) ? {
           value: result.value
         } : {
@@ -752,19 +757,19 @@ var ZodType = class {
         };
       }
     }
-    return this._parseAsync({ data, path: [], parent: ctx }).then((result) => isValid(result) ? {
+    return this._parseAsync({ data: data2, path: [], parent: ctx }).then((result) => isValid(result) ? {
       value: result.value
     } : {
       issues: ctx.common.issues
     });
   }
-  async parseAsync(data, params) {
-    const result = await this.safeParseAsync(data, params);
+  async parseAsync(data2, params) {
+    const result = await this.safeParseAsync(data2, params);
     if (result.success)
       return result.data;
     throw result.error;
   }
-  async safeParseAsync(data, params) {
+  async safeParseAsync(data2, params) {
     const ctx = {
       common: {
         issues: [],
@@ -774,10 +779,10 @@ var ZodType = class {
       path: params?.path || [],
       schemaErrorMap: this._def.errorMap,
       parent: null,
-      data,
-      parsedType: getParsedType(data)
+      data: data2,
+      parsedType: getParsedType(data2)
     };
-    const maybeAsyncResult = this._parse({ data, path: ctx.path, parent: ctx });
+    const maybeAsyncResult = this._parse({ data: data2, path: ctx.path, parent: ctx });
     const result = await (isAsync(maybeAsyncResult) ? maybeAsyncResult : Promise.resolve(maybeAsyncResult));
     return handleResult(ctx, result);
   }
@@ -798,8 +803,8 @@ var ZodType = class {
         ...getIssueProperties(val)
       });
       if (typeof Promise !== "undefined" && result instanceof Promise) {
-        return result.then((data) => {
-          if (!data) {
+        return result.then((data2) => {
+          if (!data2) {
             setError();
             return false;
           } else {
@@ -865,7 +870,7 @@ var ZodType = class {
     this["~standard"] = {
       version: 1,
       vendor: "zod",
-      validate: (data) => this["~validate"](data)
+      validate: (data2) => this["~validate"](data2)
     };
   }
   optional() {
@@ -929,8 +934,8 @@ var ZodType = class {
       description
     });
   }
-  pipe(target) {
-    return ZodPipeline.create(this, target);
+  pipe(target2) {
+    return ZodPipeline.create(this, target2);
   }
   readonly() {
     return ZodReadonly.create(this);
@@ -1325,7 +1330,7 @@ var ZodString = class _ZodString extends ZodType {
     return { status: status2.value, value: input2.data };
   }
   _regex(regex, validation, message) {
-    return this.refinement((data) => regex.test(data), {
+    return this.refinement((data2) => regex.test(data2), {
       validation,
       code: ZodIssueCode.invalid_string,
       ...errorUtil.errToObj(message)
@@ -3541,8 +3546,8 @@ var ZodPromise = class extends ZodType {
       return INVALID;
     }
     const promisified = ctx.parsedType === ZodParsedType.promise ? ctx.data : Promise.resolve(ctx.data);
-    return OK(promisified.then((data) => {
-      return this._def.type.parseAsync(data, {
+    return OK(promisified.then((data2) => {
+      return this._def.type.parseAsync(data2, {
         path: ctx.path,
         errorMap: ctx.common.contextualErrorMap
       });
@@ -3736,12 +3741,12 @@ ZodNullable.create = (type, params) => {
 var ZodDefault = class extends ZodType {
   _parse(input2) {
     const { ctx } = this._processInputParams(input2);
-    let data = ctx.data;
+    let data2 = ctx.data;
     if (ctx.parsedType === ZodParsedType.undefined) {
-      data = this._def.defaultValue();
+      data2 = this._def.defaultValue();
     }
     return this._def.innerType._parse({
-      data,
+      data: data2,
       path: ctx.path,
       parent: ctx
     });
@@ -3836,9 +3841,9 @@ var BRAND = Symbol("zod_brand");
 var ZodBranded = class extends ZodType {
   _parse(input2) {
     const { ctx } = this._processInputParams(input2);
-    const data = ctx.data;
+    const data2 = ctx.data;
     return this._def.type._parse({
-      data,
+      data: data2,
       path: ctx.path,
       parent: ctx
     });
@@ -3905,13 +3910,13 @@ var ZodPipeline = class _ZodPipeline extends ZodType {
 var ZodReadonly = class extends ZodType {
   _parse(input2) {
     const result = this._def.innerType._parse(input2);
-    const freeze = (data) => {
-      if (isValid(data)) {
-        data.value = Object.freeze(data.value);
+    const freeze = (data2) => {
+      if (isValid(data2)) {
+        data2.value = Object.freeze(data2.value);
       }
-      return data;
+      return data2;
     };
-    return isAsync(result) ? result.then((data) => freeze(data)) : freeze(result);
+    return isAsync(result) ? result.then((data2) => freeze(data2)) : freeze(result);
   }
   unwrap() {
     return this._def.innerType;
@@ -3924,26 +3929,26 @@ ZodReadonly.create = (type, params) => {
     ...processCreateParams(params)
   });
 };
-function cleanParams(params, data) {
-  const p = typeof params === "function" ? params(data) : typeof params === "string" ? { message: params } : params;
+function cleanParams(params, data2) {
+  const p = typeof params === "function" ? params(data2) : typeof params === "string" ? { message: params } : params;
   const p2 = typeof p === "string" ? { message: p } : p;
   return p2;
 }
 function custom(check, _params = {}, fatal) {
   if (check)
-    return ZodAny.create().superRefine((data, ctx) => {
-      const r = check(data);
+    return ZodAny.create().superRefine((data2, ctx) => {
+      const r = check(data2);
       if (r instanceof Promise) {
         return r.then((r2) => {
           if (!r2) {
-            const params = cleanParams(_params, data);
+            const params = cleanParams(_params, data2);
             const _fatal = params.fatal ?? fatal ?? true;
             ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
           }
         });
       }
       if (!r) {
-        const params = cleanParams(_params, data);
+        const params = cleanParams(_params, data2);
         const _fatal = params.fatal ?? fatal ?? true;
         ctx.addIssue({ code: "custom", ...params, fatal: _fatal });
       }
@@ -3995,7 +4000,7 @@ var ZodFirstPartyTypeKind;
 })(ZodFirstPartyTypeKind || (ZodFirstPartyTypeKind = {}));
 var instanceOfType = (cls, params = {
   message: `Input not instance of ${cls.name}`
-}) => custom((data) => data instanceof cls, params);
+}) => custom((data2) => data2 instanceof cls, params);
 var stringType = ZodString.create;
 var numberType = ZodNumber.create;
 var nanType = ZodNaN.create;
@@ -4044,6 +4049,28 @@ var coerce = {
   date: ((arg) => ZodDate.create({ ...arg, coerce: true }))
 };
 var NEVER = INVALID;
+
+// ../protocol/dist/loopback.js
+var LOOPBACK_CHUNK_BYTES = 64 * 1024;
+var LOOPBACK_MAX_BODY_BYTES = 1024 * 1024;
+var LOOPBACK_MAX_WS_BYTES = 256 * 1024;
+var LOOPBACK_MAX_CONNECTIONS = 16;
+var id = external_exports.string().uuid();
+var data = external_exports.string().max(Math.ceil(LOOPBACK_MAX_BODY_BYTES / 3) * 4).regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/);
+var target = {
+  port: external_exports.number().int().min(1024).max(65535),
+  path: external_exports.string().min(1).max(8192).regex(/^\/(?!\/)[^\x00-\x20\x7f\\]*$/),
+  headers: external_exports.array(external_exports.tuple([external_exports.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$/), external_exports.string().max(8192).regex(/^[^\x00-\x08\x0a-\x1f\x7f]*$/)])).max(64)
+};
+var loopbackRequestSchema = external_exports.discriminatedUnion("op", [
+  external_exports.object({ op: external_exports.literal("describe") }).strict(),
+  external_exports.object({ op: external_exports.literal("http.open"), id, ...target, method: external_exports.enum(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]), body: data.optional() }).strict(),
+  external_exports.object({ op: external_exports.literal("http.read"), id }).strict(),
+  external_exports.object({ op: external_exports.literal("close"), id }).strict(),
+  external_exports.object({ op: external_exports.literal("ws.open"), id, ...target, protocols: external_exports.array(external_exports.string().regex(/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$/)).max(16) }).strict(),
+  external_exports.object({ op: external_exports.literal("ws.read"), id }).strict(),
+  external_exports.object({ op: external_exports.literal("ws.send"), id, data, binary: external_exports.boolean() }).strict()
+]);
 
 // ../protocol/dist/index.js
 var PROTOCOL_VERSION = 1;
@@ -4114,6 +4141,7 @@ var rpcMethods = [
   "harness.remote.transfer.close",
   "harness.remote.stream.open",
   "harness.remote.stream.close",
+  "loopback.call",
   "fileviewer.call",
   "codex.app.call",
   "codex.app.respond",
@@ -4404,26 +4432,26 @@ var rpcErrorPayloadSchema = external_exports.object({
   retryable: external_exports.boolean().optional(),
   details: external_exports.unknown().optional()
 });
-function createMessage(type, payload, id2 = cryptoRandomId()) {
+function createMessage(type, payload, id4 = cryptoRandomId()) {
   return {
     v: PROTOCOL_VERSION,
-    id: id2,
+    id: id4,
     type,
     timestamp: Date.now(),
     payload
   };
 }
-function createControlFrame(type, payload, id2 = cryptoRandomId()) {
+function createControlFrame(type, payload, id4 = cryptoRandomId()) {
   return {
     v: PROTOCOL_VERSION,
-    id: id2,
+    id: id4,
     type,
     timestamp: Date.now(),
     payload
   };
 }
-function createRpcRequest(method, params, id2) {
-  return createMessage("rpc.request", { method, params }, id2);
+function createRpcRequest(method, params, id4) {
+  return createMessage("rpc.request", { method, params }, id4);
 }
 function createRpcResponse(requestId, result) {
   return createMessage("rpc.response", { requestId, result });
@@ -4431,8 +4459,8 @@ function createRpcResponse(requestId, result) {
 function createRpcError(requestId, code, message, details, retryable) {
   return createMessage("rpc.error", { requestId, code, message, details, retryable });
 }
-function createEvent(event, data, options = {}) {
-  return createMessage("event", { event, data, ...options });
+function createEvent(event, data2, options = {}) {
+  return createMessage("event", { event, data: data2, ...options });
 }
 function parseRemoteMessage(input2) {
   return remoteMessageSchema.parse(input2);
@@ -4451,11 +4479,11 @@ function encodeControlFrame(frame, limits = {}) {
   assertControlFrameSize(new TextEncoder().encode(encoded).byteLength, parsed.type, limits);
   return encoded;
 }
-function decodeControlFrame(data, limits = {}) {
-  const encoded = typeof data === "string" ? new TextEncoder().encode(data) : data;
+function decodeControlFrame(data2, limits = {}) {
+  const encoded = typeof data2 === "string" ? new TextEncoder().encode(data2) : data2;
   if (encoded.byteLength > MAX_RELAY_FRAME_BYTES)
     throw new Error("Control frame exceeds the Relay frame limit.");
-  const text = typeof data === "string" ? data : new TextDecoder("utf-8", { fatal: true }).decode(data);
+  const text = typeof data2 === "string" ? data2 : new TextDecoder("utf-8", { fatal: true }).decode(data2);
   const frame = parseControlFrame(JSON.parse(text));
   assertControlFrameSize(encoded.byteLength, frame.type, limits);
   return frame;
@@ -4463,8 +4491,8 @@ function decodeControlFrame(data, limits = {}) {
 function encodeMessage(message) {
   return new TextEncoder().encode(JSON.stringify(message));
 }
-function decodeMessage(data) {
-  const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+function decodeMessage(data2) {
+  const text = typeof data2 === "string" ? data2 : new TextDecoder().decode(data2);
   return parseRemoteMessage(JSON.parse(text));
 }
 var SecureMessageCodec = class {
@@ -4570,6 +4598,497 @@ function cryptoRandomId() {
     return g.randomUUID();
   return `msg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
 }
+
+// src/loopback-host.ts
+import { request as httpRequest } from "node:http";
+import { WebSocket as WebSocket2 } from "ws";
+
+// src/safe-error.ts
+var RpcError = class extends Error {
+  constructor(code, message, details, retryable = false) {
+    super(message);
+    this.code = code;
+    this.details = details;
+    this.retryable = retryable;
+  }
+};
+function safeErrorCode(error) {
+  if (error instanceof RpcError) return error.code;
+  if (error instanceof external_exports.ZodError) return "INVALID_MESSAGE";
+  return "INTERNAL_ERROR";
+}
+
+// src/loopback-host.ts
+var HOP_HEADERS = /* @__PURE__ */ new Set([
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "host",
+  "content-length",
+  "forwarded",
+  "x-forwarded-for",
+  "x-forwarded-host",
+  "x-forwarded-proto"
+]);
+function cleanHeaders(headers) {
+  const removed = new Set(HOP_HEADERS);
+  for (const [name2, value] of headers) if (name2.toLowerCase() === "connection") {
+    for (const token of value.split(",")) removed.add(token.trim().toLowerCase());
+  }
+  return headers.filter(([name2]) => !removed.has(name2.toLowerCase()) && !name2.toLowerCase().startsWith("sec-websocket-"));
+}
+function headerPairs(headers) {
+  return Object.entries(headers).flatMap(([name2, value]) => value === void 0 ? [] : (Array.isArray(value) ? value : [value]).map((item) => [name2, item]));
+}
+var LoopbackHost = class {
+  constructor(ports) {
+    this.ports = ports;
+    this.timer = setInterval(() => {
+      for (const [id4, handle] of this.handles) if (Date.now() - handle.touched > 6e4) this.close(id4);
+    }, 1e4);
+    this.timer.unref();
+  }
+  handles = /* @__PURE__ */ new Map();
+  closed = false;
+  timer;
+  async call(input2) {
+    if (this.closed) throw new RpcError("TRANSPORT_CLOSED", "Preview connection closed.");
+    const value = loopbackRequestSchema.parse(input2);
+    if (value.op === "describe") return { ports: [...this.ports] };
+    if (value.op === "close") {
+      this.close(value.id);
+      return { closed: true };
+    }
+    if (value.op === "http.open" || value.op === "ws.open") {
+      if (!this.ports.includes(value.port)) throw new RpcError(
+        "LOOPBACK_PORT_DENIED",
+        "This preview port is not allowed. Add it to loopback.ports in the Host Remote settings and restart the Host. / \u8BF7\u5728 Host Remote \u8BBE\u7F6E\u4E2D\u5141\u8BB8\u6B64\u9884\u89C8\u7AEF\u53E3\u5E76\u91CD\u542F Host\u3002"
+      );
+      if (this.handles.has(value.id)) throw new RpcError("REQUEST_CONFLICT", "Preview handle is already in use.");
+      if (this.handles.size >= LOOPBACK_MAX_CONNECTIONS) throw new RpcError("RATE_LIMITED", "Too many active preview requests.");
+      try {
+        return value.op === "http.open" ? await this.openHttp(value) : await this.openWs(value);
+      } catch {
+        this.close(value.id);
+        throw new RpcError("LOOPBACK_UNAVAILABLE", "The allowed loopback service did not respond. Check that it is running on the Host.");
+      }
+    }
+    const handle = this.handles.get(value.id);
+    if (handle === void 0) throw new RpcError("LOOPBACK_CLOSED", "Preview request closed; reload the preview.");
+    handle.touched = Date.now();
+    if (value.op === "http.read" && handle.kind === "http") {
+      if (handle.reading) throw new RpcError("REQUEST_CONFLICT", "Only one preview read may be pending.");
+      handle.reading = true;
+      try {
+        const response = handle.response;
+        let chunk = response.read(Math.min(response.readableLength || LOOPBACK_CHUNK_BYTES, LOOPBACK_CHUNK_BYTES));
+        if (chunk === null && !response.readableEnded && !response.destroyed) {
+          await new Promise((resolve3, reject) => {
+            const timer = setTimeout(() => finish(new Error("timeout")), 2e4);
+            const ready = () => finish();
+            const fail4 = () => finish(new Error("closed"));
+            const finish = (error) => {
+              clearTimeout(timer);
+              response.off("readable", ready);
+              response.off("end", ready);
+              response.off("close", ready);
+              response.off("error", fail4);
+              error === void 0 ? resolve3() : reject(error);
+            };
+            response.once("readable", ready);
+            response.once("end", ready);
+            response.once("close", ready);
+            response.once("error", fail4);
+          });
+          chunk = response.read(Math.min(response.readableLength || LOOPBACK_CHUNK_BYTES, LOOPBACK_CHUNK_BYTES));
+          if (chunk === null && response.readableLength > 0) chunk = response.read(Math.min(response.readableLength, LOOPBACK_CHUNK_BYTES));
+        }
+        const done = chunk === null && (response.readableEnded || response.destroyed);
+        if (done && !response.complete) throw new Error("truncated");
+        handle.total += chunk?.length ?? 0;
+        if (handle.total > 64 * 1024 * 1024) throw new Error("size");
+        if (done) this.close(value.id);
+        return { data: chunk?.toString("base64") ?? "", done };
+      } catch {
+        this.close(value.id);
+        throw new RpcError("LOOPBACK_READ_FAILED", "Preview response ended or exceeded its limit; reload to retry.");
+      } finally {
+        handle.reading = false;
+      }
+    }
+    if (handle.kind === "ws") {
+      if (value.op === "ws.send") {
+        const data2 = Buffer.from(value.data, "base64");
+        if (data2.length > LOOPBACK_MAX_WS_BYTES || handle.socket.bufferedAmount > 1024 * 1024) {
+          this.close(value.id);
+          throw new RpcError("RATE_LIMITED", "Preview WebSocket buffer exceeded its limit.");
+        }
+        await new Promise((resolve3, reject) => handle.socket.send(data2, { binary: value.binary }, (error) => error ? reject(new RpcError("LOOPBACK_CLOSED", "Preview socket closed.")) : resolve3()));
+        return { sent: true };
+      }
+      if (value.op === "ws.read") {
+        if (handle.reading) throw new RpcError("REQUEST_CONFLICT", "Only one preview read may be pending.");
+        handle.reading = true;
+        try {
+          if (handle.messages.length === 0 && !handle.closed) await new Promise((resolve3) => {
+            const timer = setTimeout(() => {
+              handle.wake = void 0;
+              resolve3();
+            }, 2e4);
+            handle.wake = () => {
+              clearTimeout(timer);
+              handle.wake = void 0;
+              resolve3();
+            };
+          });
+          let bytes = 0;
+          const messages = [];
+          while (handle.messages.length > 0 && bytes < LOOPBACK_MAX_WS_BYTES) {
+            const message = handle.messages.shift();
+            bytes += message.data.length;
+            messages.push(message);
+          }
+          handle.bytes -= bytes;
+          const closed = handle.closed && handle.messages.length === 0;
+          if (closed) this.close(value.id);
+          return { messages, closed };
+        } finally {
+          handle.reading = false;
+        }
+      }
+    }
+    throw new RpcError("INVALID_MESSAGE", "Preview handle kind does not match the operation.");
+  }
+  closeAll() {
+    this.closed = true;
+    clearInterval(this.timer);
+    for (const id4 of this.handles.keys()) this.close(id4);
+  }
+  close(id4) {
+    const handle = this.handles.get(id4);
+    this.handles.delete(id4);
+    if (handle?.kind === "http") {
+      handle.response?.destroy();
+      handle.request.destroy();
+    }
+    if (handle?.kind === "ws") {
+      handle.closed = true;
+      handle.wake?.();
+      handle.socket.terminate();
+    }
+  }
+  openHttp(value) {
+    const body = value.body === void 0 ? void 0 : Buffer.from(value.body, "base64");
+    if ((body?.length ?? 0) > LOOPBACK_MAX_BODY_BYTES) throw new Error("body limit");
+    return new Promise((resolve3, reject) => {
+      const headers = Object.fromEntries(cleanHeaders(value.headers));
+      const request = httpRequest({
+        hostname: "127.0.0.1",
+        port: value.port,
+        method: value.method,
+        path: value.path,
+        headers,
+        agent: false,
+        maxHeaderSize: 32 * 1024
+      }, (response) => {
+        const handle = this.handles.get(value.id);
+        if (handle?.kind !== "http") {
+          response.destroy();
+          return;
+        }
+        handle.response = response;
+        response.on("error", () => void 0);
+        clearTimeout(timer);
+        resolve3({ status: response.statusCode ?? 502, headers: cleanHeaders(headerPairs(response.headers)) });
+      });
+      const timer = setTimeout(() => {
+        request.destroy();
+        reject(new Error("timeout"));
+      }, 2e4);
+      request.on("error", () => {
+        clearTimeout(timer);
+        reject(new Error("upstream"));
+      });
+      this.handles.set(value.id, { kind: "http", request, reading: false, total: 0, touched: Date.now() });
+      request.end(body);
+    });
+  }
+  openWs(value) {
+    return new Promise((resolve3, reject) => {
+      const socket = new WebSocket2(`ws://127.0.0.1:${value.port}${value.path}`, value.protocols, {
+        headers: Object.fromEntries(cleanHeaders(value.headers)),
+        followRedirects: false,
+        handshakeTimeout: 15e3,
+        maxPayload: LOOPBACK_MAX_WS_BYTES,
+        perMessageDeflate: false
+      });
+      const handle = { kind: "ws", socket, messages: [], bytes: 0, reading: false, closed: false, touched: Date.now() };
+      this.handles.set(value.id, handle);
+      socket.once("open", () => resolve3({ protocol: socket.protocol }));
+      socket.on("message", (data2, binary) => {
+        const message = { data: Buffer.from(data2).toString("base64"), binary };
+        if (handle.bytes + message.data.length > 1024 * 1024 || handle.messages.length >= 256) {
+          this.close(value.id);
+          return;
+        }
+        handle.messages.push(message);
+        handle.bytes += message.data.length;
+        handle.wake?.();
+      });
+      socket.on("close", () => {
+        handle.closed = true;
+        handle.wake?.();
+        reject(new Error("closed"));
+      });
+      socket.on("error", () => {
+        handle.closed = true;
+        handle.wake?.();
+        reject(new Error("upstream"));
+      });
+    });
+  }
+};
+
+// src/loopback-preview.ts
+var LoopbackPreview = class {
+  constructor(client) {
+    this.client = client;
+  }
+  servers = /* @__PURE__ */ new Map();
+  sockets = /* @__PURE__ */ new Set();
+  lifetime = new AbortController();
+  async open(port) {
+    if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new RpcError("INVALID_MESSAGE", "Enter a port between 1024 and 65535.");
+    this.lifetime.signal.throwIfAborted();
+    const description = await this.client.rpc("loopback.call", { op: "describe" }, this.lifetime.signal);
+    if (!description.ports.includes(port)) throw new RpcError("LOOPBACK_PORT_DENIED", "Allow this port in the Host Remote settings (loopback.ports), restart the Host, and reconnect. / \u8BF7\u5728 Host Remote \u8BBE\u7F6E\u4E2D\u5141\u8BB8\u6B64\u7AEF\u53E3\uFF0C\u91CD\u542F Host \u540E\u91CD\u65B0\u8FDE\u63A5\u3002");
+    let pending = this.servers.get(port);
+    if (pending === void 0) {
+      if (this.servers.size >= 16) throw new RpcError("RATE_LIMITED", "Too many preview origins.");
+      pending = this.start(port);
+      this.servers.set(port, pending);
+      void pending.catch(() => {
+        this.servers.delete(port);
+      });
+    }
+    return { url: (await pending).url };
+  }
+  async close() {
+    this.lifetime.abort();
+    for (const socket of this.sockets) socket.destroy();
+    for (const pending of this.servers.values()) {
+      const running = await pending.catch(() => void 0);
+      if (running === void 0) continue;
+      for (const client of running.ws.clients) client.terminate();
+      running.ws.close();
+      running.server.closeAllConnections();
+      await new Promise((resolve3) => running.server.close(() => resolve3()));
+    }
+    this.servers.clear();
+  }
+  async start(port) {
+    const hostname4 = `dsh-${randomBytes(24).toString("hex")}.localhost`;
+    let authority = "";
+    const accepted = (req) => req.headers.host === authority && (req.headers.origin === void 0 || req.headers.origin === `http://${authority}`) && req.headers["service-worker"] === void 0;
+    const server = createServer((req, res) => {
+      if (!accepted(req)) {
+        res.writeHead(403);
+        res.end("Preview origin denied.");
+        return;
+      }
+      void this.http(port, authority, req, res);
+    });
+    server.requestTimeout = 3e4;
+    server.headersTimeout = 15e3;
+    server.maxHeadersCount = 64;
+    server.on("connection", (socket) => {
+      if (this.sockets.size >= 64 || this.lifetime.signal.aborted) {
+        socket.destroy();
+        return;
+      }
+      this.sockets.add(socket);
+      socket.on("close", () => this.sockets.delete(socket));
+    });
+    const selectedProtocols = /* @__PURE__ */ new WeakMap();
+    const ws = new WebSocketServer({
+      noServer: true,
+      maxPayload: LOOPBACK_MAX_WS_BYTES,
+      perMessageDeflate: false,
+      handleProtocols: (_protocols, req) => selectedProtocols.get(req) || false
+    });
+    server.on("upgrade", (req, socket, head) => {
+      if (!accepted(req)) {
+        socket.destroy();
+        return;
+      }
+      const id4 = randomUUID();
+      const headers = this.headers(req, port);
+      const protocols = (req.headers["sec-websocket-protocol"] ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+      void this.client.rpc("loopback.call", { op: "ws.open", id: id4, port, path: req.url ?? "/", headers, protocols }, this.lifetime.signal).then((result) => {
+        if (socket.destroyed || this.lifetime.signal.aborted) {
+          socket.destroy();
+          void this.release(id4);
+          return;
+        }
+        selectedProtocols.set(req, result.protocol);
+        ws.handleUpgrade(req, socket, head, (local) => this.websocket(id4, local));
+      }).catch(() => {
+        socket.destroy();
+        void this.release(id4);
+      });
+    });
+    await new Promise((resolve3, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => {
+        server.off("error", reject);
+        resolve3();
+      });
+    });
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      server.close();
+      throw new Error("Preview listener unavailable");
+    }
+    authority = `${hostname4}:${address.port}`;
+    if (this.lifetime.signal.aborted) {
+      server.close();
+      ws.close();
+      throw new Error("Preview closed");
+    }
+    return { server, ws, url: `http://${authority}/` };
+  }
+  headers(req, port) {
+    return cleanHeaders(headerPairs(req.headers)).filter(([name2]) => !["origin", "referer"].includes(name2.toLowerCase())).concat(req.headers.origin === void 0 ? [] : [["origin", `http://127.0.0.1:${port}`]]);
+  }
+  async http(port, authority, req, res) {
+    const id4 = randomUUID();
+    const controller = new AbortController();
+    const abort = () => {
+      controller.abort();
+      void this.release(id4);
+    };
+    res.once("close", abort);
+    const signal = AbortSignal.any([controller.signal, this.lifetime.signal]);
+    try {
+      const chunks = [];
+      let length = 0;
+      for await (const chunk of req) {
+        length += chunk.length;
+        if (length > LOOPBACK_MAX_BODY_BYTES) throw new RpcError("PAYLOAD_TOO_LARGE", "Preview request body is limited to 1 MiB.");
+        chunks.push(chunk);
+      }
+      const head = await this.client.rpc("loopback.call", {
+        op: "http.open",
+        id: id4,
+        port,
+        path: req.url ?? "/",
+        method: req.method ?? "GET",
+        headers: this.headers(req, port),
+        ...length === 0 ? {} : { body: Buffer.concat(chunks).toString("base64") }
+      }, signal);
+      const headers = {};
+      for (let [name2, value] of cleanHeaders(head.headers)) {
+        name2 = name2.toLowerCase();
+        if (name2 === "location") {
+          const url = new URL(value, `http://127.0.0.1:${port}/`);
+          if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname) || Number(url.port || 80) !== port || url.protocol !== "http:") {
+            throw new Error("Redirect is outside the authorized preview service");
+          }
+          value = `http://${authority}${url.pathname}${url.search}${url.hash}`;
+        }
+        if (name2 === "set-cookie") {
+          value = value.replace(/;\s*domain=[^;]*/ig, "");
+          const existing = headers[name2];
+          headers[name2] = [...Array.isArray(existing) ? existing : [], value];
+        } else if (!["service-worker-allowed", "clear-site-data", "alt-svc"].includes(name2)) headers[name2] = value;
+      }
+      headers["referrer-policy"] = "no-referrer";
+      res.writeHead(head.status, headers);
+      while (!signal.aborted) {
+        const chunk = await this.client.rpc("loopback.call", { op: "http.read", id: id4 }, signal);
+        if (chunk.data !== "" && !res.write(Buffer.from(chunk.data, "base64"))) {
+          await new Promise((resolve3, reject) => {
+            const ready = () => {
+              cleanup();
+              resolve3();
+            };
+            const closed = () => {
+              cleanup();
+              reject(new Error("closed"));
+            };
+            const cleanup = () => {
+              res.off("drain", ready);
+              res.off("close", closed);
+            };
+            res.once("drain", ready);
+            res.once("close", closed);
+          });
+        }
+        if (chunk.done) break;
+      }
+      res.end();
+    } catch {
+      if (!res.headersSent) {
+        res.writeHead(502, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Remote preview unavailable. Check the Host service and connection, then reload.");
+      } else res.destroy();
+    } finally {
+      res.off("close", abort);
+      await this.release(id4);
+    }
+  }
+  websocket(id4, socket) {
+    let input2 = Promise.resolve();
+    let queued = 0;
+    let count = 0;
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, this.lifetime.signal]);
+    const close = () => {
+      controller.abort();
+      socket.terminate();
+      void this.release(id4);
+    };
+    socket.on("error", close);
+    socket.on("close", close);
+    socket.on("message", (data2, binary) => {
+      const bytes = Buffer.from(data2);
+      queued += bytes.length;
+      count += 1;
+      if (queued > 1024 * 1024 || count > 256) {
+        close();
+        return;
+      }
+      input2 = input2.then(async () => {
+        await this.client.rpc("loopback.call", { op: "ws.send", id: id4, data: bytes.toString("base64"), binary }, signal);
+        queued -= bytes.length;
+        count -= 1;
+      }).catch(close);
+    });
+    void (async () => {
+      try {
+        while (!signal.aborted) {
+          const result = await this.client.rpc("loopback.call", { op: "ws.read", id: id4 }, signal);
+          for (const message of result.messages) {
+            if (socket.bufferedAmount > 1024 * 1024) throw new Error("slow preview");
+            await new Promise((resolve3, reject) => socket.send(Buffer.from(message.data, "base64"), { binary: message.binary }, (error) => error ? reject(error) : resolve3()));
+          }
+          if (result.closed) break;
+        }
+      } catch {
+      } finally {
+        close();
+      }
+    })();
+  }
+  async release(id4) {
+    if (!this.lifetime.signal.aborted) await this.client.rpc("loopback.call", { op: "close", id: id4 }).catch(() => void 0);
+  }
+};
 
 // ../client-core/dist/remote-gateway.js
 var DIRECT_REMOTE_CALL_BYTES = 2 * 1024 * 1024;
@@ -4787,12 +5306,12 @@ function deriveCodexCwdWorkspaces(values) {
       continue;
     }
     const baseId = `cwd-${hashWorkspacePath(key)}`;
-    let id2 = baseId;
-    for (let suffix = 2; usedIds.has(id2); suffix += 1)
-      id2 = `${baseId}-${suffix}`;
-    usedIds.add(id2);
+    let id4 = baseId;
+    for (let suffix = 2; usedIds.has(id4); suffix += 1)
+      id4 = `${baseId}-${suffix}`;
+    usedIds.add(id4);
     byPath.set(key, {
-      id: id2,
+      id: id4,
       name: workspaceBasename(path),
       path,
       position: byPath.size,
@@ -4966,16 +5485,16 @@ function parseDataImageUrl(value) {
   if (match === null)
     return void 0;
   const mediaType = match[1];
-  const data = match[2];
-  if (!CODEX_IMAGE_MEDIA_TYPES.has(mediaType) || !isCanonicalBase64(data))
+  const data2 = match[2];
+  if (!CODEX_IMAGE_MEDIA_TYPES.has(mediaType) || !isCanonicalBase64(data2))
     return void 0;
-  return { url: `data:${mediaType};base64,${data}`, mediaType, data };
+  return { url: `data:${mediaType};base64,${data2}`, mediaType, data: data2 };
 }
 function isCanonicalBase64(value) {
   return value.length >= 4 && value.length % 4 === 0 && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(value);
 }
-function sniffImageMediaType(data) {
-  const bytes = base64PrefixBytes(data, 32);
+function sniffImageMediaType(data2) {
+  const bytes = base64PrefixBytes(data2, 32);
   if (bytes.length >= 8 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71 && bytes[4] === 13 && bytes[5] === 10 && bytes[6] === 26 && bytes[7] === 10)
     return "image/png";
   if (bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255)
@@ -5181,7 +5700,7 @@ var RemoteClientCore = class {
     if (this.unsubscribeTransport !== void 0)
       return;
     this.closeNotified = false;
-    this.unsubscribeTransport = this.transport.onMessage((data) => this.handleMessage(data));
+    this.unsubscribeTransport = this.transport.onMessage((data2) => this.handleMessage(data2));
     this.unsubscribeClose = this.transport.onClose?.(() => this.handleTransportClose());
     try {
       await this.transport.connect();
@@ -5252,8 +5771,8 @@ var RemoteClientCore = class {
     this.rejectAllPending((pending) => new RemoteClientError("TRANSPORT_CLOSED", `RPC ${pending.method} terminated because the remote transport closed`));
     this.notifyClose();
   }
-  handleMessage(data) {
-    const message = decodeMessage(data);
+  handleMessage(data2) {
+    const message = decodeMessage(data2);
     if (message.type === "rpc.response")
       this.handleResponse(message);
     if (message.type === "rpc.error")
@@ -5314,6 +5833,18 @@ function transportSendError(error) {
   return error instanceof Error ? error : new Error("remote transport send failed", { cause: error });
 }
 
+// ../webrtc/dist/websocket-backpressure.js
+async function waitForRelayCapacity(socket) {
+  const started = Date.now();
+  while ((socket.bufferedAmount ?? 0) > 512 * 1024) {
+    if (socket.readyState !== 1 || Date.now() - started > 1e4)
+      throw new Error("Relay consumer is too slow or disconnected");
+    await new Promise((resolve3) => setTimeout(resolve3, 10));
+  }
+  if (socket.readyState !== 1)
+    throw new Error("Relay transport closed");
+}
+
 // ../webrtc/dist/transport.js
 var BaseTransport = class {
   handlers = /* @__PURE__ */ new Set();
@@ -5326,9 +5857,9 @@ var BaseTransport = class {
     this.closeHandlers.add(cb);
     return () => this.closeHandlers.delete(cb);
   }
-  emit(data) {
+  emit(data2) {
     for (const handler of this.handlers)
-      handler(data);
+      handler(data2);
   }
   emitClose() {
     for (const handler of this.closeHandlers)
@@ -5571,8 +6102,8 @@ function adaptDataChannel(raw) {
     get onbufferedamountlow() {
       return raw.onbufferedamountlow;
     },
-    send(data) {
-      raw.send(data);
+    send(data2) {
+      raw.send(data2);
     },
     close() {
       raw.close();
@@ -5591,19 +6122,19 @@ var MAX_ASSEMBLY_AGE_MS = 3e4;
 var RtcChunkCodec = class {
   nextMessageId = 1;
   assemblies = /* @__PURE__ */ new Map();
-  encode(data) {
-    if (data.byteLength <= RTC_CHUNK_PAYLOAD_BYTES)
-      return [data];
-    if (data.byteLength > RTC_CHUNK_MAX_MESSAGE_BYTES) {
+  encode(data2) {
+    if (data2.byteLength <= RTC_CHUNK_PAYLOAD_BYTES)
+      return [data2];
+    if (data2.byteLength > RTC_CHUNK_MAX_MESSAGE_BYTES) {
       throw new Error("WebRTC transport message exceeds the reassembly limit.");
     }
     const messageId = this.nextMessageId;
     this.nextMessageId = messageId === 4294967295 ? 1 : messageId + 1;
-    const total = Math.ceil(data.byteLength / RTC_CHUNK_PAYLOAD_BYTES);
+    const total = Math.ceil(data2.byteLength / RTC_CHUNK_PAYLOAD_BYTES);
     const frames = [];
     for (let index = 0; index < total; index += 1) {
       const start = index * RTC_CHUNK_PAYLOAD_BYTES;
-      const chunk = data.subarray(start, Math.min(data.byteLength, start + RTC_CHUNK_PAYLOAD_BYTES));
+      const chunk = data2.subarray(start, Math.min(data2.byteLength, start + RTC_CHUNK_PAYLOAD_BYTES));
       const frame = new Uint8Array(RTC_CHUNK_HEADER_BYTES + chunk.byteLength);
       frame.set(RTC_CHUNK_MAGIC);
       const view = new DataView(frame.buffer);
@@ -5789,11 +6320,11 @@ var RtcDataChannelTransport = class {
     else
       void this.handleIce(signal.candidate);
   }
-  async send(data) {
+  async send(data2) {
     const channel = this.requireOpenChannel();
     if (channel.readyState !== "open")
       throw new Error("WebRTC data channel is not open.");
-    for (const frame of this.outgoing.encode(data)) {
+    for (const frame of this.outgoing.encode(data2)) {
       try {
         channel.send(toArrayBuffer(frame));
       } catch (error) {
@@ -5801,7 +6332,7 @@ var RtcDataChannelTransport = class {
         throw error;
       }
     }
-    this.bytesSent += data.byteLength;
+    this.bytesSent += data2.byteLength;
     this.armWatchdog(channel);
   }
   onMessage(handler) {
@@ -5990,8 +6521,8 @@ var RtcDataChannelTransport = class {
     channel.onmessage = (event) => {
       if (this.closed || !this.opened)
         return;
-      const data = event.data;
-      const frame = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+      const data2 = event.data;
+      const frame = typeof data2 === "string" ? new TextEncoder().encode(data2) : new Uint8Array(data2);
       this.bytesReceived += frame.byteLength;
       try {
         const message = this.incoming.decode(frame);
@@ -6182,7 +6713,7 @@ function inspectSelectedPath(stats) {
     }
   }
   const pairs = [
-    ...[...selectedPairIds].map((id2) => candidatePairs.get(id2)).filter((pair) => pair !== void 0),
+    ...[...selectedPairIds].map((id4) => candidatePairs.get(id4)).filter((pair) => pair !== void 0),
     ...selectedPairs
   ];
   for (const pair of pairs) {
@@ -6370,10 +6901,10 @@ function requireSdp(description) {
   }
   return description.sdp;
 }
-function toArrayBuffer(data) {
-  if (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength)
-    return data.buffer;
-  return data.slice().buffer;
+function toArrayBuffer(data2) {
+  if (data2.byteOffset === 0 && data2.byteLength === data2.buffer.byteLength)
+    return data2.buffer;
+  return data2.slice().buffer;
 }
 function asError(error) {
   return error instanceof Error ? error : new RtcConnectError("RTC_FAILED", "WebRTC negotiation failed.");
@@ -6445,26 +6976,27 @@ var AdaptiveTransport = class extends BaseTransport {
       };
     });
   }
-  async send(data) {
+  async send(data2) {
     if (this.connectionId === void 0)
       throw new Error("adaptive transport has not been authorized");
     if (this.dataMode === "webrtc") {
       const rtc = this.rtc;
       if (rtc === void 0)
         throw new Error("webrtc data channel is not available");
-      this.bytesSent += data.byteLength;
-      await rtc.send(data);
+      this.bytesSent += data2.byteLength;
+      await rtc.send(data2);
       return;
     }
     if (this.socket?.readyState !== WebSocket.OPEN)
       throw new Error("adaptive transport is not connected");
+    await waitForRelayCapacity(this.socket);
     this.sendControl("relay", {
       connectionId: this.connectionId,
       targetDeviceId: this.options.targetDeviceId,
       counter: this.relayCounter,
-      ciphertext: toBase64Url(data)
+      ciphertext: toBase64Url(data2)
     });
-    this.bytesSent += data.byteLength;
+    this.bytesSent += data2.byteLength;
     this.relayCounter += 1;
   }
   connectionInfo() {
@@ -6488,7 +7020,7 @@ var AdaptiveTransport = class extends BaseTransport {
       ...this.rtc === void 0 ? {} : { webRtc: await this.rtc.connectionDetails() }
     };
   }
-  async sendHandshake(step, data) {
+  async sendHandshake(step, data2) {
     if (this.socket?.readyState !== WebSocket.OPEN || this.connectionId === void 0) {
       throw new Error("adaptive transport has not been authorized");
     }
@@ -6496,7 +7028,7 @@ var AdaptiveTransport = class extends BaseTransport {
       connectionId: this.connectionId,
       targetDeviceId: this.options.targetDeviceId,
       step,
-      data: toBase64Url(data)
+      data: toBase64Url(data2)
     });
   }
   onHandshake(cb) {
@@ -6580,9 +7112,9 @@ var AdaptiveTransport = class extends BaseTransport {
         if (payload.connectionId !== this.connectionId || payload.targetDeviceId !== this.options.deviceId || !Number.isSafeInteger(payload.step) || typeof payload.data !== "string") {
           throw new Error("Received a secure handshake frame for an unknown connection");
         }
-        const data = fromBase64Url(payload.data);
+        const data2 = fromBase64Url(payload.data);
         for (const handler of this.handshakeHandlers)
-          handler(payload.step, data);
+          handler(payload.step, data2);
         return;
       }
       if (frame.type === "signal.answer") {
@@ -6611,9 +7143,9 @@ var AdaptiveTransport = class extends BaseTransport {
     if (payload.connectionId !== this.connectionId || payload.targetDeviceId !== this.options.deviceId || !Number.isSafeInteger(payload.counter) || typeof payload.ciphertext !== "string") {
       throw new Error("Received a relay frame for an unknown connection");
     }
-    const data = fromBase64Url(payload.ciphertext);
-    this.bytesReceived += data.byteLength;
-    this.emit(data);
+    const data2 = fromBase64Url(payload.ciphertext);
+    this.bytesReceived += data2.byteLength;
+    this.emit(data2);
   }
   async negotiate() {
     if (this.connectionId === void 0)
@@ -6705,9 +7237,9 @@ var AdaptiveTransport = class extends BaseTransport {
       }
     });
     this.rtc = rtc;
-    rtc.onMessage((data) => {
-      this.bytesReceived += data.byteLength;
-      this.emit(data);
+    rtc.onMessage((data2) => {
+      this.bytesReceived += data2.byteLength;
+      this.emit(data2);
     });
     rtc.onClose(() => {
       if (this.rtc === rtc && this.dataMode === "webrtc")
@@ -6802,6 +7334,27 @@ function negotiateTimeout(serverMs, localMs) {
   return Math.max(serverMs, localMs);
 }
 
+// ../webrtc/dist/serial-send.js
+var SerialSend = class {
+  tail = Promise.resolve();
+  bytes = 0;
+  count = 0;
+  async run(bytes, send) {
+    if (this.bytes + bytes > 8 * 1024 * 1024 || this.count >= 256)
+      throw new Error("Encrypted send queue exceeds its limit");
+    this.bytes += bytes;
+    this.count += 1;
+    const task = this.tail.then(send);
+    this.tail = task.catch(() => void 0);
+    try {
+      await task;
+    } finally {
+      this.bytes -= bytes;
+      this.count -= 1;
+    }
+  }
+};
+
 // src/api-proxy-switch.ts
 var SWITCHED_DOMAINS = [
   "sessions",
@@ -6855,10 +7408,10 @@ var ApiProxySwitch = class {
     });
     this.installed = true;
   }
-  selectRemote(api, target) {
+  selectRemote(api, target2) {
     if (!this.installed) throw new Error("The Harness API switch is not installed.");
     this.remote = api;
-    this.target = { ...target };
+    this.target = { ...target2 };
     this.mode = "remote";
   }
   selectLocal() {
@@ -6904,7 +7457,7 @@ import * as nc from "node:crypto";
 var crypto = nc && typeof nc === "object" && "webcrypto" in nc ? nc.webcrypto : nc && typeof nc === "object" && "randomBytes" in nc ? nc : void 0;
 
 // ../../node_modules/.pnpm/@noble+ciphers@1.3.0/node_modules/@noble/ciphers/esm/webcrypto.js
-function randomBytes(bytesLength = 32) {
+function randomBytes2(bytesLength = 32) {
   if (crypto && typeof crypto.getRandomValues === "function") {
     return crypto.getRandomValues(new Uint8Array(bytesLength));
   }
@@ -7004,11 +7557,11 @@ function utf8ToBytes(str) {
     throw new Error("string expected");
   return new Uint8Array(new TextEncoder().encode(str));
 }
-function toBytes(data) {
-  if (typeof data === "string")
-    data = utf8ToBytes(data);
-  abytes(data);
-  return data;
+function toBytes(data2) {
+  if (typeof data2 === "string")
+    data2 = utf8ToBytes(data2);
+  abytes(data2);
+  return data2;
 }
 function concatBytes(...arrays) {
   let sum = 0;
@@ -7035,7 +7588,7 @@ function createHasher(hashCons) {
   hashC.create = () => hashCons();
   return hashC;
 }
-function randomBytes2(bytesLength = 32) {
+function randomBytes3(bytesLength = 32) {
   if (crypto2 && typeof crypto2.getRandomValues === "function") {
     return crypto2.getRandomValues(new Uint8Array(bytesLength));
   }
@@ -7072,21 +7625,21 @@ var HashMD = class extends Hash {
     this.buffer = new Uint8Array(blockLen);
     this.view = createView(this.buffer);
   }
-  update(data) {
+  update(data2) {
     aexists(this);
-    data = toBytes(data);
-    abytes(data);
+    data2 = toBytes(data2);
+    abytes(data2);
     const { view, buffer, blockLen } = this;
-    const len = data.length;
+    const len = data2.length;
     for (let pos = 0; pos < len; ) {
       const take = Math.min(blockLen - this.pos, len - pos);
       if (take === blockLen) {
-        const dataView = createView(data);
+        const dataView = createView(data2);
         for (; blockLen <= len - pos; pos += blockLen)
           this.process(dataView, pos);
         continue;
       }
-      buffer.set(data.subarray(pos, pos + take), this.pos);
+      buffer.set(data2.subarray(pos, pos + take), this.pos);
       this.pos += take;
       pos += take;
       if (this.pos === blockLen) {
@@ -7094,7 +7647,7 @@ var HashMD = class extends Hash {
         this.pos = 0;
       }
     }
-    this.length += data.length;
+    this.length += data2.length;
     this.roundClean();
     return this;
   }
@@ -8471,13 +9024,13 @@ function eddsa(Point, cHash, eddsaOpts = {}) {
   });
   const { prehash } = eddsaOpts;
   const { BASE, Fp: Fp2, Fn: Fn2 } = Point;
-  const randomBytes7 = eddsaOpts.randomBytes || randomBytes2;
+  const randomBytes8 = eddsaOpts.randomBytes || randomBytes3;
   const adjustScalarBytes3 = eddsaOpts.adjustScalarBytes || ((bytes) => bytes);
-  const domain = eddsaOpts.domain || ((data, ctx, phflag) => {
+  const domain = eddsaOpts.domain || ((data2, ctx, phflag) => {
     _abool2(phflag, "phflag");
     if (ctx.length || phflag)
       throw new Error("Contexts/pre-hash are not supported");
-    return data;
+    return data2;
   });
   function modN_LE(hash) {
     return Fn2.create(bytesToNumberLE(hash));
@@ -8553,7 +9106,7 @@ function eddsa(Point, cHash, eddsaOpts = {}) {
     signature: 2 * _size,
     seed: _size
   };
-  function randomSecretKey(seed = randomBytes7(lengths.seed)) {
+  function randomSecretKey(seed = randomBytes8(lengths.seed)) {
     return _abytes2(seed, lengths.seed, "seed");
   }
   function keygen(seed) {
@@ -8672,7 +9225,7 @@ function montgomery(curveDef) {
   const is25519 = type === "x25519";
   if (!is25519 && type !== "x448")
     throw new Error("invalid type");
-  const randomBytes_ = rand || randomBytes2;
+  const randomBytes_ = rand || randomBytes3;
   const montgomeryBits = is25519 ? 255 : 448;
   const fieldLen = is25519 ? 32 : 56;
   const Gu = is25519 ? BigInt(9) : BigInt(5);
@@ -9321,8 +9874,8 @@ var SymmetricState = class {
     }
     this.ck.set(this.h);
   }
-  mixHash(data) {
-    this.h.set(this.H.hash(concat(this.h, data)).subarray(0, this.H.hashLen));
+  mixHash(data2) {
+    this.h.set(this.H.hash(concat(this.h, data2)).subarray(0, this.H.hashLen));
   }
   mixKey(inputKeyMaterial) {
     const [ck, temp] = this.H.hkdf(this.ck, inputKeyMaterial);
@@ -9345,13 +9898,13 @@ var SymmetricState = class {
     }
     this.mixHash(out);
   }
-  decryptAndHash(data, out) {
+  decryptAndHash(data2, out) {
     if (this.cipherstate) {
-      this.cipherstate.decryptWithAd(this.h, data, out);
+      this.cipherstate.decryptWithAd(this.h, data2, out);
     } else {
-      out.set(data);
+      out.set(data2);
     }
-    this.mixHash(data);
+    this.mixHash(data2);
   }
   split() {
     if (!this.hasKey()) {
@@ -9751,7 +10304,7 @@ function createHasher2(hashCons, info = {}) {
   Object.assign(hashC, info);
   return Object.freeze(hashC);
 }
-function randomBytes3(bytesLength = 32) {
+function randomBytes4(bytesLength = 32) {
   anumber2(bytesLength, "bytesLength");
   const cr = typeof globalThis === "object" ? globalThis.crypto : null;
   if (typeof cr?.getRandomValues !== "function")
@@ -9794,22 +10347,22 @@ var HashMD2 = class {
     this.buffer = new Uint8Array(blockLen);
     this.view = createView2(this.buffer);
   }
-  update(data) {
+  update(data2) {
     aexists2(this);
-    abytes2(data);
+    abytes2(data2);
     const { view, buffer, blockLen } = this;
-    const len = data.length;
+    const len = data2.length;
     let processed = false;
     for (let pos = 0; pos < len; ) {
       const take = Math.min(blockLen - this.pos, len - pos);
       if (take === blockLen) {
-        const dataView = createView2(data);
+        const dataView = createView2(data2);
         for (; blockLen <= len - pos; pos += blockLen)
           this.process(dataView, pos);
         processed = true;
         continue;
       }
-      buffer.set(pos === 0 && take === len ? data : data.subarray(pos, pos + take), this.pos);
+      buffer.set(pos === 0 && take === len ? data2 : data2.subarray(pos, pos + take), this.pos);
       this.pos += take;
       pos += take;
       if (this.pos === blockLen) {
@@ -9818,7 +10371,7 @@ var HashMD2 = class {
         processed = true;
       }
     }
-    this.length += data.length;
+    this.length += data2.length;
     if (processed)
       this.roundClean();
     return this;
@@ -10318,7 +10871,7 @@ function afunction(value, title) {
 var bytesToHex3 = bytesToHex2;
 var hexToBytes3 = (hex) => hexToBytes2(hex);
 var isBytes3 = isBytes2;
-var randomBytes4 = (bytesLength) => randomBytes3(bytesLength);
+var randomBytes5 = (bytesLength) => randomBytes4(bytesLength);
 var _0n7 = /* @__PURE__ */ BigInt(0);
 var _1n7 = /* @__PURE__ */ BigInt(1);
 var atitle2 = (title) => title ? `"${title}" ` : "";
@@ -10877,18 +11430,18 @@ function validateTableBytes(numPoints, fpBytes) {
   if (bytes > TABLE_BYTES_MAX)
     throw new Error("invalid window size: table would need ~" + Math.ceil(bytes / 2 ** 20) + " MiB, max " + TABLE_BYTES_MAX / 2 ** 20 + " MiB");
 }
-function probeRandomBytes(randomBytes7, length) {
-  if (randomBytes7 === void 0)
+function probeRandomBytes(randomBytes8, length) {
+  if (randomBytes8 === void 0)
     return void 0;
-  afunction(randomBytes7, "randomBytes");
+  afunction(randomBytes8, "randomBytes");
   try {
-    const probe = randomBytes7(length);
+    const probe = randomBytes8(length);
     if (!isBytes3(probe) || probe.length !== length)
       return void 0;
   } catch {
     return void 0;
   }
-  return randomBytes7;
+  return randomBytes8;
 }
 function validateMSMPoints2(points, c) {
   aarray(points, "points");
@@ -10981,9 +11534,9 @@ var ScalarMultiplier = class {
   baseCanBeBlinded;
   bits;
   // Parametrized with a given Point class (not individual point)
-  constructor(Point, randomBytes7) {
+  constructor(Point, randomBytes8) {
     validatePointCons(Point);
-    this.randomBytes = probeRandomBytes(randomBytes7, BLIND_BYTES);
+    this.randomBytes = probeRandomBytes(randomBytes8, BLIND_BYTES);
     this.Point = Point;
     this.BASE = Point.BASE;
     this.ZERO = Point.ZERO;
@@ -11254,7 +11807,7 @@ function edwards2(params, extraOpts = {}) {
   if (FpLegendre2(Fp2, CURVE.d) !== -1)
     throw new Error("edwards: CURVE.d must be a non-square in Fp for complete addition formulas");
   validateObject2(opts, {}, { uvRatio: "function", randomBytes: "function" });
-  const randomBytes7 = opts.randomBytes === void 0 ? randomBytes4 : opts.randomBytes;
+  const randomBytes8 = opts.randomBytes === void 0 ? randomBytes5 : opts.randomBytes;
   const MASK = _2n6 << BigInt(Fp2.BYTES * 8) - _1n10;
   function isOdd(n) {
     if (!Fp2.isOdd)
@@ -11515,7 +12068,7 @@ function edwards2(params, extraOpts = {}) {
     }
   }
   const normalize = (points) => normalizeZ2(Point, points);
-  const wnaf = new ScalarMultiplier(Point, randomBytes7);
+  const wnaf = new ScalarMultiplier(Point, randomBytes8);
   if (wnaf.bits >= 6)
     Point.BASE.precompute(6);
   Object.freeze(Point.prototype);
@@ -11558,7 +12111,7 @@ function montgomery2(curveDef) {
   const is25519 = type === "x25519";
   if (!is25519 && type !== "x448")
     throw new Error("invalid type");
-  const randomBytes_ = rand === void 0 ? randomBytes4 : rand;
+  const randomBytes_ = rand === void 0 ? randomBytes5 : rand;
   const montgomeryBits = is25519 ? 255 : 448;
   const swap = cswap(P);
   const fieldLen = is25519 ? 32 : 56;
@@ -11847,11 +12400,11 @@ var NqHandshake = class {
   isFinished() {
     return this.status === 2;
   }
-  mixHash(data) {
-    this.symmetric.mixHash(data);
+  mixHash(data2) {
+    this.symmetric.mixHash(data2);
   }
-  mixKeyAndHash(data) {
-    this.symmetric.mixKeyAndHash(data);
+  mixKeyAndHash(data2) {
+    this.symmetric.mixKeyAndHash(data2);
   }
   pushPsk(psk) {
     if (psk.length !== PSK_LEN) {
@@ -12525,13 +13078,13 @@ var _BLAKE2 = class {
     this.buffer = new Uint8Array(blockLen);
     this.buffer32 = u32(this.buffer);
   }
-  update(data) {
+  update(data2) {
     aexists2(this);
-    abytes2(data);
+    abytes2(data2);
     const { blockLen, buffer, buffer32 } = this;
-    const len = data.length;
-    const offset = data.byteOffset;
-    const buf = data.buffer;
+    const len = data2.length;
+    const offset = data2.byteOffset;
+    const buf = data2.buffer;
     for (let pos = 0; pos < len; ) {
       if (this.pos === blockLen) {
         swap32IfBE(buffer32);
@@ -12551,7 +13104,7 @@ var _BLAKE2 = class {
         swap32IfBE(data32);
         continue;
       }
-      buffer.set(pos === 0 && take === len ? data : data.subarray(pos, pos + take), this.pos);
+      buffer.set(pos === 0 && take === len ? data2 : data2.subarray(pos, pos + take), this.pos);
       this.pos += take;
       this.length += take;
       pos += take;
@@ -12935,8 +13488,8 @@ var hmac = /* @__PURE__ */ (() => {
 
 // ../../node_modules/.pnpm/@lukeburns+clatterjs@1.0.0/node_modules/@lukeburns/clatterjs/dist/crypto/hash.js
 function makeHash(name2, hash, hashLen, blockLen) {
-  const doHash = (data) => hash.create().update(data).digest();
-  const hmac1 = (key, data) => hmac(hash, key, data);
+  const doHash = (data2) => hash.create().update(data2).digest();
+  const hmac1 = (key, data2) => hmac(hash, key, data2);
   const hmacMany = (key, parts) => hmac1(key, parts.length === 1 ? parts[0] : concatBytes2(...parts));
   return {
     name: name2,
@@ -13089,20 +13642,20 @@ var wrapCipher = /* @__NO_SIDE_EFFECTS__ */ (params, constructor) => {
     };
     let called = false;
     const wrCipher = {
-      encrypt(data, output) {
+      encrypt(data2, output) {
         if (called)
           throw new Error("cannot encrypt() twice with same key + nonce");
         called = true;
-        abytes4(data, void 0, "data");
+        abytes4(data2, void 0, "data");
         checkOutput(cipher.encrypt.length, output);
-        return cipher.encrypt(data, output);
+        return cipher.encrypt(data2, output);
       },
-      decrypt(data, output) {
-        abytes4(data, void 0, "data");
-        if (tagl && data.length < tagl)
+      decrypt(data2, output) {
+        abytes4(data2, void 0, "data");
+        if (tagl && data2.length < tagl)
           throw new Error('"ciphertext" expected length >= tagLength=' + tagl);
         checkOutput(cipher.decrypt.length, output);
-        return cipher.decrypt(data, output);
+        return cipher.decrypt(data2, output);
       }
     };
     return wrCipher;
@@ -13146,12 +13699,12 @@ var BLOCK_LEN = 64;
 var BLOCK_LEN32 = 16;
 var MAX_COUNTER = /* @__PURE__ */ (() => 2 ** 32 - 1)();
 var U32_EMPTY = /* @__PURE__ */ Uint32Array.of();
-function runCipher(core, sigma, key, nonce, data, output, counter, rounds) {
-  const len = data.length;
+function runCipher(core, sigma, key, nonce, data2, output, counter, rounds) {
+  const len = data2.length;
   const block = new Uint8Array(BLOCK_LEN);
   const b32 = u322(block);
-  const isAligned = isLE2 && isAligned32(data) && isAligned32(output);
-  const d32 = isAligned ? u322(data) : U32_EMPTY;
+  const isAligned = isLE2 && isAligned32(data2) && isAligned32(output);
+  const d32 = isAligned ? u322(data2) : U32_EMPTY;
   const o32 = isAligned ? u322(output) : U32_EMPTY;
   if (!isLE2) {
     for (let pos = 0; pos < len; counter++) {
@@ -13162,7 +13715,7 @@ function runCipher(core, sigma, key, nonce, data, output, counter, rounds) {
       const take = Math.min(BLOCK_LEN, len - pos);
       for (let j = 0, posj; j < take; j++) {
         posj = pos + j;
-        output[posj] = data[posj] ^ block[j];
+        output[posj] = data2[posj] ^ block[j];
       }
       pos += take;
     }
@@ -13186,7 +13739,7 @@ function runCipher(core, sigma, key, nonce, data, output, counter, rounds) {
     }
     for (let j = 0, posj; j < take; j++) {
       posj = pos + j;
-      output[posj] = data[posj] ^ block[j];
+      output[posj] = data2[posj] ^ block[j];
     }
     pos += take;
   }
@@ -13199,11 +13752,11 @@ function createCipher(core, opts) {
   anumber4(rounds);
   abool2(counterRight);
   abool2(allowShortKeys);
-  return (key, nonce, data, output, counter = 0) => {
+  return (key, nonce, data2, output, counter = 0) => {
     abytes4(key, void 0, "key");
     abytes4(nonce, void 0, "nonce");
-    abytes4(data, void 0, "data");
-    const len = data.length;
+    abytes4(data2, void 0, "data");
+    const len = data2.length;
     output = getOutput(len, output, false);
     anumber4(counter);
     if (counter < 0 || counter >= MAX_COUNTER)
@@ -13254,7 +13807,7 @@ function createCipher(core, opts) {
     }
     const n32 = swap32IfBE2(u322(nonce));
     try {
-      runCipher(core, sigma, k32, n32, data, output, counter, rounds);
+      runCipher(core, sigma, k32, n32, data2, output, counter, rounds);
       return output;
     } finally {
       clean3(...toClean);
@@ -13301,7 +13854,7 @@ var Poly1305 = class {
     for (let i = 0; i < 8; i++)
       this.pad[i] = u8to16(key, 16 + 2 * i);
   }
-  process(data, offset, isLast = false) {
+  process(data2, offset, isLast = false) {
     const hibit = isLast ? 0 : 1 << 11;
     const { h, r } = this;
     const r0 = r[0];
@@ -13314,14 +13867,14 @@ var Poly1305 = class {
     const r7 = r[7];
     const r8 = r[8];
     const r9 = r[9];
-    const t0 = u8to16(data, offset + 0);
-    const t1 = u8to16(data, offset + 2);
-    const t2 = u8to16(data, offset + 4);
-    const t3 = u8to16(data, offset + 6);
-    const t4 = u8to16(data, offset + 8);
-    const t5 = u8to16(data, offset + 10);
-    const t6 = u8to16(data, offset + 12);
-    const t7 = u8to16(data, offset + 14);
+    const t0 = u8to16(data2, offset + 0);
+    const t1 = u8to16(data2, offset + 2);
+    const t2 = u8to16(data2, offset + 4);
+    const t3 = u8to16(data2, offset + 6);
+    const t4 = u8to16(data2, offset + 8);
+    const t5 = u8to16(data2, offset + 10);
+    const t6 = u8to16(data2, offset + 12);
+    const t7 = u8to16(data2, offset + 14);
     let h0 = h[0] + (t0 & 8191);
     let h1 = h[1] + ((t0 >>> 13 | t1 << 3) & 8191);
     let h2 = h[2] + ((t1 >>> 10 | t2 << 6) & 8191);
@@ -13457,20 +14010,20 @@ var Poly1305 = class {
     }
     clean3(g);
   }
-  update(data) {
+  update(data2) {
     aexists3(this);
-    abytes4(data);
-    data = copyBytes4(data);
+    abytes4(data2);
+    data2 = copyBytes4(data2);
     const { buffer, blockLen } = this;
-    const len = data.length;
+    const len = data2.length;
     for (let pos = 0; pos < len; ) {
       const take = Math.min(blockLen - this.pos, len - pos);
       if (take === blockLen) {
         for (; blockLen <= len - pos; pos += blockLen)
-          this.process(data, pos);
+          this.process(data2, pos);
         continue;
       }
-      buffer.set(data.subarray(pos, pos + take), this.pos);
+      buffer.set(data2.subarray(pos, pos + take), this.pos);
       this.pos += take;
       pos += take;
       if (this.pos === blockLen) {
@@ -13644,9 +14197,9 @@ var _poly1305_aead = (xorStream) => (key, nonce, AAD) => {
     },
     decrypt(ciphertext, output) {
       output = getOutput(ciphertext.length - tagLength, output, false);
-      const data = ciphertext.subarray(0, -tagLength);
+      const data2 = ciphertext.subarray(0, -tagLength);
       const passedTag = ciphertext.subarray(-tagLength);
-      const tag = computeTag(xorStream, key, nonce, data, AAD);
+      const tag = computeTag(xorStream, key, nonce, data2, AAD);
       if (!equalBytes2(passedTag, tag)) {
         clean3(tag);
         throw new Error("invalid tag");
@@ -13765,7 +14318,7 @@ var NoiseIkSession = class {
       ...initiator ? { rs: Uint8Array.from(this.expectedRemoteStatic) } : {},
       cipher: chachaPoly,
       hash: sha256H,
-      rng: options.random ?? randomBytes
+      rng: options.random ?? randomBytes2
     });
     if (this.handshake.getName() !== NOISE_IK_PROTOCOL) {
       throw new NoiseSessionError("NOISE_SUITE_MISMATCH", "The Noise provider selected an unexpected cipher suite.");
@@ -13915,6 +14468,7 @@ var ClientSecureTransport = class {
   incoming = new SecureMessageCodec();
   outgoing = new SecureMessageCodec();
   closed = false;
+  sends = new SerialSend();
   async connect() {
     this.closed = false;
     this.incoming.reset();
@@ -13942,12 +14496,14 @@ var ClientSecureTransport = class {
       throw error;
     }
   }
-  async send(data) {
-    const plaintextFrames = this.outgoing.encode(data);
+  async send(data2) {
+    if (data2.byteLength > MAX_SECURE_MESSAGE_BYTES) throw new Error("Secure message exceeds the reassembly limit.");
+    const noise = this.requireNoise();
     try {
-      for (const plaintext of plaintextFrames) {
-        await this.inner.send(this.requireNoise().encrypt(plaintext));
-      }
+      await this.sends.run(data2.byteLength, async () => {
+        if (this.closed || this.noise !== noise) throw new Error("Secure transport replaced");
+        for (const plaintext of this.outgoing.encode(data2)) await this.inner.send(noise.encrypt(plaintext));
+      });
     } catch (error) {
       await this.close().catch(() => void 0);
       throw error;
@@ -13955,11 +14511,11 @@ var ClientSecureTransport = class {
   }
   onMessage(handler) {
     this.unsubscribeInner?.();
-    this.unsubscribeInner = this.inner.onMessage((data) => {
+    this.unsubscribeInner = this.inner.onMessage((data2) => {
       const noise = this.noise;
       if (noise === void 0 || !noise.complete || this.closed) return;
       try {
-        const message = this.incoming.decode(noise.decrypt(data));
+        const message = this.incoming.decode(noise.decrypt(data2));
         if (message !== void 0) handler(message);
       } catch {
         void this.close();
@@ -13998,11 +14554,11 @@ async function waitForResponder(inner, noise) {
   await new Promise((resolve3, reject) => {
     let settled = false;
     const timer = setTimeout(() => finish(new Error("Noise IK handshake timed out.")), 1e4);
-    const unsubscribe = inner.onHandshake((step, data) => {
+    const unsubscribe = inner.onHandshake((step, data2) => {
       if (settled) return;
       try {
         if (step !== 2) throw new Error("Noise IK responder sent an out-of-order handshake message.");
-        noise.readHandshake(data);
+        noise.readHandshake(data2);
         if (!noise.complete) throw new Error("Noise IK handshake did not complete.");
         finish();
       } catch (error) {
@@ -14148,12 +14704,12 @@ function writeText(res, status2, body) {
 }
 
 // src/ids.ts
-import { randomBytes as randomBytes6 } from "node:crypto";
+import { randomBytes as randomBytes7 } from "node:crypto";
 function uuidV7(now = Date.now()) {
   if (!Number.isSafeInteger(now) || now < 0 || now > 281474976710655) {
     throw new RangeError("UUIDv7 timestamp must be a non-negative 48-bit integer");
   }
-  const bytes = randomBytes6(16);
+  const bytes = randomBytes7(16);
   let timestamp = BigInt(now);
   for (let index = 5; index >= 0; index -= 1) {
     bytes[index] = Number(timestamp & 0xffn);
@@ -14467,13 +15023,13 @@ var AsyncFrameQueue = class {
 };
 function routeStreamEvent(event, streamId, queue) {
   if (event.event === "harness.api.frame") {
-    const data = event.data;
-    if (data.streamId !== streamId || typeof data.frame !== "object" || data.frame === null || typeof data.frame.rpcId !== "string" || !("payload" in data.frame)) return;
-    queue.push(data.frame);
+    const data2 = event.data;
+    if (data2.streamId !== streamId || typeof data2.frame !== "object" || data2.frame === null || typeof data2.frame.rpcId !== "string" || !("payload" in data2.frame)) return;
+    queue.push(data2.frame);
   }
   if (event.event === "harness.api.stream.closed") {
-    const data = event.data;
-    if (data.streamId === streamId) queue.close();
+    const data2 = event.data;
+    if (data2.streamId === streamId) queue.close();
   }
 }
 function bytesToBase642(bytes) {
@@ -14582,8 +15138,8 @@ function normalizeEvent(value) {
     const { sourceEventSeqs: _sourceEventSeqs, ...rest } = next;
     next = rest;
   }
-  const data = normalizeEventData(type, next.data);
-  if (data !== next.data) next = { ...next, data };
+  const data2 = normalizeEventData(type, next.data);
+  if (data2 !== next.data) next = { ...next, data: data2 };
   const surfaceOp = normalizeSurfaceOp(next.surfaceOp);
   if (surfaceOp !== next.surfaceOp) next = { ...next, surfaceOp };
   return next;
@@ -14781,14 +15337,26 @@ var RemoteTypertGateway2 = class {
 };
 var AsyncValueQueue = class {
   values = [];
+  bytes = 0;
   waiters = [];
   closed = false;
   error;
   push(value) {
     if (this.closed) return;
     const waiter = this.waiters.shift();
-    if (waiter === void 0) this.values.push(value);
-    else waiter({ done: false, value });
+    if (waiter !== void 0) {
+      waiter({ done: false, value });
+      return;
+    }
+    const bytes = new TextEncoder().encode(JSON.stringify(value) ?? "").byteLength;
+    if (this.values.length >= 256 || this.bytes + bytes > 4 * 1024 * 1024) {
+      this.values.length = 0;
+      this.bytes = 0;
+      this.fail(new RemoteClientError("TRANSPORT_CLOSED", "Remote stream consumer is too slow; reconnect to recover."));
+      return;
+    }
+    this.bytes += bytes;
+    this.values.push({ value, bytes });
   }
   close() {
     if (this.closed) return;
@@ -14803,7 +15371,9 @@ var AsyncValueQueue = class {
   async *[Symbol.asyncIterator]() {
     while (true) {
       if (this.values.length > 0) {
-        yield this.values.shift();
+        const entry = this.values.shift();
+        this.bytes -= entry.bytes;
+        yield entry.value;
         continue;
       }
       if (this.closed) {
@@ -14821,15 +15391,15 @@ var AsyncValueQueue = class {
 };
 function routeStreamEvent2(event, streamId, queue) {
   if (event.event === "harness.remote.frame") {
-    const data2 = event.data;
-    if (data2.streamId === streamId && data2.hasValue === true) queue.push(data2.value);
+    const data3 = event.data;
+    if (data3.streamId === streamId && data3.hasValue === true) queue.push(data3.value);
     return;
   }
   if (event.event !== "harness.remote.stream.closed") return;
-  const data = event.data;
-  if (data.streamId !== streamId) return;
-  if (data.reason === "failed") {
-    const failure2 = data.failure;
+  const data2 = event.data;
+  if (data2.streamId !== streamId) return;
+  if (data2.reason === "failed") {
+    const failure2 = data2.failure;
     queue.fail(remoteFailure({
       code: typeof failure2?.code === "string" ? failure2.code : "internal",
       message: typeof failure2?.message === "string" ? failure2.message : "The remote Harness stream failed.",
@@ -15596,7 +16166,7 @@ var CodexVirtualHarness = class _CodexVirtualHarness {
     follow.liveToolResultSeq.delete(itemId);
     follow.liveToolResultSeq.delete(`${itemId}:call`);
   }
-  pushEvent(follow, type, data, view, placement) {
+  pushEvent(follow, type, data2, view, placement) {
     const seq = follow.nextSeq++;
     const event = {
       type,
@@ -15604,7 +16174,7 @@ var CodexVirtualHarness = class _CodexVirtualHarness {
       time: Date.now(),
       data: adaptEventData(
         type,
-        type === "assistant/message" && this.sessionGeneration === "v3" && follow.assistantAttempt !== void 0 ? { ...record2(data), stream: follow.assistantAttempt.stream } : data,
+        type === "assistant/message" && this.sessionGeneration === "v3" && follow.assistantAttempt !== void 0 ? { ...record2(data2), stream: follow.assistantAttempt.stream } : data2,
         this.sessionGeneration
       ),
       ...isSurfaceEvent(type) ? placement === void 0 ? { surfaceOp: "append" } : {
@@ -15632,9 +16202,9 @@ var CodexVirtualHarness = class _CodexVirtualHarness {
     for (const block of collectImageBlocks(value)) {
       const attachment = record2(block.attachment);
       const attachmentId = string(attachment.attachmentId);
-      const data = string(block.data);
-      if (attachmentId === void 0 || data === void 0 || !attachmentId.startsWith(CODEX_IMAGE_ATTACHMENT_PREFIX)) continue;
-      this.imageAttachments.set(attachmentId, { sessionId, attachment, data });
+      const data2 = string(block.data);
+      if (attachmentId === void 0 || data2 === void 0 || !attachmentId.startsWith(CODEX_IMAGE_ATTACHMENT_PREFIX)) continue;
+      this.imageAttachments.set(attachmentId, { sessionId, attachment, data: data2 });
     }
   }
   ensureStreamBlock(follow, key, itemId, kind) {
@@ -16294,7 +16864,7 @@ async function loadCatalog(client, signal, pendingThreads) {
     if (cursor2 === void 0) break;
   }
   if (pendingThreads !== void 0) {
-    const listedIds = new Set(threads.map((thread) => string(thread.id)).filter((id2) => id2 !== void 0));
+    const listedIds = new Set(threads.map((thread) => string(thread.id)).filter((id4) => id4 !== void 0));
     for (const [threadId, thread] of pendingThreads) {
       if (listedIds.has(threadId)) pendingThreads.delete(threadId);
       else threads.unshift(thread);
@@ -16369,8 +16939,8 @@ async function loadModelDirectory(client, signal) {
     for (const value of array(result.data)) {
       const source = record2(value);
       if (source.hidden === true) continue;
-      const id2 = string(source.model) ?? string(source.id);
-      if (id2 === void 0 || models.has(id2)) continue;
+      const id4 = string(source.model) ?? string(source.id);
+      if (id4 === void 0 || models.has(id4)) continue;
       const efforts = array(source.supportedReasoningEfforts).map((value2) => {
         const effort = record2(value2);
         const effortId = string(effort.reasoningEffort);
@@ -16385,8 +16955,8 @@ async function loadModelDirectory(client, signal) {
       const defaultEffort2 = string(source.defaultReasoningEffort);
       const description = string(source.description);
       const model = {
-        id: id2,
-        name: string(source.displayName) ?? id2,
+        id: id4,
+        name: string(source.displayName) ?? id4,
         ...description === void 0 ? {} : { description },
         ...efforts.length === 0 ? {} : {
           reasoning: {
@@ -16395,8 +16965,8 @@ async function loadModelDirectory(client, signal) {
           }
         }
       };
-      models.set(id2, model);
-      if (source.isDefault === true) defaultModelId = id2;
+      models.set(id4, model);
+      if (source.isDefault === true) defaultModelId = id4;
     }
     cursor2 = typeof result.nextCursor === "string" && result.nextCursor.length > 0 ? result.nextCursor : void 0;
     if (cursor2 === void 0) break;
@@ -16419,7 +16989,7 @@ function projectCodexNativeHistory(thread, sessionId, sessionGeneration = "legac
   let seq = 0;
   let turnNumber = 0;
   const active = activeTurnId(thread.turns);
-  const append = (type, data, time = Date.now(), view, sourceEventSeqs) => {
+  const append = (type, data2, time = Date.now(), view, sourceEventSeqs) => {
     const eventSeq = seq++;
     entries.push({
       type: "event",
@@ -16427,7 +16997,7 @@ function projectCodexNativeHistory(thread, sessionId, sessionGeneration = "legac
         type,
         seq: eventSeq,
         time,
-        data: adaptEventData(type, data, sessionGeneration),
+        data: adaptEventData(type, data2, sessionGeneration),
         ...sourceEventSeqs === void 0 ? {} : { sourceEventSeqs },
         ...isSurfaceEvent(type) ? { surfaceOp: "append" } : {}
       },
@@ -16517,9 +17087,9 @@ function paginateCodexNativeHistory(history, request) {
     ...history.activeTurnId === void 0 ? {} : { activeTurnId: history.activeTurnId }
   };
 }
-function adaptEventData(type, data, sessionGeneration) {
-  if (sessionGeneration !== "v3" || type !== "assistant/message") return data;
-  const value = record2(data);
+function adaptEventData(type, data2, sessionGeneration) {
+  if (sessionGeneration !== "v3" || type !== "assistant/message") return data2;
+  const value = record2(data2);
   return Array.isArray(value.stream) ? value : { ...value, stream: [] };
 }
 function adaptCodexHistoryPage(value, sessionGeneration) {
@@ -16553,14 +17123,14 @@ function adaptCodexHistoryPage(value, sessionGeneration) {
 }
 function itemEvents(item, turn, step, requestId, selection = modelSelection(), sessionId = CODEX_SESSION_PREFIX, supplementalImages = []) {
   const type = string(item.type);
-  const id2 = string(item.id) ?? `${turn}:${step}:${hashString(JSON.stringify(item))}`;
+  const id4 = string(item.id) ?? `${turn}:${step}:${hashString(JSON.stringify(item))}`;
   const text = itemText2(item);
   if (type === "userMessage") return [{
     type: "user/message",
     data: {
-      id: id2,
+      id: id4,
       role: "user",
-      content: messageContent(item, `${sessionId}:${id2}`, "text", text),
+      content: messageContent(item, `${sessionId}:${id4}`, "text", text),
       source: requestId === void 0 || requestId === "" ? { kind: "user" } : { kind: "user", rpcId: requestId }
     }
   }];
@@ -16570,11 +17140,11 @@ function itemEvents(item, turn, step, requestId, selection = modelSelection(), s
       turn,
       step,
       message: {
-        id: id2,
+        id: id4,
         role: "assistant",
         content: messageContent(
           item,
-          `${sessionId}:${id2}`,
+          `${sessionId}:${id4}`,
           type === "reasoning" ? "reasoning" : "text",
           text,
           type === "agentMessage" ? supplementalImages : []
@@ -16589,10 +17159,10 @@ function itemEvents(item, turn, step, requestId, selection = modelSelection(), s
     return [
       {
         type: "tool/call",
-        data: { turn, step, callId: id2, name: name2, arguments: JSON.stringify(args) },
+        data: { turn, step, callId: id4, name: name2, arguments: JSON.stringify(args) },
         view: { for: "call", view: toolCallView(item, type, args) }
       },
-      toolResultEvent(item, turn, step, id2, toolResultText(item, type, text))
+      toolResultEvent(item, turn, step, id4, toolResultText(item, type, text))
     ];
   }
   if (type === "error") return [{
@@ -16601,7 +17171,7 @@ function itemEvents(item, turn, step, requestId, selection = modelSelection(), s
       turn,
       step,
       message: {
-        id: id2,
+        id: id4,
         role: "assistant",
         content: [{ type: "text", text: text ?? "CodeX reported an error." }],
         source: { kind: "model", provider: selection.provider, model: selection.model }
@@ -16688,19 +17258,19 @@ function parseImageBlock(block) {
   const url = string(block.url) ?? string(block.image_url) ?? string(record2(block.image_url).url);
   const parsed = url === void 0 ? void 0 : parseDataImageUrl2(url);
   if (parsed !== void 0) return parsed;
-  const data = string(block.data);
-  if (data === void 0 || !isCanonicalBase642(data)) return void 0;
-  if (data.length > MAX_CODEX_IMAGE_BASE64) return void 0;
-  const mediaType = string(block.mediaType) ?? string(block.mimeType) ?? sniffImageMediaType2(data);
-  return mediaType !== void 0 && CODEX_IMAGE_MEDIA_TYPES2.has(mediaType) ? { mediaType, data, url: `data:${mediaType};base64,${data}` } : void 0;
+  const data2 = string(block.data);
+  if (data2 === void 0 || !isCanonicalBase642(data2)) return void 0;
+  if (data2.length > MAX_CODEX_IMAGE_BASE64) return void 0;
+  const mediaType = string(block.mediaType) ?? string(block.mimeType) ?? sniffImageMediaType2(data2);
+  return mediaType !== void 0 && CODEX_IMAGE_MEDIA_TYPES2.has(mediaType) ? { mediaType, data: data2, url: `data:${mediaType};base64,${data2}` } : void 0;
 }
 function parseDataImageUrl2(value) {
   const match = DATA_IMAGE_URL2.exec(value);
   if (match === null) return void 0;
   const mediaType = match[1];
-  const data = match[2];
-  if (!CODEX_IMAGE_MEDIA_TYPES2.has(mediaType) || !isCanonicalBase642(data)) return void 0;
-  return { mediaType, data, url: `data:${mediaType};base64,${data}` };
+  const data2 = match[2];
+  if (!CODEX_IMAGE_MEDIA_TYPES2.has(mediaType) || !isCanonicalBase642(data2)) return void 0;
+  return { mediaType, data: data2, url: `data:${mediaType};base64,${data2}` };
 }
 function collectImageBlocks(value, output = []) {
   if (Array.isArray(value)) {
@@ -16721,8 +17291,8 @@ function base64ByteLength(value) {
   const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
   return Math.max(1, Math.floor(value.length * 3 / 4) - padding);
 }
-function imageDimensions(mediaType, data) {
-  const bytes = base64PrefixBytes2(data, 256 * 1024);
+function imageDimensions(mediaType, data2) {
+  const bytes = base64PrefixBytes2(data2, 256 * 1024);
   const parsed = mediaType === "image/png" ? pngDimensions(bytes) : mediaType === "image/jpeg" ? jpegDimensions(bytes) : mediaType === "image/gif" ? gifDimensions(bytes) : mediaType === "image/webp" ? webpDimensions(bytes) : void 0;
   return parsed ?? { width: 1, height: 1 };
 }
@@ -16775,8 +17345,8 @@ function webpDimensions(bytes) {
   }
   return void 0;
 }
-function sniffImageMediaType2(data) {
-  const bytes = base64PrefixBytes2(data, 32);
+function sniffImageMediaType2(data2) {
+  const bytes = base64PrefixBytes2(data2, 32);
   if (pngDimensions(bytes) !== void 0) return "image/png";
   if (bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return "image/jpeg";
   if (gifDimensions(bytes) !== void 0) return "image/gif";
@@ -16819,7 +17389,7 @@ function stringFromBytes(bytes, start, end) {
   for (let index = start; index < end; index += 1) output += String.fromCharCode(bytes[index]);
   return output;
 }
-function toolResultEvent(item, turn, step, id2, resultText) {
+function toolResultEvent(item, turn, step, id4, resultText) {
   const type = string(item.type) ?? "unknown";
   return {
     type: "tool/result",
@@ -16827,23 +17397,23 @@ function toolResultEvent(item, turn, step, id2, resultText) {
       turn,
       step,
       message: {
-        id: `${id2}:result`,
+        id: `${id4}:result`,
         role: "user",
         content: [{
           type: "tool-result",
-          toolCallId: id2,
+          toolCallId: id4,
           content: [{ type: "text", text: resultText }],
           ...item.status === "failed" || item.success === false ? { isError: true } : {}
         }],
-        source: { kind: "tool", callId: id2 }
+        source: { kind: "tool", callId: id4 }
       }
     },
     view: { for: "result", view: toolResultView(item, type, resultText) }
   };
 }
 function toolResultContentReplacement(event) {
-  const data = record2(event.data);
-  const message = record2(data.message);
+  const data2 = record2(event.data);
+  const message = record2(data2.message);
   const content = array(message.content);
   const result = record2(content[0]);
   if (result.isError === void 0) return event;
@@ -16851,7 +17421,7 @@ function toolResultContentReplacement(event) {
   return {
     ...event,
     data: {
-      ...data,
+      ...data2,
       message: { ...message, content: [stableResult] }
     }
   };
@@ -16985,12 +17555,12 @@ function projectWorkspace(project) {
 }
 function projectCodexProject(value, fallbackPosition) {
   const source = record2(value);
-  const id2 = string(source.id);
-  if (id2 === void 0) return void 0;
+  const id4 = string(source.id);
+  if (id4 === void 0) return void 0;
   const roots = array(source.roots).map((root) => string(record2(root).path)).filter((path) => path !== void 0 && path.length > 0).map((path) => ({ path }));
   if (roots.length === 0) return void 0;
   return {
-    id: id2,
+    id: id4,
     name: string(source.name) ?? basename(roots[0].path),
     roots,
     position: finiteNumber(source.position) ?? fallbackPosition,
@@ -17416,6 +17986,105 @@ var AsyncValueQueue2 = class {
 // src/server-api.ts
 import { platform } from "node:os";
 
+// src/server-credentials.ts
+import { chmod, mkdir, readFile as readFile2, rename, rm, stat, writeFile } from "node:fs/promises";
+import { dirname as dirname2, join as join2 } from "node:path";
+var credentialSchema = external_exports.object({
+  schemaVersion: external_exports.literal(1),
+  serverUrl: external_exports.string().url(),
+  deviceId: external_exports.string().min(1),
+  authorizationMethod: external_exports.enum(["account", "host_registration_code", "owned_device"]),
+  account: external_exports.string().min(1).max(254).optional(),
+  accessToken: external_exports.string().min(16),
+  accessTokenExpiresAt: external_exports.number().int().positive(),
+  refreshToken: external_exports.string().min(16),
+  refreshTokenExpiresAt: external_exports.number().int().positive()
+}).strict();
+var ServerCredentialStore = class {
+  path;
+  constructor(directory) {
+    this.path = join2(directory, "server-credentials.json");
+  }
+  /** Serialize the complete read/refresh/write transaction across processes.
+   * Never steal an old lock: a suspended owner may still consume a one-use token.
+   * After a crash, stop all instances before removing the orphaned lock.
+   */
+  async withRefreshLock(operation) {
+    const lock = `${this.path}.refresh-lock`;
+    await mkdir(dirname2(this.path), { recursive: true, mode: 448 });
+    const deadline = Date.now() + 15e3;
+    for (; ; ) {
+      try {
+        await mkdir(lock, { mode: 448 });
+        break;
+      } catch (error) {
+        if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") throw error;
+        if (Date.now() >= deadline) throw new ServerCredentialsBusyError();
+        await new Promise((resolve3) => setTimeout(resolve3, 50));
+      }
+    }
+    try {
+      return await operation();
+    } finally {
+      await rm(lock, { recursive: true });
+    }
+  }
+  async load(serverUrl, deviceId) {
+    if (!await exists(this.path)) return void 0;
+    await assertPrivateMode(this.path);
+    let parsed;
+    try {
+      parsed = credentialSchema.parse(JSON.parse(await readFile2(this.path, "utf8")));
+    } catch (error) {
+      throw new ServerCredentialsInvalidError(`server credentials are invalid: ${safeMessage(error)}`);
+    }
+    return parsed.serverUrl === serverUrl && parsed.deviceId === deviceId ? parsed : void 0;
+  }
+  async save(credentials) {
+    const record6 = credentialSchema.parse({ schemaVersion: 1, ...credentials });
+    await atomicWrite(this.path, `${JSON.stringify(record6, null, 2)}
+`);
+    return record6;
+  }
+  async clear() {
+    await rm(this.path, { force: true });
+  }
+};
+var ServerCredentialsInvalidError = class extends Error {
+  code = "SERVER_CREDENTIALS_INVALID";
+};
+var ServerCredentialsBusyError = class extends Error {
+  code = "SERVER_CREDENTIALS_BUSY";
+  constructor() {
+    super("Credential refresh is locked. Stop other instances; after a crash, stop all instances before removing server-credentials.json.refresh-lock and authorizing again.");
+  }
+};
+async function atomicWrite(path, contents) {
+  await mkdir(dirname2(path), { recursive: true, mode: 448 });
+  const temporary = `${path}.${process.pid}.${uuidV7()}.tmp`;
+  await writeFile(temporary, contents, { encoding: "utf8", mode: 384, flag: "wx" });
+  await chmod(temporary, 384);
+  await rename(temporary, path);
+  await chmod(path, 384);
+}
+async function assertPrivateMode(path) {
+  if (process.platform === "win32") return;
+  const mode = (await stat(path)).mode & 511;
+  if ((mode & 63) !== 0) throw new ServerCredentialsInvalidError("server credentials permissions must be 0600");
+}
+async function exists(path) {
+  try {
+    await stat(path);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+function safeMessage(error) {
+  return error instanceof Error ? error.message : "invalid credential data";
+}
+
 // src/config.ts
 import { hostname } from "node:os";
 import s from "@deepseek-ai/schemastery";
@@ -17425,6 +18094,8 @@ var Config = s.object({
   role: s.union(["host", "client", "both"]),
   serverUrl: s.string(),
   deviceName: s.string(),
+  terminal: s.object({ enabled: s.boolean() }),
+  loopback: s.object({ ports: s.array(s.number()) }),
   forceRelay: s.boolean(),
   logLevel: s.union(["debug", "info", "warn", "error"]),
   reconnect: s.union([
@@ -17454,6 +18125,8 @@ var configSchema = external_exports.object({
   role: external_exports.enum(["host", "client", "both"]).optional(),
   serverUrl: external_exports.string().url().optional(),
   deviceName: external_exports.string().trim().min(1).max(80).optional(),
+  terminal: external_exports.object({ enabled: external_exports.boolean().optional() }).strict().optional(),
+  loopback: external_exports.object({ ports: external_exports.array(external_exports.number().int().min(1024).max(65535)).max(16).optional() }).strict().optional(),
   forceRelay: external_exports.boolean().optional(),
   logLevel: external_exports.enum(["debug", "info", "warn", "error"]).optional(),
   reconnect: reconnectSchema.optional(),
@@ -17478,6 +18151,8 @@ function resolveConfig(input2 = {}, env = process.env) {
     role: parsed.role ?? "host",
     ...serverUrl === void 0 ? {} : { serverUrl },
     deviceName: parsed.deviceName ?? hostname(),
+    terminal: { enabled: parsed.terminal?.enabled ?? false },
+    loopback: { ports: [...new Set(parsed.loopback?.ports ?? [])] },
     forceRelay: parsed.forceRelay ?? false,
     logLevel: parsed.logLevel ?? "info",
     reconnect: {
@@ -17490,10 +18165,10 @@ function resolveConfig(input2 = {}, env = process.env) {
       enabled: parsed.codex?.enabled ?? true,
       binary: parsed.codex?.binary ?? "codex"
     },
-    acp: { enabled: parsed.acp?.enabled ?? true, backends: [.../* @__PURE__ */ new Set(["codex", "cursor", "kimi", ...parsed.acp?.backends?.map((item) => item.id) ?? []])].map((id2) => {
-      const d = parsed.acp?.backends?.find((x) => x.id === id2);
-      const legacy = parsed.acp?.backend === id2 ? parsed.acp : void 0;
-      return { id: id2, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? { codex: "codex", cursor: "agent", kimi: "kimi" }[id2] ?? id2, args: d?.args ?? legacy?.args ?? ["acp"], ...d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {} };
+    acp: { enabled: parsed.acp?.enabled ?? true, backends: [.../* @__PURE__ */ new Set(["codex", "cursor", "kimi", ...parsed.acp?.backends?.map((item) => item.id) ?? []])].map((id4) => {
+      const d = parsed.acp?.backends?.find((x) => x.id === id4);
+      const legacy = parsed.acp?.backend === id4 ? parsed.acp : void 0;
+      return { id: id4, enabled: d?.enabled ?? legacy?.enabled ?? true, command: d?.command ?? legacy?.command ?? { codex: "codex", cursor: "agent", kimi: "kimi" }[id4] ?? id4, args: d?.args ?? legacy?.args ?? ["acp"], ...d?.cwd ?? legacy?.cwd ? { cwd: d?.cwd ?? legacy?.cwd } : {} };
     }) }
   };
 }
@@ -17675,22 +18350,48 @@ var HostServerApi = class {
     this.credentials = await this.credentialsPromise;
     return this.credentials;
   }
-  async refreshCredentials() {
+  async refreshCredentials(rejectedAccessToken = this.credentials?.accessToken) {
     const identity = this.requireIdentity();
-    const stored = await this.store.load(this.baseUrl, identity.deviceId);
-    if (stored === void 0 || stored.refreshTokenExpiresAt <= Date.now()) return this.register(identity);
-    const tokens = await this.publicRequest("/api/v1/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ deviceId: identity.deviceId, refreshToken: stored.refreshToken })
+    this.credentials = await this.withRefreshLock(async () => {
+      const stored = await this.store.load(this.baseUrl, identity.deviceId);
+      if (stored === void 0 || stored.refreshTokenExpiresAt <= Date.now()) return this.register(identity);
+      if (stored.accessToken !== rejectedAccessToken && stored.accessTokenExpiresAt > Date.now() + 3e4) {
+        return stored;
+      }
+      return this.rotateCredentials(identity, stored);
     });
-    this.credentials = await this.store.save({
+    return this.credentials;
+  }
+  async withRefreshLock(operation) {
+    try {
+      return await this.store.withRefreshLock(operation);
+    } catch (error) {
+      if (error instanceof ServerCredentialsBusyError) {
+        throw new ServerApiError(error.code, error.message, false);
+      }
+      throw error;
+    }
+  }
+  async rotateCredentials(identity, stored) {
+    let tokens;
+    try {
+      tokens = await this.publicRequest("/api/v1/auth/refresh", {
+        method: "POST",
+        body: JSON.stringify({ deviceId: identity.deviceId, refreshToken: stored.refreshToken })
+      });
+    } catch (error) {
+      if (error instanceof ServerApiError) {
+        throw new ServerApiError(error.code, error.message, error.retryable, error.status, "credential_refresh");
+      }
+      throw error;
+    }
+    return this.store.save({
       serverUrl: this.baseUrl,
       deviceId: identity.deviceId,
       authorizationMethod: stored.authorizationMethod,
       ...stored.account === void 0 ? {} : { account: stored.account },
       ...validateTokens(tokens)
     });
-    return this.credentials;
   }
   async listDevices() {
     const result = await this.request("/api/v1/devices");
@@ -17716,21 +18417,13 @@ var HostServerApi = class {
     return { online: result.online, ...typeof result.lastSeenAt === "number" ? { lastSeenAt: result.lastSeenAt } : {} };
   }
   async loadOrIssue(identity) {
-    const stored = await this.store.load(this.baseUrl, identity.deviceId);
-    if (stored === void 0 || stored.refreshTokenExpiresAt <= Date.now() + 3e4) {
-      return this.register(identity);
-    }
-    if (stored.accessTokenExpiresAt > Date.now() + 3e4) return stored;
-    const tokens = await this.publicRequest("/api/v1/auth/refresh", {
-      method: "POST",
-      body: JSON.stringify({ deviceId: identity.deviceId, refreshToken: stored.refreshToken })
-    });
-    return this.store.save({
-      serverUrl: this.baseUrl,
-      deviceId: identity.deviceId,
-      authorizationMethod: stored.authorizationMethod,
-      ...stored.account === void 0 ? {} : { account: stored.account },
-      ...validateTokens(tokens)
+    return this.withRefreshLock(async () => {
+      const stored = await this.store.load(this.baseUrl, identity.deviceId);
+      if (stored === void 0 || stored.refreshTokenExpiresAt <= Date.now() + 3e4) {
+        return this.register(identity);
+      }
+      if (stored.accessTokenExpiresAt > Date.now() + 3e4) return stored;
+      return this.rotateCredentials(identity, stored);
     });
   }
   async register(identity, authorization) {
@@ -17823,11 +18516,12 @@ var ClientServerApi = class extends HostServerApi {
   }
 };
 var ServerApiError = class extends Error {
-  constructor(code, message, retryable, status2) {
+  constructor(code, message, retryable, status2, phase) {
     super(message);
     this.code = code;
     this.retryable = retryable;
     this.status = status2;
+    this.phase = phase;
   }
 };
 function validateTokens(value) {
@@ -17998,12 +18692,12 @@ var TypertGatewaySwitch = class {
     }
     this.installed = true;
   }
-  selectRemote(remote, support = ALL_REMOTE_COMMANDS, target) {
+  selectRemote(remote, support = ALL_REMOTE_COMMANDS, target2) {
     if (!this.installed) throw new Error("The Typert gateway switch is not installed.");
     this.remoteInvoke = typeof remote === "function" ? remote : (request) => remote.invoke(request);
     this.remoteTarget = typeof remote === "function" ? void 0 : remote;
     this.remoteSupport = { ...support };
-    this.target = target === void 0 ? void 0 : { ...target };
+    this.target = target2 === void 0 ? void 0 : { ...target2 };
   }
   selectLocal() {
     this.remoteInvoke = void 0;
@@ -18070,7 +18764,7 @@ import { networkInterfaces } from "node:os";
 // src/native-rtc-helper.ts
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { delimiter, dirname as dirname2, join as join2 } from "node:path";
+import { delimiter, dirname as dirname3, join as join3 } from "node:path";
 import { fileURLToPath } from "node:url";
 var cachedExternalFactory;
 var cachedExternalFactoryResolved = false;
@@ -18121,21 +18815,21 @@ function nodeBinaryCandidates() {
   add3(process.env.DSH_REMOTE_NODE);
   add3(process.env.NODE);
   add3(process.execPath);
-  for (const part of (process.env.PATH ?? "").split(delimiter)) add3(join2(part, process.platform === "win32" ? "node.exe" : "node"));
+  for (const part of (process.env.PATH ?? "").split(delimiter)) add3(join3(part, process.platform === "win32" ? "node.exe" : "node"));
   add3("/opt/homebrew/bin/node");
   add3("/usr/local/bin/node");
   add3("/usr/bin/node");
-  add3(join2(process.env.HOME ?? "", ".volta", "bin", process.platform === "win32" ? "node.exe" : "node"));
-  add3(join2(process.env.HOME ?? "", ".asdf", "shims", process.platform === "win32" ? "node.exe" : "node"));
-  add3(join2(process.env.HOME ?? "", ".local", "bin", process.platform === "win32" ? "node.exe" : "node"));
+  add3(join3(process.env.HOME ?? "", ".volta", "bin", process.platform === "win32" ? "node.exe" : "node"));
+  add3(join3(process.env.HOME ?? "", ".asdf", "shims", process.platform === "win32" ? "node.exe" : "node"));
+  add3(join3(process.env.HOME ?? "", ".local", "bin", process.platform === "win32" ? "node.exe" : "node"));
   for (const nvmNode of nvmNodeCandidates()) add3(nvmNode);
   return candidates;
 }
 function nvmNodeCandidates() {
-  const root = join2(process.env.HOME ?? "", ".nvm", "versions", "node");
+  const root = join3(process.env.HOME ?? "", ".nvm", "versions", "node");
   if (root === "" || !existsSync(root)) return [];
   try {
-    return readdirSync(root).map((version) => join2(root, version, "bin", process.platform === "win32" ? "node.exe" : "node")).sort((left, right) => right.localeCompare(left, "en", { numeric: true }));
+    return readdirSync(root).map((version) => join3(root, version, "bin", process.platform === "win32" ? "node.exe" : "node")).sort((left, right) => right.localeCompare(left, "en", { numeric: true }));
   } catch {
     return [];
   }
@@ -18157,7 +18851,7 @@ function isUsableExternalNode(candidate, requireFrom) {
       "console.log(`node:${process.versions.node}`);"
     ].join("")
   ], {
-    cwd: dirname2(requireFrom),
+    cwd: dirname3(requireFrom),
     env,
     encoding: "utf8",
     timeout: 3e3
@@ -18179,7 +18873,7 @@ var ExternalNativePeerConnection = class {
     this.nodeBinary = nodeBinary;
     this.requireFrom = requireFrom;
     this.child = spawn(this.nodeBinary, ["--input-type=module", "--eval", HELPER_SOURCE], {
-      cwd: dirname2(this.requireFrom),
+      cwd: dirname3(this.requireFrom),
       env: { ...process.env, DSH_REMOTE_RTC_HELPER_REQUIRE_FROM: this.requireFrom },
       stdio: ["pipe", "pipe", "pipe"]
     });
@@ -18248,8 +18942,8 @@ var ExternalNativePeerConnection = class {
     }, 1e3);
     timer.unref?.();
   }
-  sendChannelData(channelId, data) {
-    const payload = typeof data === "string" ? { channelId, text: data } : { channelId, base64: Buffer.from(data).toString("base64") };
+  sendChannelData(channelId, data2) {
+    const payload = typeof data2 === "string" ? { channelId, text: data2 } : { channelId, base64: Buffer.from(data2).toString("base64") };
     this.notify("channelSend", payload);
   }
   closeChannel(channelId) {
@@ -18257,11 +18951,11 @@ var ExternalNativePeerConnection = class {
   }
   request(method, payload) {
     if (this.closed) return Promise.reject(new Error("native rtc helper is closed"));
-    const id2 = this.nextRequestId++;
+    const id4 = this.nextRequestId++;
     const promise = new Promise((resolve3, reject) => {
-      this.pending.set(id2, { resolve: resolve3, reject });
+      this.pending.set(id4, { resolve: resolve3, reject });
     });
-    this.write({ id: id2, method, payload });
+    this.write({ id: id4, method, payload });
     return promise;
   }
   notify(method, payload) {
@@ -18365,8 +19059,8 @@ var ExternalNativeDataChannel = class {
   onclose = null;
   onerror = null;
   onbufferedamountlow = null;
-  send(data) {
-    this.owner.sendChannelData(this.channelId, data);
+  send(data2) {
+    this.owner.sendChannelData(this.channelId, data2);
   }
   close() {
     this.owner.closeChannel(this.channelId);
@@ -18379,8 +19073,8 @@ var ExternalNativeDataChannel = class {
     if (previous !== "closed" && readyState === "closed") this.onclose?.();
     if (bufferedAmount === 0) this.onbufferedamountlow?.();
   }
-  emitMessage(data) {
-    this.onmessage?.({ data });
+  emitMessage(data2) {
+    this.onmessage?.({ data: data2 });
   }
   emitError() {
     this.onerror?.();
@@ -18857,10 +19551,10 @@ function adaptDataChannel2(raw) {
       return raw.onerror;
     },
     onbufferedamountlow: null,
-    send(data) {
-      const bytes = typeof data === "string" ? Buffer.byteLength(data) : data.byteLength;
+    send(data2) {
+      const bytes = typeof data2 === "string" ? Buffer.byteLength(data2) : data2.byteLength;
       try {
-        raw.send(typeof data === "string" ? data : Buffer.from(data));
+        raw.send(typeof data2 === "string" ? data2 : Buffer.from(data2));
       } catch (error) {
         console.error("[werift-send-error] bytes=" + bytes, error instanceof Error ? error.message : error);
         throw error;
@@ -18923,17 +19617,17 @@ function adaptNativeDataChannel(raw) {
     get onbufferedamountlow() {
       return raw.onbufferedamountlow;
     },
-    send(data) {
-      raw.send(typeof data === "string" ? data : Buffer.from(data));
+    send(data2) {
+      raw.send(typeof data2 === "string" ? data2 : Buffer.from(data2));
     },
     close() {
       raw.close();
     }
   };
 }
-function toArrayBuffer2(data) {
-  if (typeof data === "string") return data;
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+function toArrayBuffer2(data2) {
+  if (typeof data2 === "string") return data2;
+  return data2.buffer.slice(data2.byteOffset, data2.byteOffset + data2.byteLength);
 }
 function normalizeNativeCandidate(candidate) {
   const json = typeof candidate.toJSON === "function" ? candidate.toJSON() : {
@@ -18947,11 +19641,11 @@ function normalizeNativeCandidate(candidate) {
     sdpMLineIndex: normalizeSdpMLineIndex(json.sdpMLineIndex)
   };
 }
-function normalizeNativeMessageData(data) {
-  if (typeof data === "string") return data;
-  if (data instanceof ArrayBuffer) return data;
-  if (ArrayBuffer.isView(data)) {
-    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+function normalizeNativeMessageData(data2) {
+  if (typeof data2 === "string") return data2;
+  if (data2 instanceof ArrayBuffer) return data2;
+  if (ArrayBuffer.isView(data2)) {
+    return data2.buffer.slice(data2.byteOffset, data2.byteOffset + data2.byteLength);
   }
   return new Uint8Array().buffer;
 }
@@ -18981,8 +19675,8 @@ function detectHostIpv4Candidates(interfaces, preferredHostIpv4Candidates = []) 
   return [...new Set(candidates.map((candidate) => candidate.ip))];
 }
 async function detectRouteHostIpv4Candidates(targets, timeoutMs = 500) {
-  const detected = await Promise.all(targets.map(async (target) => {
-    const routeTarget = parseRouteTarget(target);
+  const detected = await Promise.all(targets.map(async (target2) => {
+    const routeTarget = parseRouteTarget(target2);
     return routeTarget === void 0 ? void 0 : await detectRouteHostIpv4(routeTarget, timeoutMs).catch(() => void 0);
   }));
   return [...new Set(detected.filter((ip) => ip !== void 0 && isUsableIpv4(ip)))];
@@ -19050,7 +19744,7 @@ function parseRouteTarget(value) {
     return void 0;
   }
 }
-async function detectRouteHostIpv4(target, timeoutMs) {
+async function detectRouteHostIpv4(target2, timeoutMs) {
   const socket = createSocket("udp4");
   try {
     return await new Promise((resolve3, reject) => {
@@ -19067,7 +19761,7 @@ async function detectRouteHostIpv4(target, timeoutMs) {
         reject(error);
       };
       socket.once("error", onError);
-      socket.connect(target.port, target.host, () => {
+      socket.connect(target2.port, target2.host, () => {
         cleanup();
         const address = socket.address();
         resolve3(typeof address === "string" ? void 0 : address.address);
@@ -19142,6 +19836,7 @@ var ClientModeRuntime = class {
     this.proxySwitch = apiProxy === void 0 ? void 0 : new ApiProxySwitch(apiProxy);
     this.gatewaySwitch = new TypertGatewaySwitch(typertGateway);
   }
+  preview;
   identity;
   connected;
   pendingWorkspaceSelection;
@@ -19192,6 +19887,11 @@ var ClientModeRuntime = class {
       hostAuthorizationAvailable: this.host !== void 0,
       ...this.host === void 0 ? {} : { host: this.host.hostStatus() }
     };
+  }
+  async closePreview() {
+    const preview = this.preview;
+    this.preview = void 0;
+    await preview?.close();
   }
   async detailedStatus() {
     const connected = this.connected;
@@ -19258,6 +19958,7 @@ var ClientModeRuntime = class {
     this.pendingWorkspaceSelection = void 0;
     await this.closeCodexVirtual();
     this.proxySwitch?.selectLocal();
+    await this.closePreview();
     this.gatewaySwitch.selectLocal();
     await this.closeCodexStreams(previous?.client);
     await previous?.client.close().catch(() => void 0);
@@ -19279,6 +19980,7 @@ var ClientModeRuntime = class {
     if (mode === "local") {
       await this.closeCodexVirtual();
       this.proxySwitch?.selectLocal();
+      await this.closePreview();
       this.gatewaySwitch.selectLocal();
       const previous2 = this.connected;
       this.connected = void 0;
@@ -19301,6 +20003,7 @@ var ClientModeRuntime = class {
       throw error;
     }
     const previous = this.connected;
+    await this.closePreview();
     this.connected = next;
     this.clearConnectionProgress(next.progressRunId);
     this.pendingWorkspaceSelection = void 0;
@@ -19436,9 +20139,11 @@ var ClientModeRuntime = class {
     return this.status();
   }
   async close() {
+    await this.closePreview();
     if (this.closed) return;
     this.closed = true;
     this.proxySwitch?.selectLocal();
+    await this.closePreview();
     this.gatewaySwitch.selectLocal();
     this.pendingWorkspaceSelection = void 0;
     await this.closeCodexVirtual();
@@ -19521,24 +20226,24 @@ var ClientModeRuntime = class {
     this.codexStreams.set(value.streamId, stream);
     return { opened: true, streamId: value.streamId, threadId: value.threadId };
   }
-  publishLocalCodexFrame = async (event, data) => {
-    const streamId = data.streamId;
+  publishLocalCodexFrame = async (event, data2) => {
+    const streamId = data2.streamId;
     const stream = this.codexStreams.get(streamId);
     if (stream === void 0 || stream.target.kind !== "local") return;
     if (event === "codex.app.frame") {
-      this.appendCodexFrame(stream, data);
+      this.appendCodexFrame(stream, data2);
       return;
     }
-    const closed = data;
+    const closed = data2;
     stream.closed = typeof closed.reason === "string" ? closed.reason : "closed";
     stream.wake();
   };
-  appendCodexFrame(stream, data) {
-    if (!isRecord7(data) || !isRecord7(data.frame) || typeof data.frame.method !== "string") return;
+  appendCodexFrame(stream, data2) {
+    if (!isRecord7(data2) || !isRecord7(data2.frame) || typeof data2.frame.method !== "string") return;
     if (stream.frames.length >= 256) {
       stream.closed = "overflow";
     } else {
-      stream.frames.push({ method: data.frame.method, params: data.frame.params });
+      stream.frames.push({ method: data2.frame.method, params: data2.frame.params });
     }
     stream.wake();
   }
@@ -19592,16 +20297,16 @@ var ClientModeRuntime = class {
     }));
   }
   selectRemoteTarget(remote, transport = this.selectHarnessRemoteTransport(remote)) {
-    const target = { deviceId: remote.target.deviceId, name: remote.target.name };
+    const target2 = { deviceId: remote.target.deviceId, name: remote.target.name };
     if (transport === "remoteGateway") {
-      this.gatewaySwitch.selectRemote(this.remoteTypertGateway(remote), void 0, target);
+      this.gatewaySwitch.selectRemote(this.remoteTypertGateway(remote), void 0, target2);
       return;
     }
-    this.proxySwitch?.selectRemote(new RemoteHarnessApiProxy(remote.client).api, target);
+    this.proxySwitch?.selectRemote(new RemoteHarnessApiProxy(remote.client).api, target2);
     this.gatewaySwitch.selectRemote((request) => invokeRemoteCommand(remote.client, request), {
       execute: true,
       list: remote.features.commandList
-    }, target);
+    }, target2);
   }
   remoteTypertGateway(remote) {
     const localSessionGeneration = harnessSessionGeneration(this.host?.localHarnessVersion?.());
@@ -19611,13 +20316,13 @@ var ClientModeRuntime = class {
     );
   }
   selectCodexTarget(virtual, remote) {
-    const target = { deviceId: remote.target.deviceId, name: remote.target.name };
+    const target2 = { deviceId: remote.target.deviceId, name: remote.target.name };
     if (this.gatewaySwitch.supportsCarrier()) {
-      this.gatewaySwitch.selectRemote(virtual, void 0, target);
+      this.gatewaySwitch.selectRemote(virtual, void 0, target2);
       return;
     }
-    this.proxySwitch.selectRemote(virtual.api, target);
-    this.gatewaySwitch.selectRemote((request) => virtual.invoke(request), { execute: true, list: true }, target);
+    this.proxySwitch.selectRemote(virtual.api, target2);
+    this.gatewaySwitch.selectRemote((request) => virtual.invoke(request), { execute: true, list: true }, target2);
   }
   async closeCodexVirtual() {
     const virtual = this.codexVirtual;
@@ -19663,14 +20368,14 @@ var ClientModeRuntime = class {
         throw new ClientModeError("MEMBERSHIP_REQUIRED", "The selected Host is not authorized for this account.");
       }
       this.updateConnectionProgress(progressRunId, "authorizing-peer");
-      const target = await this.authorizeHostPeer(serverDevice);
+      const target2 = await this.authorizeHostPeer(serverDevice);
       const presence = await this.server.presenceFor(targetDeviceId);
       if (!presence.online) throw new ClientModeError("HOST_OFFLINE", "The selected Host is offline.", true);
       const credentials = await this.server.authenticate(identity);
       const rtcFactory = this.config.forceRelay ? void 0 : await this.rtcFactoryProvider({ routeTargets: [this.server.baseUrl] }).catch(() => void 0);
       if (!this.config.forceRelay && rtcFactory === void 0) {
         this.logger.warn("remote Harness WebRTC backend unavailable; using relay", {
-          targetDeviceId: shortId(target.deviceId)
+          targetDeviceId: shortId(target2.deviceId)
         });
       }
       let webRtcFallback = false;
@@ -19689,13 +20394,13 @@ var ClientModeRuntime = class {
           onWebRtcFallback: (error, diagnostics) => {
             webRtcFallback = true;
             this.logger.warn(attempt === "direct" ? "remote Harness direct WebRTC failed; trying TURN" : "remote Harness TURN WebRTC failed; using relay", {
-              targetDeviceId: shortId(target.deviceId),
+              targetDeviceId: shortId(target2.deviceId),
               attempt,
               reason: diagnosticReason(error)
             });
             if (diagnostics !== void 0) {
               this.logger.debug("remote Harness WebRTC fallback diagnostics", {
-                targetDeviceId: shortId(target.deviceId),
+                targetDeviceId: shortId(target2.deviceId),
                 attempt,
                 ...webrtcDiagnosticsLogFields(diagnostics)
               });
@@ -19710,7 +20415,7 @@ var ClientModeRuntime = class {
         const stopProgressTimer = this.beginAttemptProgress(progressRunId, attempt);
         try {
           transport = createTransport(attempt);
-          client = new RemoteClientCore(new ClientSecureTransport(transport, identity, target), 6e4);
+          client = new RemoteClientCore(new ClientSecureTransport(transport, identity, target2), 6e4);
           await client.connect();
           signal?.throwIfAborted();
         } finally {
@@ -19722,7 +20427,7 @@ var ClientModeRuntime = class {
         transport = void 0;
         if (attempt === "turn") {
           this.logger.info("remote Harness relay fallback re-established", {
-            targetDeviceId: shortId(target.deviceId)
+            targetDeviceId: shortId(target2.deviceId)
           });
         }
       }
@@ -19739,6 +20444,7 @@ var ClientModeRuntime = class {
       );
       connectedClient.onClose(() => {
         if (this.connected?.client !== connectedClient) return;
+        void this.closePreview();
         this.connected = void 0;
         this.connectionProgress = void 0;
         this.pendingWorkspaceSelection = void 0;
@@ -19747,12 +20453,12 @@ var ClientModeRuntime = class {
         this.gatewaySwitch.selectLocal();
         void connectedClient.close().catch(() => void 0);
         this.logger.warn("remote Harness transport closed; falling back to local mode", {
-          targetDeviceId: shortId(target.deviceId)
+          targetDeviceId: shortId(target2.deviceId)
         });
       });
       const connectionDetails = await connectedTransport.connectionDetails().catch(() => void 0);
       this.logger.info("remote Harness transport ready", {
-        targetDeviceId: shortId(target.deviceId),
+        targetDeviceId: shortId(target2.deviceId),
         transport: connectedClient.getStats().mode,
         ...connectionDetails === void 0 ? {} : {
           preferredTransports: connectionDetails.preferredTransports,
@@ -19762,14 +20468,14 @@ var ClientModeRuntime = class {
       });
       if (connectionDetails?.webRtc?.diagnostics !== void 0) {
         this.logger.debug("remote Harness transport diagnostics", {
-          targetDeviceId: shortId(target.deviceId),
+          targetDeviceId: shortId(target2.deviceId),
           ...webrtcDiagnosticsLogFields(connectionDetails.webRtc.diagnostics)
         });
       }
       const features = await probeRemoteHostFeatures(connectedClient, serverDevice.clientVersion);
       return {
         client: connectedClient,
-        target,
+        target: target2,
         transport: connectedTransport,
         features,
         progressRunId,
@@ -19786,6 +20492,7 @@ var ClientModeRuntime = class {
     if (this.connected?.target.deviceId === targetDeviceId) return this.connected;
     const next = await this.connect(targetDeviceId, signal);
     const previous = this.connected;
+    await this.closePreview();
     this.connected = next;
     this.clearConnectionProgress(next.progressRunId);
     await previous?.client.close().catch(() => void 0);
@@ -19841,6 +20548,12 @@ var ClientModeRuntime = class {
           throw new ClientModeError("INVALID_MESSAGE", "A QR login session is required.");
         }
         return ok2(await this.pollClientOAuthQrLogin(value.qrId));
+      }
+      if (endpoint === "preview.open") {
+        const remote = this.activeRemote();
+        if (remote === void 0) throw new ClientModeError("TRANSPORT_CLOSED", "Connect to a Remote Host first.");
+        this.preview ??= new LoopbackPreview(remote.client);
+        return ok2(await this.preview.open(record3(payload).port));
       }
       if (endpoint === "directory.list") {
         const value = record3(payload);
@@ -20209,9 +20922,9 @@ import { execFileSync } from "node:child_process";
 
 // src/identity-store.ts
 import { createHash } from "node:crypto";
-import { chmod, mkdir, readFile as readFile2, rename, rm, stat, writeFile } from "node:fs/promises";
+import { chmod as chmod2, mkdir as mkdir2, readFile as readFile3, rename as rename2, rm as rm2, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname as dirname3, join as join3 } from "node:path";
+import { dirname as dirname4, join as join4 } from "node:path";
 var identitySchema = external_exports.object({
   schemaVersion: external_exports.literal(1),
   deviceId: external_exports.string().uuid(),
@@ -20240,15 +20953,15 @@ var IdentityStore = class {
   peers = /* @__PURE__ */ new Map();
   constructor(options = {}) {
     const env = options.env ?? process.env;
-    const dshHome = env.DSH_HOME || join3(options.homeDirectory ?? homedir(), ".dsh");
-    this.directory = options.directory ?? join3(dshHome, "remote");
+    const dshHome = env.DSH_HOME || join4(options.homeDirectory ?? homedir(), ".dsh");
+    this.directory = options.directory ?? join4(dshHome, "remote");
   }
   async loadOrCreate(deviceName) {
-    await mkdir(this.directory, { recursive: true, mode: 448 });
-    await chmod(this.directory, 448);
-    const devicePath = join3(this.directory, "device.json");
-    const keyPath = join3(this.directory, "device.key");
-    const [hasDevice, hasKey] = await Promise.all([exists(devicePath), exists(keyPath)]);
+    await mkdir2(this.directory, { recursive: true, mode: 448 });
+    await chmod2(this.directory, 448);
+    const devicePath = join4(this.directory, "device.json");
+    const keyPath = join4(this.directory, "device.key");
+    const [hasDevice, hasKey] = await Promise.all([exists2(devicePath), exists2(keyPath)]);
     if (hasDevice !== hasKey) {
       throw new IdentityInvalidError("device identity is incomplete; repair it explicitly before reconnecting");
     }
@@ -20259,10 +20972,10 @@ var IdentityStore = class {
       await atomicTextWrite(keyPath, `${keys.privateKey}
 `, 384);
     }
-    await assertPrivateMode(keyPath);
+    await assertPrivateMode2(keyPath);
     try {
-      let record6 = identitySchema.parse(JSON.parse(await readFile2(devicePath, "utf8")));
-      const privateKey = (await readFile2(keyPath, "utf8")).trim();
+      let record6 = identitySchema.parse(JSON.parse(await readFile3(devicePath, "utf8")));
+      const privateKey = (await readFile3(keyPath, "utf8")).trim();
       const regenerated = generateKeyPair(fromBase64Url2(privateKey));
       if (regenerated.publicKey !== record6.publicKey) {
         throw new IdentityInvalidError("device public and private keys do not match");
@@ -20284,7 +20997,7 @@ var IdentityStore = class {
     return this.identity;
   }
   async reset(deviceName) {
-    await rm(this.directory, { recursive: true, force: true });
+    await rm2(this.directory, { recursive: true, force: true });
     this.identity = void 0;
     this.peers.clear();
     return this.loadOrCreate(deviceName);
@@ -20316,11 +21029,11 @@ var IdentityStore = class {
     return removed;
   }
   async loadPeers() {
-    const path = join3(this.directory, "trusted-peers.json");
-    if (!await exists(path)) {
+    const path = join4(this.directory, "trusted-peers.json");
+    if (!await exists2(path)) {
       await atomicJsonWrite(path, { schemaVersion: 1, peers: [] }, 384);
     }
-    const parsed = trustedPeersSchema.parse(JSON.parse(await readFile2(path, "utf8")));
+    const parsed = trustedPeersSchema.parse(JSON.parse(await readFile3(path, "utf8")));
     const peers = /* @__PURE__ */ new Map();
     for (const peer of parsed.peers) {
       if (peer.fingerprint !== fingerprint(peer.publicKey)) {
@@ -20332,7 +21045,7 @@ var IdentityStore = class {
     this.peers = peers;
   }
   async savePeers() {
-    await atomicJsonWrite(join3(this.directory, "trusted-peers.json"), {
+    await atomicJsonWrite(join4(this.directory, "trusted-peers.json"), {
       schemaVersion: 1,
       peers: [...this.peers.values()]
     }, 384);
@@ -20341,15 +21054,15 @@ var IdentityStore = class {
 function serverStorageDirectory(root, serverUrl, role) {
   const origin = new URL(serverUrl).origin;
   const scope = createHash("sha256").update(origin).digest("hex").slice(0, 24);
-  return join3(root, "servers", scope, role);
+  return join4(root, "servers", scope, role);
 }
 function fingerprint(publicKey) {
   const compact = createHash("sha256").update(fromBase64Url2(publicKey)).digest("hex").slice(0, 12).toUpperCase();
   return compact.match(/.{1,4}/g).join(" ");
 }
-async function assertPrivateMode(path) {
+async function assertPrivateMode2(path) {
   if (process.platform === "win32") return;
-  const mode = (await stat(path)).mode & 511;
+  const mode = (await stat2(path)).mode & 511;
   if ((mode & 63) !== 0) {
     throw new IdentityInvalidError(`private key permissions must be 0600, got ${mode.toString(8).padStart(3, "0")}`);
   }
@@ -20359,16 +21072,16 @@ async function atomicJsonWrite(path, value, mode) {
 `, mode);
 }
 async function atomicTextWrite(path, value, mode) {
-  await mkdir(dirname3(path), { recursive: true, mode: 448 });
+  await mkdir2(dirname4(path), { recursive: true, mode: 448 });
   const temporary = `${path}.${process.pid}.${uuidV7()}.tmp`;
-  await writeFile(temporary, value, { encoding: "utf8", mode, flag: "wx" });
-  await chmod(temporary, mode);
-  await rename(temporary, path);
-  await chmod(path, mode);
+  await writeFile2(temporary, value, { encoding: "utf8", mode, flag: "wx" });
+  await chmod2(temporary, mode);
+  await rename2(temporary, path);
+  await chmod2(path, mode);
 }
-async function exists(path) {
+async function exists2(path) {
   try {
-    await stat(path);
+    await stat2(path);
     return true;
   } catch (error) {
     if (isNodeError(error) && error.code === "ENOENT") return false;
@@ -20380,75 +21093,6 @@ function isNodeError(error) {
 }
 function safeErrorMessage(error) {
   return error instanceof Error ? error.message : "invalid identity data";
-}
-
-// src/server-credentials.ts
-import { chmod as chmod2, mkdir as mkdir2, readFile as readFile3, rename as rename2, rm as rm2, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
-import { dirname as dirname4, join as join4 } from "node:path";
-var credentialSchema = external_exports.object({
-  schemaVersion: external_exports.literal(1),
-  serverUrl: external_exports.string().url(),
-  deviceId: external_exports.string().min(1),
-  authorizationMethod: external_exports.enum(["account", "host_registration_code", "owned_device"]),
-  account: external_exports.string().min(1).max(254).optional(),
-  accessToken: external_exports.string().min(16),
-  accessTokenExpiresAt: external_exports.number().int().positive(),
-  refreshToken: external_exports.string().min(16),
-  refreshTokenExpiresAt: external_exports.number().int().positive()
-}).strict();
-var ServerCredentialStore = class {
-  path;
-  constructor(directory) {
-    this.path = join4(directory, "server-credentials.json");
-  }
-  async load(serverUrl, deviceId) {
-    if (!await exists2(this.path)) return void 0;
-    await assertPrivateMode2(this.path);
-    let parsed;
-    try {
-      parsed = credentialSchema.parse(JSON.parse(await readFile3(this.path, "utf8")));
-    } catch (error) {
-      throw new ServerCredentialsInvalidError(`server credentials are invalid: ${safeMessage(error)}`);
-    }
-    return parsed.serverUrl === serverUrl && parsed.deviceId === deviceId ? parsed : void 0;
-  }
-  async save(credentials) {
-    const record6 = credentialSchema.parse({ schemaVersion: 1, ...credentials });
-    await atomicWrite(this.path, `${JSON.stringify(record6, null, 2)}
-`);
-    return record6;
-  }
-  async clear() {
-    await rm2(this.path, { force: true });
-  }
-};
-var ServerCredentialsInvalidError = class extends Error {
-  code = "SERVER_CREDENTIALS_INVALID";
-};
-async function atomicWrite(path, contents) {
-  await mkdir2(dirname4(path), { recursive: true, mode: 448 });
-  const temporary = `${path}.${process.pid}.${uuidV7()}.tmp`;
-  await writeFile2(temporary, contents, { encoding: "utf8", mode: 384, flag: "wx" });
-  await chmod2(temporary, 384);
-  await rename2(temporary, path);
-  await chmod2(path, 384);
-}
-async function assertPrivateMode2(path) {
-  if (process.platform === "win32") return;
-  const mode = (await stat2(path)).mode & 511;
-  if ((mode & 63) !== 0) throw new ServerCredentialsInvalidError("server credentials permissions must be 0600");
-}
-async function exists2(path) {
-  try {
-    await stat2(path);
-    return true;
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
-    throw error;
-  }
-}
-function safeMessage(error) {
-  return error instanceof Error ? error.message : "invalid credential data";
 }
 
 // src/control-stream.ts
@@ -20624,6 +21268,7 @@ var PluginControlRuntime = class {
   }
   async handle(endpoint, payload, signal) {
     try {
+      if (endpoint === "settings.development.set") return ok3(await this.setDevelopment(payload));
       if (endpoint === "settings.get") return ok3(await this.settingsView());
       if (endpoint === "settings.configure") return ok3(await this.configure(payload));
       if (endpoint === "settings.server.set") return ok3(await this.setServer(payload));
@@ -20727,6 +21372,21 @@ var PluginControlRuntime = class {
     await this.settings.replace({ ...current, role });
     return this.settingsView();
   }
+  async setDevelopment(payload) {
+    if (this.settings === void 0) throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
+    const value = record4(payload);
+    if (typeof value.terminalEnabled !== "boolean" || !Array.isArray(value.ports) || value.ports.some((port) => !Number.isInteger(port))) {
+      throw new ClientModeError("INVALID_MESSAGE", "A terminal switch and loopback ports are required.");
+    }
+    const current = editableConfig(resolveConfig(this.settings.get()));
+    const next = resolveConfig({
+      ...current,
+      terminal: { enabled: value.terminalEnabled },
+      loopback: { ports: value.ports }
+    });
+    await this.settings.replace(editableConfig(next));
+    return this.settingsView();
+  }
   async setCodex(payload) {
     if (this.settings === void 0) {
       throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
@@ -20767,10 +21427,10 @@ var PluginControlRuntime = class {
   }
   async removeAcp(payload) {
     if (this.settings === void 0) throw new ClientModeError("SETTINGS_UNAVAILABLE", "DSH user settings are unavailable in this profile.");
-    const id2 = record4(payload).id;
-    if (typeof id2 !== "string" || ["codex", "cursor", "kimi"].includes(id2)) throw new ClientModeError("INVALID_MESSAGE", "Only custom ACP backends can be removed.");
+    const id4 = record4(payload).id;
+    if (typeof id4 !== "string" || ["codex", "cursor", "kimi"].includes(id4)) throw new ClientModeError("INVALID_MESSAGE", "Only custom ACP backends can be removed.");
     const current = resolveConfig(this.settings.get());
-    const backends = (current.acp?.backends ?? []).filter((item) => item.id !== id2);
+    const backends = (current.acp?.backends ?? []).filter((item) => item.id !== id4);
     await this.settings.replace(editableConfig({ ...current, acp: { enabled: current.acp?.enabled ?? true, backends } }));
     return this.settingsView();
   }
@@ -20864,6 +21524,8 @@ function editableConfig(config) {
     enabled: config.enabled,
     role: config.role,
     ...config.serverUrl === void 0 ? {} : { serverUrl: config.serverUrl },
+    terminal: config.terminal,
+    loopback: config.loopback,
     forceRelay: config.forceRelay,
     logLevel: config.logLevel,
     reconnect: config.reconnect.enabled ? {
@@ -20934,8 +21596,70 @@ function redact(value, key = "") {
   return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, redact(child, childKey)]));
 }
 
+// src/terminal-policy.ts
+var TERMINAL_CALLS = /* @__PURE__ */ new Set([
+  "terminal/environment",
+  "terminal/shells",
+  "terminal/list",
+  "terminal/create",
+  "terminal/write",
+  "terminal/resize",
+  "terminal/rename",
+  "terminal/close"
+]);
+var TERMINAL_STREAMS = /* @__PURE__ */ new Set(["terminal/follow", "terminal/retain"]);
+var id2 = external_exports.string().regex(/^[\w-]{1,128}$/);
+var TerminalPolicy = class {
+  constructor(enabled, deviceId, owners) {
+    this.enabled = enabled;
+    this.deviceId = deviceId;
+    this.owners = owners;
+  }
+  attachments = /* @__PURE__ */ new Map();
+  check(endpoint, payload) {
+    if (!this.enabled) throw new RpcError(
+      "TERMINAL_DISABLED",
+      "Remote terminal is disabled on this Host. Enable Remote terminal in the Host Remote settings (terminal.enabled: true), restart the Host, and reconnect. / \u8FDC\u7A0B\u7EC8\u7AEF\u672A\u5F00\u542F\uFF0C\u8BF7\u5728 Host \u7684 Remote \u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u8FDC\u7A0B\u7EC8\u7AEF\u300D\uFF0C\u91CD\u542F Host \u540E\u91CD\u65B0\u8FDE\u63A5\u3002"
+    );
+    const args = external_exports.object({ args: external_exports.record(external_exports.unknown()) }).strict().parse(payload).args;
+    const sessionId = id2.parse(args.agentId ?? args.sessionId);
+    if (endpoint === "terminal/environment" || endpoint === "terminal/shells" || endpoint === "terminal/list") return {};
+    const request = endpoint === "terminal/create" ? external_exports.object({ id: id2 }).passthrough().parse(args.request) : void 0;
+    const terminalId = id2.parse(request?.id ?? args.id);
+    const key = `${sessionId}/${terminalId}`;
+    if (endpoint === "terminal/create") {
+      if (this.owners.has(key) && this.owners.get(key) !== this.deviceId) this.deny();
+      if (!this.owners.has(key) && this.owners.size >= 256) throw new RpcError("RATE_LIMITED", "Too many retained remote terminals.");
+      const created = !this.owners.has(key);
+      this.owners.set(key, this.deviceId);
+      return { key, created };
+    }
+    if (this.owners.get(key) !== this.deviceId) this.deny();
+    if (endpoint === "terminal/follow") this.attachments.set(key, id2.parse(args.attachmentId));
+    if (endpoint === "terminal/write" || endpoint === "terminal/resize") {
+      if (this.attachments.get(key) !== id2.parse(args.attachmentId)) this.deny();
+    }
+    return { key };
+  }
+  result(endpoint, payload, result, reservation) {
+    if (reservation.key !== void 0 && (!result.ok && reservation.created || result.ok && endpoint === "terminal/close")) {
+      this.owners.delete(reservation.key);
+      this.attachments.delete(reservation.key);
+    }
+    if (endpoint === "terminal/list" && result.ok && Array.isArray(result.value)) {
+      const args = payload.args;
+      const session = args.sessionId ?? args.agentId;
+      return { ok: true, value: result.value.filter((value) => typeof value?.id === "string" && this.owners.get(`${session}/${value.id}`) === this.deviceId) };
+    }
+    return result;
+  }
+  deny() {
+    throw new RpcError("PERMISSION_DENIED", "This terminal or input attachment belongs to another connection or device.");
+  }
+};
+
 // src/service.ts
-import { randomUUID as randomUUID2 } from "node:crypto";
+import { randomUUID as randomUUID3 } from "node:crypto";
 
 // src/connection-controller.ts
 var ConnectionController = class {
@@ -21119,21 +21843,6 @@ function shortId2(value) {
   return value.length <= 12 ? value : `${value.slice(0, 8)}\u2026${value.slice(-4)}`;
 }
 
-// src/safe-error.ts
-var RpcError = class extends Error {
-  constructor(code, message, details, retryable = false) {
-    super(message);
-    this.code = code;
-    this.details = details;
-    this.retryable = retryable;
-  }
-};
-function safeErrorCode(error) {
-  if (error instanceof RpcError) return error.code;
-  if (error instanceof external_exports.ZodError) return "INVALID_MESSAGE";
-  return "INTERNAL_ERROR";
-}
-
 // src/rpc-router.ts
 var wireRequestSchema = external_exports.object({ method: external_exports.string().min(1), params: external_exports.unknown() }).strict();
 var emptyParamsSchema = external_exports.object({}).strict();
@@ -21156,6 +21865,7 @@ var apiMethods = /* @__PURE__ */ new Set([
   "harness.remote.transfer.close",
   "harness.remote.stream.open",
   "harness.remote.stream.close",
+  "loopback.call",
   "fileviewer.call",
   "codex.app.call",
   "codex.app.respond",
@@ -21185,7 +21895,7 @@ var HOST_CAPABILITIES = [
   "agent.acp.v1"
 ];
 var RpcRouter = class {
-  constructor(harnessApi, maxPending = 128, logger, fileViewer, harnessRemote, capabilities = () => HOST_CAPABILITIES, codex, acp) {
+  constructor(harnessApi, maxPending = 128, logger, fileViewer, harnessRemote, capabilities = () => HOST_CAPABILITIES, codex, acp, loopback) {
     this.harnessApi = harnessApi;
     this.maxPending = maxPending;
     this.logger = logger;
@@ -21194,9 +21904,11 @@ var RpcRouter = class {
     this.capabilities = capabilities;
     this.codex = codex;
     this.acp = acp;
+    this.loopback = loopback;
   }
   active = 0;
   async closePeerStreams() {
+    this.loopback?.closeAll();
     await Promise.all([
       this.harnessApi?.closeAll(),
       this.harnessRemote?.closeAll(),
@@ -21278,6 +21990,10 @@ var RpcRouter = class {
         return this.requireRemoteGateway().openStream(params);
       case "harness.remote.stream.close":
         return this.requireRemoteGateway().closeStream(params);
+      case "loopback.call": {
+        if (this.loopback === void 0) throw new RpcError("FEATURE_NOT_SUPPORTED", "Loopback preview is unavailable on this Host.");
+        return this.loopback.call(params);
+      }
       case "fileviewer.call": {
         if (this.fileViewer === void 0) {
           throw new RpcError("FILE_VIEWER_UNAVAILABLE", "The Remote Host does not have DSH File Viewer available.");
@@ -21498,6 +22214,7 @@ var HostServerConnection = class {
   lastActiveAt;
   reconnectRequested = false;
   resumeQueued = false;
+  authRecoveryAttempted = false;
   rtcFactory;
   negotiatedCapabilities = ["transport.relay"];
   controlFrameLimits = {};
@@ -21561,14 +22278,23 @@ var HostServerConnection = class {
   }
   async run() {
     let delayMs = this.config.reconnect.initialDelayMs;
+    this.authRecoveryAttempted = false;
     while (!this.stopped) {
       try {
         await this.connectOnce();
         delayMs = this.config.reconnect.initialDelayMs;
       } catch (error) {
         const code = errorCode2(error);
+        if (code === "CREDENTIALS_REFRESHED") continue;
         this.terminalError = code;
-        this.logger.warn("server control connection failed", { code, retryable: isRetryable(error) });
+        this.logger.warn("server control connection failed", {
+          code,
+          retryable: isRetryable(error),
+          ...error instanceof ServerApiError && error.phase !== void 0 ? { phase: error.phase } : {}
+        });
+        if (TERMINAL_AUTH_ERRORS.has(code)) {
+          this.logger.warn(code === "CONNECTION_REPLACED" ? "Another instance is using this Host identity. Stop it or use a separate DSH_HOME; automatic reconnect is paused." : code === "SERVER_CREDENTIALS_BUSY" ? "Credential refresh is locked. Stop other instances; after a crash, stop all instances before removing server-credentials.json.refresh-lock and authorizing again." : "Host authorization failed. Run /remote login or authorize this Host again in Remote settings.");
+        }
         if (TERMINAL_AUTH_ERRORS.has(code) || !this.config.reconnect.enabled) return;
       }
       if (this.stopped) return;
@@ -21624,6 +22350,7 @@ var HostServerConnection = class {
           this.lastActiveAt = Date.now();
           if (frame.type === "hello.ack") {
             const payload = requireHelloAck(frame.payload);
+            this.authRecoveryAttempted = false;
             this.controlFrameLimits = {
               maxControlFrameBytes: payload.maxControlFrameBytes,
               maxRelayFrameBytes: payload.maxRelayFrameBytes
@@ -21660,13 +22387,28 @@ var HostServerConnection = class {
       socket.onclose = (event) => {
         const close = async () => {
           await messageQueue.catch(() => void 0);
+          if (this.stopped) {
+            finish();
+            return;
+          }
+          if (event.code === 4003) {
+            finish(new ControlConnectionError("CONNECTION_REPLACED", "Another instance connected with this Host identity."));
+            return;
+          }
           if (event.code === 4002) {
+            if (this.authRecoveryAttempted) {
+              finish(new ControlConnectionError("AUTH_INVALID", "Server rejected refreshed credentials."));
+              return;
+            }
             try {
-              await this.api.refreshCredentials();
+              await this.api.refreshCredentials(credentials.accessToken);
             } catch (error) {
               finish(asError2(error));
               return;
             }
+            this.authRecoveryAttempted = true;
+            finish(new ControlConnectionError("CREDENTIALS_REFRESHED", "Retry hello with refreshed credentials."));
+            return;
           }
           if (event.code === 4004) {
             finish(new ControlConnectionError("DEVICE_REVOKED", "The Server revoked this Host device."));
@@ -21914,7 +22656,7 @@ var HostServerConnection = class {
       }
     });
     tunnel.rtc = rtc;
-    rtc.onMessage((data) => tunnel.channel?.receive(void 0, data));
+    rtc.onMessage((data2) => tunnel.channel?.receive(void 0, data2));
     rtc.onClose(() => {
       void this.handleRtcFailed(tunnel, rtc, new Error("WebRTC data channel closed."));
     });
@@ -22071,6 +22813,10 @@ var HostServerConnection = class {
   async sendRelay(tunnel, ciphertext) {
     const counter = Number(tunnel.noise.sendingCounter() - 1n);
     if (!Number.isSafeInteger(counter) || counter < 0) throw new ControlConnectionError("FRAME_TOO_LARGE", "Noise transport counter overflowed.");
+    const socket = this.socket;
+    if (socket === void 0) throw new Error("Relay transport closed");
+    await waitForRelayCapacity(socket);
+    if (this.socket !== socket) throw new Error("Relay transport replaced");
     this.sendControl("relay", {
       connectionId: tunnel.connectionId,
       targetDeviceId: tunnel.peer.deviceId,
@@ -22136,6 +22882,8 @@ var HostServerConnection = class {
   }
 };
 var TERMINAL_AUTH_ERRORS = /* @__PURE__ */ new Set([
+  "CONNECTION_REPLACED",
+  "SERVER_CREDENTIALS_BUSY",
   "ACCOUNT_AUTH_REQUIRED",
   "AUTH_INVALID",
   "DEVICE_OWNERSHIP_REQUIRED",
@@ -22156,6 +22904,7 @@ var ServerNoiseChannel = class {
     this.peerDeviceId = tunnel.peer.deviceId;
     this.peerIdentityKey = tunnel.peer.publicKey;
   }
+  sends = new SerialSend();
   security;
   peerDeviceId;
   peerIdentityKey;
@@ -22166,11 +22915,12 @@ var ServerNoiseChannel = class {
   closed = false;
   async send(message) {
     if (this.closed) throw new Error("secure channel is closed");
-    const plaintextFrames = this.outgoing.encode(encodeMessage(message));
+    const encoded = encodeMessage(message);
     try {
-      for (const plaintext of plaintextFrames) {
-        await this.transmit(this.tunnel.noise.encrypt(plaintext));
-      }
+      await this.sends.run(encoded.byteLength, async () => {
+        if (this.closed) throw new Error("Secure channel closed");
+        for (const plaintext of this.outgoing.encode(encoded)) await this.transmit(this.tunnel.noise.encrypt(plaintext));
+      });
     } catch (error) {
       await this.close().catch(() => void 0);
       throw error;
@@ -22215,10 +22965,10 @@ function websocketUrl2(baseUrl) {
   url.pathname = `${url.pathname.replace(/\/$/, "")}/ws/v1/connect`;
   return url.toString();
 }
-function decodeControl(data, limits) {
-  if (typeof data !== "string") throw new ControlConnectionError("INVALID_MESSAGE", "Server control frames must be text JSON.");
+function decodeControl(data2, limits) {
+  if (typeof data2 !== "string") throw new ControlConnectionError("INVALID_MESSAGE", "Server control frames must be text JSON.");
   try {
-    return decodeControlFrame(data, limits);
+    return decodeControlFrame(data2, limits);
   } catch {
     throw new ControlConnectionError("INVALID_MESSAGE", "Server sent an invalid control frame.");
   }
@@ -22324,10 +23074,11 @@ function errorCode2(error) {
   return error instanceof ServerApiError || error instanceof ControlConnectionError ? error.code : "CONNECTION_FAILED";
 }
 function isRetryable(error) {
-  return error instanceof ServerApiError ? error.retryable : errorCode2(error) !== "DEVICE_REVOKED";
+  return !TERMINAL_AUTH_ERRORS.has(errorCode2(error)) && (!(error instanceof ServerApiError) || error.retryable);
 }
 function closeCode(code) {
   if (code === 4002) return "AUTH_INVALID";
+  if (code === 4003) return "CONNECTION_REPLACED";
   if (code === 4004) return "DEVICE_REVOKED";
   if (code === 4007) return "RATE_LIMITED";
   if (code === 4011) return "UNSUPPORTED_VERSION";
@@ -22342,13 +23093,13 @@ var MAX_ENTRIES = 500;
 async function listRemoteDirectory(path, signal) {
   signal?.throwIfAborted();
   const home = resolve(homedir2());
-  const target = path === void 0 || path.trim() === "" ? home : resolve(path);
-  if (!isAbsolute2(target)) throw new Error("The remote directory path must be absolute.");
-  const rows = await readdir(target, { withFileTypes: true });
+  const target2 = path === void 0 || path.trim() === "" ? home : resolve(path);
+  if (!isAbsolute2(target2)) throw new Error("The remote directory path must be absolute.");
+  const rows = await readdir(target2, { withFileTypes: true });
   const directories = [];
   for (const row of rows) {
     signal?.throwIfAborted();
-    const child = resolve(target, row.name);
+    const child = resolve(target2, row.name);
     let directory = row.isDirectory();
     if (!directory && row.isSymbolicLink()) directory = await stat3(child).then((value) => value.isDirectory()).catch(() => false);
     if (!directory) continue;
@@ -22356,9 +23107,9 @@ async function listRemoteDirectory(path, signal) {
   }
   directories.sort((left, right) => left.name.localeCompare(right.name, void 0, { sensitivity: "base" }));
   return {
-    path: target,
+    path: target2,
     home,
-    crumbs: crumbs(target),
+    crumbs: crumbs(target2),
     entries: directories.slice(0, MAX_ENTRIES),
     truncated: directories.length > MAX_ENTRIES
   };
@@ -23065,6 +23816,9 @@ function disableRemoteSettingsDocument(response) {
 }
 var EMPTY_SETTINGS_NAMESPACES = /* @__PURE__ */ new Set();
 async function assertRegisteredSettingsNamespace(api, ns) {
+  if (ns === "ds-harness-remote" || ns === "dsh-remote") {
+    throw new RpcError("PERMISSION_DENIED", "Remote access settings can only be changed locally on the Host.");
+  }
   const allowed = await registeredSettingsNamespaces(api);
   if (!allowed.has(ns)) throw deniedSettingsNamespace(ns);
 }
@@ -23290,6 +24044,15 @@ var HARNESS_REMOTE_ALLOWLIST = [
   "subagents/interruptByParent",
   "subagents/list",
   "subagents/prompt",
+  "workspaceFiles/list",
+  "workspaceFiles/stat",
+  "workspaceFiles/read",
+  "workspaceFiles/readBytes",
+  "workspaceFiles/readAll",
+  "workspaceFiles/readRelated",
+  "workspaceFiles/changes",
+  "officeToPdf/render",
+  "officeToPdf/generation",
   "workspace/archiveSession",
   "workspace/create",
   "workspace/delete",
@@ -23300,11 +24063,12 @@ var HARNESS_REMOTE_ALLOWLIST = [
 ];
 var allowedEndpoints = new Set(HARNESS_REMOTE_ALLOWLIST);
 var HarnessRemoteBridge = class {
-  constructor(gateway, publish, logger, harnessVersion) {
+  constructor(gateway, publish, logger, harnessVersion, terminal = new TerminalPolicy(false, "", /* @__PURE__ */ new Map())) {
     this.gateway = gateway;
     this.publish = publish;
     this.logger = logger;
     this.harnessVersion = harnessVersion;
+    this.terminal = terminal;
   }
   streams = /* @__PURE__ */ new Map();
   incomingTransfers = /* @__PURE__ */ new Map();
@@ -23312,6 +24076,14 @@ var HarnessRemoteBridge = class {
   async call(input2) {
     const params = callSchema3.parse(input2);
     this.assertAllowed(params.endpoint);
+    if (TERMINAL_STREAMS.has(params.endpoint)) throw new RpcError("METHOD_NOT_ALLOWED", "Use a stream for this terminal endpoint.");
+    if (["settings/update", "settings/replace", "settings/mutate"].includes(params.endpoint)) {
+      const args = requestArgs(params.payload);
+      if (args.ns === "ds-harness-remote" || args.ns === "dsh-remote") {
+        throw new RpcError("PERMISSION_DENIED", "Remote access settings can only be changed locally on the Host.");
+      }
+    }
+    const reservation = params.endpoint.startsWith("terminal/") ? this.terminal.check(params.endpoint, params.payload) : void 0;
     if (params.endpoint === "session/canOpenWorkspacePath") {
       return { ok: true, value: true };
     }
@@ -23324,8 +24096,9 @@ var HarnessRemoteBridge = class {
         endpoint: params.endpoint,
         durationMs: Math.round(performance.now() - startedAt)
       });
-      return result;
+      return reservation === void 0 ? result : this.terminal.result(params.endpoint, params.payload, result, reservation);
     } catch (error) {
+      if (reservation !== void 0) this.terminal.result(params.endpoint, params.payload, { ok: false, error: { code: "FAILED", message: "", details: {} } }, reservation);
       if (params.endpoint === "directoryPicker/list") {
         const result = await this.directoryList(params.payload, signal);
         this.logger?.debug("harness remote call ok", {
@@ -23452,13 +24225,24 @@ var HarnessRemoteBridge = class {
   async openStream(input2) {
     const params = streamOpenSchema2.parse(input2);
     this.assertAllowed(params.endpoint);
+    if (params.endpoint.startsWith("settings/")) throw new RpcError("METHOD_NOT_ALLOWED", "Settings endpoints are not streams.");
+    if (TERMINAL_CALLS.has(params.endpoint)) throw new RpcError("METHOD_NOT_ALLOWED", "This terminal endpoint is not a stream.");
+    if (TERMINAL_STREAMS.has(params.endpoint)) this.terminal.check(params.endpoint, params.payload);
     if (this.streams.has(params.streamId)) throw new RpcError("REQUEST_CONFLICT", "The Harness Remote stream is already open.");
     if (this.streams.size >= MAX_ACTIVE_STREAMS) {
       throw new RpcError("RATE_LIMITED", "Too many Harness Remote streams are open.", void 0, true);
     }
     const controller = new AbortController();
-    const source = await this.gateway.open(params.endpoint, params.payload, controller.signal);
     this.streams.set(params.streamId, { controller });
+    let source;
+    try {
+      source = await this.gateway.open(params.endpoint, params.payload, controller.signal);
+      controller.signal.throwIfAborted();
+    } catch (error) {
+      this.streams.delete(params.streamId);
+      controller.abort();
+      throw error;
+    }
     void this.pump(params.streamId, source, controller.signal);
     return { opened: true, streamId: params.streamId };
   }
@@ -23479,7 +24263,7 @@ var HarnessRemoteBridge = class {
     for (const [, stream] of streams) stream.controller.abort(reason);
   }
   assertAllowed(endpoint) {
-    if (!allowedEndpoints.has(endpoint)) {
+    if (!allowedEndpoints.has(endpoint) && !TERMINAL_CALLS.has(endpoint) && !TERMINAL_STREAMS.has(endpoint)) {
       throw new RpcError("METHOD_NOT_ALLOWED", "The requested Harness Remote endpoint is not allowed.");
     }
     if (endpoint === "$events" && !this.gateway.supportsCarrier) {
@@ -23513,8 +24297,8 @@ var HarnessRemoteBridge = class {
   }
   pruneTransfers() {
     const cutoff = Date.now() - TRANSFER_IDLE_MS;
-    for (const [id2, transfer] of this.incomingTransfers) if (transfer.touchedAt < cutoff) this.incomingTransfers.delete(id2);
-    for (const [id2, transfer] of this.outgoingTransfers) if (transfer.touchedAt < cutoff) this.outgoingTransfers.delete(id2);
+    for (const [id4, transfer] of this.incomingTransfers) if (transfer.touchedAt < cutoff) this.incomingTransfers.delete(id4);
+    for (const [id4, transfer] of this.outgoingTransfers) if (transfer.touchedAt < cutoff) this.outgoingTransfers.delete(id4);
   }
 };
 async function dispatchCommandForHost(gateway, payload, signal, harnessVersion) {
@@ -23573,7 +24357,7 @@ function isRecord9(value) {
 }
 
 // src/codex/domain.ts
-import { randomUUID } from "node:crypto";
+import { randomUUID as randomUUID2 } from "node:crypto";
 import { readdir as readdir2, realpath, stat as stat4 } from "node:fs/promises";
 import { homedir as homedir3 } from "node:os";
 import { basename as basename3, isAbsolute as isAbsolute3, join as join5, relative, resolve as resolve2 } from "node:path";
@@ -23627,11 +24411,11 @@ var CodexAppServerClient = class {
     if (!this.ready) throw new CodexAppServerError("CODEX_UNAVAILABLE", "Codex App Server is not ready.");
     return this.request(method, params, timeoutMs);
   }
-  async respond(id2, result) {
-    this.write({ id: id2, result });
+  async respond(id4, result) {
+    this.write({ id: id4, result });
   }
-  async respondError(id2, code, message) {
-    this.write({ id: id2, error: { code, message } });
+  async respondError(id4, code, message) {
+    this.write({ id: id4, error: { code, message } });
   }
   onInbound(handler) {
     this.inboundHandlers.add(handler);
@@ -23712,19 +24496,19 @@ var CodexAppServerClient = class {
     }
   }
   request(method, params, timeoutMs) {
-    const id2 = this.nextId++;
+    const id4 = this.nextId++;
     const result = new Promise((resolve3, reject) => {
       const timer = setTimeout(() => {
-        this.pending.delete(id2);
+        this.pending.delete(id4);
         reject(new CodexAppServerError("CODEX_REQUEST_TIMEOUT", "Codex App Server request timed out."));
       }, timeoutMs);
       timer.unref?.();
-      this.pending.set(id2, { resolve: resolve3, reject, timer });
+      this.pending.set(id4, { resolve: resolve3, reject, timer });
     });
     try {
-      this.write({ id: id2, method, params });
+      this.write({ id: id4, method, params });
     } catch (error) {
-      const pending = this.takePending(id2);
+      const pending = this.takePending(id4);
       pending?.reject(error instanceof Error ? error : new Error("Codex App Server write failed."));
     }
     return result;
@@ -23795,15 +24579,15 @@ var CodexAppServerClient = class {
     this.failureNotified = true;
     for (const handler of this.unavailableHandlers) handler(code);
   }
-  takePending(id2) {
-    const pending = this.pending.get(id2);
+  takePending(id4) {
+    const pending = this.pending.get(id4);
     if (pending === void 0) return void 0;
-    this.pending.delete(id2);
+    this.pending.delete(id4);
     clearTimeout(pending.timer);
     return pending;
   }
   failPending(error) {
-    for (const id2 of [...this.pending.keys()]) this.takePending(id2)?.reject(error);
+    for (const id4 of [...this.pending.keys()]) this.takePending(id4)?.reject(error);
   }
 };
 function safeUpstreamError(value) {
@@ -23817,7 +24601,7 @@ function isRecord10(value) {
 }
 
 // src/codex/method-policy.ts
-var id = external_exports.string().min(1).max(256);
+var id3 = external_exports.string().min(1).max(256);
 var cursor = external_exports.string().min(1).max(4096).nullable().optional();
 var textInput = external_exports.object({
   type: external_exports.literal("text"),
@@ -23866,9 +24650,9 @@ var schemas = {
     useStateDbOnly: external_exports.boolean().optional(),
     searchTerm: external_exports.string().max(1024).optional()
   }).strict(),
-  "thread/read": external_exports.object({ threadId: id, includeTurns: external_exports.boolean().optional() }).strict(),
+  "thread/read": external_exports.object({ threadId: id3, includeTurns: external_exports.boolean().optional() }).strict(),
   "dsh/sessionHistory": external_exports.object({
-    threadId: id,
+    threadId: id3,
     beforeSeq: external_exports.number().int().nonnegative().optional(),
     throughSeq: external_exports.number().int().min(-1).optional(),
     maxMessages: external_exports.number().int().min(1).max(200).optional()
@@ -23883,21 +24667,21 @@ var schemas = {
     permissionPreset: permissionPreset.optional()
   }).strict(),
   "thread/resume": external_exports.object({
-    threadId: id,
+    threadId: id3,
     model: external_exports.string().min(1).max(128).optional(),
     permissionPreset: permissionPreset.optional()
   }).strict(),
   "thread/fork": external_exports.object({
-    threadId: id,
-    lastTurnId: id.optional(),
+    threadId: id3,
+    lastTurnId: id3.optional(),
     permissionPreset: permissionPreset.optional()
   }).strict(),
-  "thread/name/set": external_exports.object({ threadId: id, name: external_exports.string().trim().min(1).max(256) }).strict(),
-  "thread/archive": external_exports.object({ threadId: id }).strict(),
-  "thread/unarchive": external_exports.object({ threadId: id }).strict(),
-  "thread/unsubscribe": external_exports.object({ threadId: id }).strict(),
+  "thread/name/set": external_exports.object({ threadId: id3, name: external_exports.string().trim().min(1).max(256) }).strict(),
+  "thread/archive": external_exports.object({ threadId: id3 }).strict(),
+  "thread/unarchive": external_exports.object({ threadId: id3 }).strict(),
+  "thread/unsubscribe": external_exports.object({ threadId: id3 }).strict(),
   "turn/start": external_exports.object({
-    threadId: id,
+    threadId: id3,
     input,
     model: external_exports.string().min(1).max(128).optional(),
     effort: external_exports.enum(["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"]).optional(),
@@ -23905,8 +24689,8 @@ var schemas = {
     personality: external_exports.string().min(1).max(64).optional(),
     permissionPreset: permissionPreset.optional()
   }).strict(),
-  "turn/steer": external_exports.object({ threadId: id, input, expectedTurnId: id }).strict(),
-  "turn/interrupt": external_exports.object({ threadId: id, turnId: id }).strict()
+  "turn/steer": external_exports.object({ threadId: id3, input, expectedTurnId: id3 }).strict(),
+  "turn/interrupt": external_exports.object({ threadId: id3, turnId: id3 }).strict()
 };
 var CODEX_APP_ALLOWLIST = Object.freeze(Object.keys(schemas));
 function parseCodexCall(method, params) {
@@ -24124,14 +24908,14 @@ var CodexPeerBridge = class {
     if (this.closed) return;
     const streamIds = [...this.streams.entries()].filter(([, targetThreadId]) => targetThreadId === threadId).map(([streamId]) => streamId);
     for (const streamId of streamIds) {
-      const data = { streamId, frame };
-      if (new TextEncoder().encode(JSON.stringify(data)).byteLength > MAX_SECURE_MESSAGE_BYTES) {
+      const data2 = { streamId, frame };
+      if (new TextEncoder().encode(JSON.stringify(data2)).byteLength > MAX_SECURE_MESSAGE_BYTES) {
         this.streams.delete(streamId);
         await this.publish("codex.app.stream.closed", { streamId, reason: "failed" });
         this.logger?.warn("Codex stream closed after oversized frame", { streamId });
         continue;
       }
-      await this.publish("codex.app.frame", data);
+      await this.publish("codex.app.frame", data2);
     }
   }
   async failStreams(reason = "failed") {
@@ -24160,11 +24944,11 @@ var CodexPeerBridge = class {
   }
   pruneTransfers() {
     const staleBefore = Date.now() - TRANSFER_IDLE_MS;
-    for (const [id2, transfer] of this.incomingTransfers) {
-      if (transfer.touchedAt < staleBefore) this.incomingTransfers.delete(id2);
+    for (const [id4, transfer] of this.incomingTransfers) {
+      if (transfer.touchedAt < staleBefore) this.incomingTransfers.delete(id4);
     }
-    for (const [id2, transfer] of this.outgoingTransfers) {
-      if (transfer.touchedAt < staleBefore) this.outgoingTransfers.delete(id2);
+    for (const [id4, transfer] of this.outgoingTransfers) {
+      if (transfer.touchedAt < staleBefore) this.outgoingTransfers.delete(id4);
     }
   }
   requireOpen() {
@@ -24631,7 +25415,7 @@ var CodexRemoteDomain = class {
       await appServer.respond(message.id, { decision: "decline" });
       return;
     }
-    const requestHandle = randomUUID();
+    const requestHandle = randomUUID2();
     this.approvals.set(requestHandle, {
       upstreamId: message.id,
       connectionId: owner.connectionId,
@@ -24939,14 +25723,14 @@ var CodexRemoteDomain = class {
     }
   }
   async listCodexDirectory(path) {
-    const target = await this.resolveCodexDirectory(path);
-    const rows = await readdir2(target.path, { withFileTypes: true }).catch(() => void 0);
+    const target2 = await this.resolveCodexDirectory(path);
+    const rows = await readdir2(target2.path, { withFileTypes: true }).catch(() => void 0);
     if (rows === void 0) {
       throw new RpcError("CODEX_PATH_NOT_ALLOWED", "The CodeX working directory is not available as a Workspace.");
     }
     const entries = [];
     for (const row of rows) {
-      const child = resolve2(target.path, row.name);
+      const child = resolve2(target2.path, row.name);
       let directory = row.isDirectory();
       if (!directory && row.isSymbolicLink()) {
         directory = await stat4(child).then((value) => value.isDirectory()).catch(() => false);
@@ -24955,7 +25739,7 @@ var CodexRemoteDomain = class {
       try {
         const canonicalChild = await realpath(child);
         if (!(await stat4(canonicalChild)).isDirectory()) continue;
-        if (!containsCodexPath(target.canonicalRoot, canonicalChild)) continue;
+        if (!containsCodexPath(target2.canonicalRoot, canonicalChild)) continue;
       } catch {
         continue;
       }
@@ -24967,9 +25751,9 @@ var CodexRemoteDomain = class {
     }
     entries.sort((left, right) => left.name.localeCompare(right.name, void 0, { sensitivity: "base" }));
     return {
-      path: target.path,
-      home: target.root,
-      crumbs: codexDirectoryCrumbs(target.root, target.path),
+      path: target2.path,
+      home: target2.root,
+      crumbs: codexDirectoryCrumbs(target2.root, target2.path),
       entries: entries.slice(0, CODEX_DIRECTORY_ENTRY_LIMIT),
       truncated: entries.length > CODEX_DIRECTORY_ENTRY_LIMIT
     };
@@ -25049,7 +25833,7 @@ function sanitizeThreadList(result) {
   if (!isRecord12(result) || !Array.isArray(result.data)) {
     throw new RpcError("CODEX_INVALID_RESPONSE", "Codex App Server returned an invalid thread list.");
   }
-  const data = result.data.flatMap((value) => {
+  const data2 = result.data.flatMap((value) => {
     if (!isRecord12(value) || typeof value.id !== "string") return [];
     return [{
       id: value.id,
@@ -25066,7 +25850,7 @@ function sanitizeThreadList(result) {
     }];
   });
   return {
-    data,
+    data: data2,
     ...typeof result.nextCursor === "string" && result.nextCursor.length > 0 ? { nextCursor: result.nextCursor } : { nextCursor: null },
     ...typeof result.backwardsCursor === "string" && result.backwardsCursor.length > 0 ? { backwardsCursor: result.backwardsCursor } : {}
   };
@@ -25100,9 +25884,9 @@ function sanitizeProjectList(result) {
   if (!isRecord12(result) || !Array.isArray(result.data)) {
     throw new RpcError("CODEX_INVALID_RESPONSE", "Codex App Server returned an invalid project list.");
   }
-  const data = result.data.flatMap((value) => sanitizeProject(value) ?? []);
+  const data2 = result.data.flatMap((value) => sanitizeProject(value) ?? []);
   return {
-    data,
+    data: data2,
     ...typeof result.nextCursor === "string" && result.nextCursor.length > 0 ? { nextCursor: result.nextCursor } : { nextCursor: null }
   };
 }
@@ -25329,8 +26113,8 @@ var StdioAcpAdapter = class {
   }
   call(method, params, onNotification) {
     const c = this.ensure();
-    const id2 = this.nextId++;
-    c.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: id2, method, params }) + "\n");
+    const id4 = this.nextId++;
+    c.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: id4, method, params }) + "\n");
     return new Promise((resolve3, reject) => {
       let buf = "";
       const onData = async (d) => {
@@ -25340,7 +26124,7 @@ var StdioAcpAdapter = class {
         for (const l of lines) {
           try {
             const m = JSON.parse(l);
-            if (m.id === id2) {
+            if (m.id === id4) {
               c.stdout.off("data", onData);
               m.error ? reject(new Error(m.error.message ?? "ACP error")) : resolve3(m.result);
             } else if (m.method && onNotification) await onNotification(m.params);
@@ -25368,7 +26152,7 @@ var HostPluginRuntime = class {
     this.connections = new ConnectionController(this.identities, (context, send) => {
       const harnessApi = this.apiProxy === void 0 ? void 0 : new HarnessApiBridge(
         this.apiProxy,
-        (event, data) => send(createEvent(event, data)),
+        (event, data2) => send(createEvent(event, data2)),
         void 0,
         this.logger,
         this.localGateway,
@@ -25376,9 +26160,10 @@ var HostPluginRuntime = class {
       );
       const harnessRemote = this.localGateway?.supportsCarrier === true ? new HarnessRemoteBridge(
         this.localGateway,
-        (event, data) => send(createEvent(event, data)),
+        (event, data2) => send(createEvent(event, data2)),
         this.logger,
-        this.harnessVersion
+        this.harnessVersion,
+        new TerminalPolicy(config.terminal.enabled, context.peerDeviceId, this.terminalOwners)
       ) : void 0;
       const fileViewer = new RemoteFileViewerBridge(
         () => this.fileViewerHost?.(),
@@ -25386,7 +26171,7 @@ var HostPluginRuntime = class {
       );
       const codex = this.codex.createPeer(
         context,
-        (event, data) => send(createEvent(event, data))
+        (event, data2) => send(createEvent(event, data2))
       );
       const adapters = (config.acp?.backends ?? []).filter((item) => item.enabled && this.acpAvailable(item.command)).map((item) => new StdioAcpAdapter(item));
       const acp = config.acp?.enabled && adapters.length > 0 ? new AcpGateway(adapters) : void 0;
@@ -25398,7 +26183,8 @@ var HostPluginRuntime = class {
         harnessRemote,
         () => this.hostCapabilities(),
         codex,
-        acp
+        acp,
+        new LoopbackHost(config.loopback.ports)
       );
     }, this.logger);
     if (config.serverUrl !== void 0) {
@@ -25406,6 +26192,7 @@ var HostPluginRuntime = class {
     }
   }
   connections;
+  terminalOwners = /* @__PURE__ */ new Map();
   identity;
   serverApi;
   serverConnection;
@@ -25621,7 +26408,7 @@ var HostPluginRuntime = class {
     let reportedVersion;
     let errorCode5;
     try {
-      const response = await this.apiProxy?.host.describe({ rpcId: randomUUID2(), payload: {} });
+      const response = await this.apiProxy?.host.describe({ rpcId: randomUUID3(), payload: {} });
       if (response === void 0) throw new Error("ApiProxy is unavailable");
       if (!response.result.ok) {
         errorCode5 = response.result.error.code;
@@ -25638,12 +26425,14 @@ var HostPluginRuntime = class {
   }
   hostCapabilities() {
     const capabilities = [];
+    if (this.config.loopback.ports.length > 0) capabilities.push("loopback.http-ws.v1");
     if (this.localGateway?.supportsCarrier === true) {
       capabilities.push(
         harnessSessionGeneration(this.harnessVersion) === "v3" ? "harness.remote.v3" : "harness.remote.v1",
         "harness.remote.transfer.v1"
       );
     }
+    if (this.localGateway?.supportsCarrier && this.config.terminal.enabled) capabilities.push("harness.terminal.v1");
     if (this.apiProxy !== void 0) {
       capabilities.push("harness.api.v1", "harness.api.transfer.v1");
     }
@@ -25671,7 +26460,7 @@ var HostPluginRuntime = class {
     const peer = this.codex.createPeer({
       connectionId: `loopback:${identity.deviceId}`,
       peerDeviceId: identity.deviceId
-    }, (event, data) => this.localCodexPublish(event, data));
+    }, (event, data2) => this.localCodexPublish(event, data2));
     if (peer === void 0) {
       throw new RpcError("CODEX_UNAVAILABLE", "Local CodeX is disabled or unavailable on this Host.");
     }
@@ -25929,11 +26718,11 @@ function helpText() {
     ""
   ].join("\n");
 }
-function write(target, value) {
-  target.write(value);
+function write(target2, value) {
+  target2.write(value);
 }
-function terminalLink(url, target) {
-  if (target.isTTY !== true) return url;
+function terminalLink(url, target2) {
+  if (target2.isTTY !== true) return url;
   return `\x1B]8;;${url}\x07${url}\x1B]8;;\x07`;
 }
 async function exists3(path) {
@@ -25994,10 +26783,10 @@ function installTuiRemoteCommand(ctx, resolveTarget) {
           return { kind: "success" };
         }
         if (command === "logout" && args.length === 1) {
-          const target = resolveTarget();
-          if (target === void 0) return remoteNotReady();
+          const target2 = resolveTarget();
+          if (target2 === void 0) return remoteNotReady();
           try {
-            await target.runtime.clearHostAuthorization();
+            await target2.runtime.clearHostAuthorization();
             return {
               kind: "success",
               text: "Remote Host logged out and its local device identity was rotated."
@@ -26094,11 +26883,11 @@ function remoteCommandChildren(canonicalPath) {
   }
   return [];
 }
-function remoteStatusLines(target) {
-  if (target === void 0) {
+function remoteStatusLines(target2) {
+  if (target2 === void 0) {
     return ["Remote Host is disabled or still starting. Check the ds-harness-remote settings and retry."];
   }
-  const { runtime, config } = target;
+  const { runtime, config } = target2;
   const status2 = runtime.hostStatus();
   const diagnostics = runtime.diagnostics();
   const codex = runtime.codexStatus();
@@ -26110,6 +26899,8 @@ function remoteStatusLines(target) {
     `Device: ${status2.deviceId ?? "not initialized"}`,
     `Authorization: ${status2.authorized ? status2.account === void 0 ? "logged in" : `logged in (${status2.account})` : "logged out"}`,
     `Server connection: ${connection}`,
+    ...status2.error === void 0 ? [] : [`Connection error: ${status2.error}`],
+    ...status2.error === "CONNECTION_REPLACED" ? ["Another instance is using this Host identity. Stop it or use a separate DSH_HOME before reconnecting."] : status2.error === "SERVER_CREDENTIALS_BUSY" ? ["Credential refresh is locked. Stop all instances before removing an orphaned server-credentials.json.refresh-lock and authorizing again."] : status2.accountRequired ? ["Authorize again with /remote login [github|zhihu]."] : [],
     `Harness Remote API: ${capabilities.has("harness.api.v1") ? "available (ApiProxy)" : capabilities.has("harness.remote.v3") ? "available (Typert Remote Session V3)" : capabilities.has("harness.remote.v1") ? "available (Typert Remote)" : "unavailable"}`,
     `Remote clients: ${diagnostics.activeConnections}`,
     `Codex Remote: ${codex.enabled ? codex.state : "disabled"}`,
@@ -26117,8 +26908,8 @@ function remoteStatusLines(target) {
     "Commands: /remote login [github|zhihu] \xB7 /remote status \xB7 /remote logout"
   ];
 }
-function formatRemoteStatusInline(target) {
-  return remoteStatusLines(target).filter(Boolean).join(" \xB7 ");
+function formatRemoteStatusInline(target2) {
+  return remoteStatusLines(target2).filter(Boolean).join(" \xB7 ");
 }
 function remoteCommandUsage() {
   return [
@@ -26159,16 +26950,16 @@ var RemoteLoginController = class {
   }
   async run(attempt, provider) {
     try {
-      const target = this.resolveTarget();
-      if (target === void 0) throw new Error("REMOTE_NOT_READY");
-      const session = await target.runtime.startHostOAuthQrLogin(provider);
+      const target2 = this.resolveTarget();
+      if (target2 === void 0) throw new Error("REMOTE_NOT_READY");
+      const session = await target2.runtime.startHostOAuthQrLogin(provider);
       const [qr, compactQr] = await Promise.all([
         renderTerminalQr(session.scanUrl),
         renderCompactTerminalQr(session.scanUrl)
       ]);
       if (attempt !== this.attempt) return;
       this.update({ phase: "waiting", provider, qr, compactQr, scanUrl: session.scanUrl });
-      await this.poll(attempt, provider, session, target.runtime);
+      await this.poll(attempt, provider, session, target2.runtime);
     } catch (error) {
       if (attempt !== this.attempt) return;
       this.update({ phase: "error", provider, error: errorCode4(error) });

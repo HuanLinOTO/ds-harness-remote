@@ -6,7 +6,7 @@ product
 
 ## Users
 
-Developers who run DeepSeek Harness on more than one workstation or server and want their local Harness UI—or Android—to control a paired remote Harness without opening a remote shell.
+Developers who run DeepSeek Harness on more than one workstation or server and want their local Harness UI—or Android—to control a paired remote Harness with optional, explicitly enabled terminal and development-service preview access.
 
 ## Product Purpose
 

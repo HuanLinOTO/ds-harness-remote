@@ -1,3 +1,5 @@
+import { LoopbackHost } from './loopback-host.js'
+import { TerminalPolicy } from './terminal-policy.js'
 import { randomUUID } from 'node:crypto'
 import type { ApiProxy } from '@deepseek-ai/dsh-host-apiproxy/api'
 import { createEvent } from '@dsh-remote/protocol'
@@ -56,6 +58,7 @@ export interface HostRemoteStatus {
 
 export class HostPluginRuntime {
   readonly connections: ConnectionController
+  private readonly terminalOwners = new Map<string, string>()
   private identity?: HostIdentity
   private readonly serverApi?: HostServerApi
   private serverConnection?: HostServerConnection
@@ -91,6 +94,7 @@ export class HostPluginRuntime {
             (event, data) => send(createEvent(event, data)),
             this.logger,
             this.harnessVersion,
+            new TerminalPolicy(config.terminal.enabled, context.peerDeviceId, this.terminalOwners),
           )
         : undefined
       const fileViewer = new RemoteFileViewerBridge(
@@ -112,6 +116,7 @@ export class HostPluginRuntime {
         () => this.hostCapabilities(),
         codex,
         acp,
+        new LoopbackHost(config.loopback.ports),
       )
     }, this.logger)
     if (config.serverUrl !== undefined) {
@@ -373,12 +378,14 @@ export class HostPluginRuntime {
 
   private hostCapabilities(): string[] {
     const capabilities: string[] = []
+    if (this.config.loopback.ports.length > 0) capabilities.push('loopback.http-ws.v1')
     if (this.localGateway?.supportsCarrier === true) {
       capabilities.push(
         harnessSessionGeneration(this.harnessVersion) === 'v3' ? 'harness.remote.v3' : 'harness.remote.v1',
         'harness.remote.transfer.v1',
       )
     }
+    if (this.localGateway?.supportsCarrier && this.config.terminal.enabled) capabilities.push('harness.terminal.v1')
     if (this.apiProxy !== undefined) {
       capabilities.push('harness.api.v1', 'harness.api.transfer.v1')
     }

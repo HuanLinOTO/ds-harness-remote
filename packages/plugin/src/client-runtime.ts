@@ -1,3 +1,4 @@
+import { LoopbackPreview } from './loopback-preview.js'
 import type { ApiProxy, RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
 import type { CodexAppFrameData, CodexAppStreamClosedData } from '@dsh-remote/protocol'
 import { CodexRemoteClient, RemoteClientCore } from '@dsh-remote/client-core'
@@ -167,6 +168,7 @@ export interface HostAuthorizationControl {
 }
 
 export class ClientModeRuntime {
+  private preview?: LoopbackPreview
   private identity?: HostIdentity
   private connected?: ConnectedRemote
   private pendingWorkspaceSelection?: RemoteWorkspaceSelection
@@ -242,6 +244,11 @@ export class ClientModeRuntime {
     }
   }
 
+  private async closePreview(): Promise<void> {
+    const preview = this.preview; this.preview = undefined
+    await preview?.close()
+  }
+
   private async detailedStatus(): Promise<Record<string, unknown>> {
     const connected = this.connected
     if (connected === undefined || this.identity === undefined) return this.status()
@@ -312,6 +319,7 @@ export class ClientModeRuntime {
     this.pendingWorkspaceSelection = undefined
     await this.closeCodexVirtual()
     this.proxySwitch?.selectLocal()
+    await this.closePreview()
     this.gatewaySwitch.selectLocal()
     await this.closeCodexStreams(previous?.client)
     await previous?.client.close().catch(() => undefined)
@@ -335,6 +343,7 @@ export class ClientModeRuntime {
     if (mode === 'local') {
       await this.closeCodexVirtual()
       this.proxySwitch?.selectLocal()
+      await this.closePreview()
       this.gatewaySwitch.selectLocal()
       const previous = this.connected
       this.connected = undefined
@@ -357,6 +366,7 @@ export class ClientModeRuntime {
       throw error
     }
     const previous = this.connected
+    await this.closePreview()
     this.connected = next
     this.clearConnectionProgress(next.progressRunId)
     this.pendingWorkspaceSelection = undefined
@@ -510,9 +520,11 @@ export class ClientModeRuntime {
   }
 
   async close(): Promise<void> {
+    await this.closePreview()
     if (this.closed) return
     this.closed = true
     this.proxySwitch?.selectLocal()
+    await this.closePreview()
     this.gatewaySwitch.selectLocal()
     this.pendingWorkspaceSelection = undefined
     await this.closeCodexVirtual()
@@ -858,6 +870,7 @@ export class ClientModeRuntime {
       )
       connectedClient.onClose(() => {
         if (this.connected?.client !== connectedClient) return
+        void this.closePreview()
         this.connected = undefined
         this.connectionProgress = undefined
         this.pendingWorkspaceSelection = undefined
@@ -906,6 +919,7 @@ export class ClientModeRuntime {
     if (this.connected?.target.deviceId === targetDeviceId) return this.connected
     const next = await this.connect(targetDeviceId, signal)
     const previous = this.connected
+    await this.closePreview()
     this.connected = next
     this.clearConnectionProgress(next.progressRunId)
     await previous?.client.close().catch(() => undefined)
@@ -972,6 +986,12 @@ export class ClientModeRuntime {
           throw new ClientModeError('INVALID_MESSAGE', 'A QR login session is required.')
         }
         return ok(await this.pollClientOAuthQrLogin(value.qrId))
+      }
+      if (endpoint === 'preview.open') {
+        const remote = this.activeRemote()
+        if (remote === undefined) throw new ClientModeError('TRANSPORT_CLOSED', 'Connect to a Remote Host first.')
+        this.preview ??= new LoopbackPreview(remote.client)
+        return ok(await this.preview.open(record(payload).port as number))
       }
       if (endpoint === 'directory.list') {
         const value = record(payload)

@@ -889,6 +889,9 @@ function disableRemoteSettingsDocument(response: RpcResponse<unknown>): RpcRespo
 const EMPTY_SETTINGS_NAMESPACES: ReadonlySet<string> = new Set()
 
 async function assertRegisteredSettingsNamespace(api: ApiProxy, ns: string): Promise<void> {
+  if (ns === 'ds-harness-remote' || ns === 'dsh-remote') {
+    throw new RpcError('PERMISSION_DENIED', 'Remote access settings can only be changed locally on the Host.')
+  }
   const allowed = await registeredSettingsNamespaces(api)
   if (!allowed.has(ns)) throw deniedSettingsNamespace(ns)
 }

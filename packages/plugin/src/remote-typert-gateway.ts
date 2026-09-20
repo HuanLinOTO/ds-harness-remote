@@ -169,7 +169,8 @@ export class RemoteTypertGateway implements RemoteTypertGatewayTarget {
 }
 
 class AsyncValueQueue implements AsyncIterable<unknown> {
-  private readonly values: unknown[] = []
+  private readonly values: Array<{ value: unknown; bytes: number }> = []
+  private bytes = 0
   private readonly waiters: Array<(result: IteratorResult<unknown>) => void> = []
   private closed = false
   private error?: Error
@@ -177,8 +178,15 @@ class AsyncValueQueue implements AsyncIterable<unknown> {
   push(value: unknown): void {
     if (this.closed) return
     const waiter = this.waiters.shift()
-    if (waiter === undefined) this.values.push(value)
-    else waiter({ done: false, value })
+    if (waiter !== undefined) { waiter({ done: false, value }); return }
+    const bytes = new TextEncoder().encode(JSON.stringify(value) ?? '').byteLength
+    if (this.values.length >= 256 || this.bytes + bytes > 4 * 1024 * 1024) {
+      this.values.length = 0; this.bytes = 0
+      this.fail(new RemoteClientError('TRANSPORT_CLOSED', 'Remote stream consumer is too slow; reconnect to recover.'))
+      return
+    }
+    this.bytes += bytes
+    this.values.push({ value, bytes })
   }
 
   close(): void {
@@ -196,7 +204,9 @@ class AsyncValueQueue implements AsyncIterable<unknown> {
   async *[Symbol.asyncIterator](): AsyncIterator<unknown> {
     while (true) {
       if (this.values.length > 0) {
-        yield this.values.shift()
+        const entry = this.values.shift()!
+        this.bytes -= entry.bytes
+        yield entry.value
         continue
       }
       if (this.closed) {

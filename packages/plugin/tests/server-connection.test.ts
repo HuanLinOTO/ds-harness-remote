@@ -639,6 +639,8 @@ function helloAck(connectionSessionId: string) {
 
 function config(): ResolvedConfig {
   return {
+    terminal: { enabled: false },
+    loopback: { ports: [] },
     enabled: true,
     role: 'host',
     serverUrl: 'https://dsh.r2049.cn',

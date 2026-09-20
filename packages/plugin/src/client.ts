@@ -202,6 +202,8 @@ interface PluginSettings {
   enabled?: boolean
   role?: 'host' | 'client' | 'both'
   serverUrl?: string
+  terminal?: { enabled?: boolean }
+  loopback?: { ports?: number[] }
   forceRelay?: boolean
   logLevel?: 'debug' | 'info' | 'warn' | 'error'
   reconnect?: boolean | {
@@ -242,6 +244,16 @@ interface PluginConfigureResult {
 const localeNamespace = 'ds-harness-remote'
 
 const en = {
+  terminalRemote: 'Remote terminal',
+  terminalRemoteHint: 'Allow trusted Remote devices to run an interactive shell as this Host user. Off by default; independent of Agent approvals.',
+  previewPorts: 'Loopback preview ports',
+  previewPortsHint: 'Allow specific Host ports (1024–65535), separated by commas. Empty disables preview. HTTP, WebSocket and hot reload are supported.',
+  developmentSave: 'Save access settings',
+  developmentSaved: 'Access settings saved. Restart the Host and reconnect to apply them.',
+  previewOpen: 'Preview service',
+  previewPort: 'Host port',
+  previewLocalOnly: 'Preview requires Desktop or a browser connected to Harness on this computer.',
+
   pluginTitle: 'DeepSeek Remote',
   pluginDescription: 'Connect once. Available anytime.',
   expandSettings: 'Show settings: {name}',
@@ -469,6 +481,16 @@ const en = {
 } as const
 
 const zh: Record<keyof typeof en, string> = {
+  terminalRemote: '远程终端',
+  terminalRemoteHint: '允许受信任的 Remote 设备以此 Host 用户身份运行交互式 Shell。默认关闭，独立于 Agent 审批。',
+  previewPorts: 'Loopback 预览端口',
+  previewPortsHint: '填写允许访问的 Host 端口（1024–65535），以逗号分隔。留空禁用预览；支持 HTTP、WebSocket 和热更新。',
+  developmentSave: '保存访问设置',
+  developmentSaved: '访问设置已保存，重启 Host 并重新连接后生效。',
+  previewOpen: '预览服务',
+  previewPort: 'Host 端口',
+  previewLocalOnly: '预览需要 Desktop，或连接到本机 Harness 的浏览器。',
+
   pluginTitle: 'DeepSeek 远程连接',
   pluginDescription: '一次连接，随时可用。',
   expandSettings: '展开设置：{name}',
@@ -1024,6 +1046,8 @@ window.__ModuleLoader__.load({
       const [open, setOpen] = React.useState(false)
       const [serverUrl, setServerUrl] = React.useState('')
       const [codexEnabled, setCodexEnabled] = React.useState(true)
+      const [terminalEnabled, setTerminalEnabled] = React.useState(false)
+      const [previewPorts, setPreviewPorts] = React.useState('')
       const role = 'host' as const
       const [registrationCode, setRegistrationCode] = React.useState('')
       const [associations, setAssociations] = React.useState<Partial<Record<'host' | 'client', PluginAssociation>>>({})
@@ -1053,6 +1077,8 @@ window.__ModuleLoader__.load({
         setSettingsView(view)
         setServerUrl(view.config.serverUrl ?? 'https://dsh.r2049.cn')
         setCodexEnabled(view.config.codex?.enabled ?? true)
+        setTerminalEnabled(view.config.terminal?.enabled ?? false)
+        setPreviewPorts((view.config.loopback?.ports ?? []).join(', '))
         setAcpBackends((view.config.acp?.backends ?? []).map(item => ({ id: item.id, enabled: item.enabled !== false })))
         setAcpAvailability(view.acpAvailability ?? {})
         setAssociations(view.associations ?? (view.association === undefined ? {} : { host: view.association }))
@@ -1223,6 +1249,28 @@ window.__ModuleLoader__.load({
         setError(undefined)
       }
 
+      const developmentSetting = React.createElement('section', { className: 'dshRemoteDevelopmentSettings' },
+        React.createElement('div', { className: 'dshRemoteAuthorizationSetting' },
+          React.createElement('div', null, React.createElement('strong', null, t('terminalRemote')),
+            React.createElement('p', null, t('terminalRemoteHint'))),
+          React.createElement('input', { type: 'checkbox', role: 'switch', checked: terminalEnabled,
+            disabled: busy || !writable, 'aria-label': t('terminalRemote'),
+            onChange: (event: Event) => setTerminalEnabled((event.target as HTMLInputElement).checked) })),
+        React.createElement('label', { className: 'dshRemotePathField' },
+          React.createElement('span', null, t('previewPorts')),
+          React.createElement('input', { value: previewPorts, maxLength: 128, disabled: busy || !writable,
+            placeholder: '3000, 5173', onChange: (event: Event) => setPreviewPorts((event.target as HTMLInputElement).value) }),
+          React.createElement('small', null, t('previewPortsHint'))),
+        React.createElement('button', { type: 'button', disabled: busy || !writable,
+          onClick: () => {
+            setBusy(true); setError(undefined); setNotice(undefined)
+            const ports = previewPorts.trim() === '' ? [] : previewPorts.split(/[,，]/).map(value => Number(value.trim()))
+            void props.control<PluginSettingsView>('settings.development.set', { terminalEnabled, ports })
+              .then(view => { applyView(view); setNotice({ key: 'developmentSaved' }) })
+              .catch(reason => setError(messageOf(reason))).finally(() => setBusy(false))
+          },
+        }, t('developmentSave')))
+
       const codexSetting = React.createElement('div', { className: 'dshRemoteAuthorizationSetting' },
         React.createElement('div', null,
           React.createElement('strong', null, t('codexRemote')),
@@ -1298,6 +1346,7 @@ window.__ModuleLoader__.load({
             onChange: (event: Event) => { setServerUrl((event.target as HTMLInputElement).value); setNotice(undefined) },
           }),
           React.createElement('p', null, t('serverUrlHint'))),
+        developmentSetting,
         codexSetting,
         acpSetting,
         React.createElement('div', { className: 'dshRemoteAuthorizationSetting' },
@@ -1361,6 +1410,7 @@ window.__ModuleLoader__.load({
             onChange: (event: Event) => { setServerUrl((event.target as HTMLInputElement).value); setNotice(undefined) },
           }),
           React.createElement('p', null, t('serverUrlHint'))),
+        developmentSetting,
         codexSetting,
         acpSetting,
         React.createElement('p', { className: 'dshRemoteSettingsState' }, t('authorizeFromRemote')),
@@ -2376,7 +2426,34 @@ window.__ModuleLoader__.load({
           : null)
     }
 
+    function RemotePreviewAction(props: { control: <T>(endpoint: string, payload?: unknown) => Promise<T>; t: Translate; openPreviewUrl: (url: string) => void }): unknown {
+      const [open, setOpen] = React.useState(false)
+      const [port, setPort] = React.useState('5173')
+      const [busy, setBusy] = React.useState(false)
+      const [error, setError] = React.useState<string | undefined>(undefined)
+      const launch = async (): Promise<void> => {
+        const local = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) || window.location.hostname.endsWith('.localhost')
+        if (!local) { setError(props.t('previewLocalOnly')); return }
+        setBusy(true); setError(undefined)
+        try {
+          const result = await props.control<{ url: string }>('preview.open', { port: Number(port) })
+          props.openPreviewUrl(result.url)
+          setOpen(false)
+        } catch (reason) { setError(messageOf(reason)) }
+        finally { setBusy(false) }
+      }
+      return React.createElement('span', { className: 'dshRemotePreviewAction' },
+        React.createElement('button', { type: 'button', 'aria-expanded': open, onClick: () => setOpen(value => !value) }, props.t('previewOpen')),
+        !open ? null : React.createElement('span', { className: 'dshRemotePreviewForm' },
+          React.createElement('input', { type: 'number', min: 1024, max: 65535, value: port, 'aria-label': props.t('previewPort'),
+            onChange: (event: Event) => setPort((event.target as HTMLInputElement).value) }),
+          React.createElement('button', { type: 'button', disabled: busy || !Number.isInteger(Number(port)) || Number(port) < 1024 || Number(port) > 65535,
+            onClick: () => void launch() }, props.t('previewOpen')),
+          error === undefined ? null : React.createElement('span', { role: 'alert' }, error)))
+    }
+
     function RemoteSessionHeaderAction(props: {
+      openPreviewUrl: (url: string) => void
       control: <T>(endpoint: string, payload?: unknown) => Promise<T>
       statusFeed: StatusFeed<RemoteStatus>
       t: Translate
@@ -2487,6 +2564,7 @@ window.__ModuleLoader__.load({
           onClick: () => setRouteOpen(value => !value),
         }, React.createElement('i', { 'aria-hidden': true }), networkLabel),
         networkOnline ? React.createElement('span', { className: 'dshRemoteEncrypted' }, t('remoteLinkEncrypted')) : null,
+        networkOnline ? React.createElement(RemotePreviewAction, props) : null,
         React.createElement('button', { type: 'button', className: 'dshRemoteHeaderExitLink', disabled: busy, onClick: () => void exit() }, t('exitRemote')),
         !routeOpen ? null : React.createElement('div', {
           className: 'dshRemoteRouteBackdrop',
@@ -2620,6 +2698,7 @@ window.__ModuleLoader__.load({
         '.dshRemoteWorkspaceLists{overflow:visible}',
         '.dshRemoteDirectoryList{min-height:72px;display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteDirectoryList>button{min-height:52px;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:8px 4px;cursor:pointer}.dshRemoteDirectoryList>button:hover,.dshRemoteDirectoryList>button.isSelected{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteDirectoryList>button.isSelected{color:var(--dsw-alias-label-primary)}.dshRemoteDirectoryList>button>span:first-child,.dshRemoteDirectoryList>button>.dshRemoteWorkspaceIcon{grid-row:1/3}.dshRemoteWorkspaceIcon{box-sizing:border-box;width:22px;height:22px;align-self:center;object-fit:contain}.dshRemoteWorkspaceIcon.isGpt{border-radius:6px}.dshRemoteDirectoryList>button>span:not(:first-child),.dshRemoteDirectoryList>button>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteDirectoryList>button>small{grid-column:2;color:var(--dsw-alias-label-secondary)}.dshRemoteDirectoryList>p,.dshRemoteHint{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}',
         '.dshRemoteAddWorkspace{box-sizing:border-box;width:40px;height:40px;display:inline-grid;place-items:center;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;cursor:pointer}.dshRemoteAddWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteAddWorkspace:disabled{opacity:.5;cursor:default}.dshRemoteAddWorkspaceIcon{width:20px;height:20px}.dshRemoteCodexWorkspaceGroup{margin-top:16px}.dshRemoteWorkspaceSourceHeading{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 4px 7px}.dshRemoteWorkspaceSourceText{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteWorkspaceSourceText>strong{font-size:13px}.dshRemoteWorkspaceSourceText>small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteCodexWorkspaceList{min-height:0}.dshRemoteDirectoryList>.dshRemoteWorkspaceMore,.dshRemoteCodexWorkspaceGroup>.dshRemoteWorkspaceMore{box-sizing:border-box;width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);padding:8px 4px;text-align:center;font-size:16px;cursor:pointer}.dshRemoteWorkspaceMore>span{display:block;line-height:1;transform:translateY(-2px)}.dshRemoteWorkspaceMore:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:transparent}.dshRemoteWorkspaceMore:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteWorkspaceMore:disabled{opacity:.5;cursor:default}',
+        '.dshRemotePreviewAction,.dshRemotePreviewForm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.dshRemotePreviewForm input{width:90px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);padding:6px}.dshRemotePreviewForm [role=alert]{max-width:360px;white-space:normal}.dshRemoteDevelopmentSettings{margin:16px 0}.dshRemoteDevelopmentSettings .dshRemotePathField{margin:8px 0}.dshRemoteDevelopmentSettings button{min-height:36px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:6px 12px}',
         '.dshRemoteFolderBrowser{margin-top:14px}.dshRemoteFolderBrowser>p,.dshRemoteFolderList>p{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}.dshRemoteFolderList{max-height:260px;overflow:auto;border-block:1px solid var(--dsw-alias-border-l2)}.dshRemoteFolderList>button{width:100%;min-height:42px;display:flex;align-items:center;gap:9px;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:7px 6px;text-align:left;cursor:pointer}.dshRemoteFolderList>button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteFolderBrowser>small{display:block;margin-top:8px;color:var(--dsw-alias-state-warn-label)}',
         '.dshRemotePathField{display:flex;flex-direction:column;gap:6px;margin-top:20px}.dshRemotePathField>span{font-size:13px;font-weight:600}.dshRemotePathField>input{min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemotePathField>small{color:var(--dsw-alias-label-secondary)}',
         '.dshRemoteOpenBar{position:sticky;bottom:-96px;display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:20px;padding:14px 0;background:var(--dsw-alias-bg-layer-1);border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteOpenBar>div{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteOpenBar span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteOpenBar strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.dshRemoteOpenBar>button,.dshRemoteEnable>button{min-height:40px;flex:0 0 auto;border:0;border-radius:8px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-1);padding:8px 16px;cursor:pointer}.dshRemoteOpenBar>button:disabled,.dshRemoteEnable>button:disabled{opacity:.5;cursor:default}',
@@ -2807,7 +2886,11 @@ window.__ModuleLoader__.load({
         id: 'ds-harness-remote-global-context',
         order: 20,
         locale: localeNamespace,
-        inject: () => ({ control, statusFeed }),
+        inject: () => ({ control, statusFeed, openPreviewUrl: (url: string) => {
+           const sidebar = ctx.get('sidebarRight') as { openTab(kind: string, options: { params: { url: string } }): void } | undefined
+           if (sidebar !== undefined) sidebar.openTab('browser', { params: { url } })
+           else window.open(url, '_blank', 'noopener,noreferrer')
+        } }),
       }, RemoteSessionHeaderAction))
       ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
         name: 'sidebar.footer.action',

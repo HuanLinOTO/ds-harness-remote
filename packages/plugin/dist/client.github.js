@@ -1770,6 +1770,15 @@ Minimum version required to store current data is: ` + bestVersion + `.
     return snapshot.baselinesReady === !0 || snapshot.phase === "ready";
   }
   var localeNamespace = "ds-harness-remote", en = {
+    terminalRemote: "Remote terminal",
+    terminalRemoteHint: "Allow trusted Remote devices to run an interactive shell as this Host user. Off by default; independent of Agent approvals.",
+    previewPorts: "Loopback preview ports",
+    previewPortsHint: "Allow specific Host ports (1024\u201365535), separated by commas. Empty disables preview. HTTP, WebSocket and hot reload are supported.",
+    developmentSave: "Save access settings",
+    developmentSaved: "Access settings saved. Restart the Host and reconnect to apply them.",
+    previewOpen: "Preview service",
+    previewPort: "Host port",
+    previewLocalOnly: "Preview requires Desktop or a browser connected to Harness on this computer.",
     pluginTitle: "DeepSeek Remote",
     pluginDescription: "Connect once. Available anytime.",
     expandSettings: "Show settings: {name}",
@@ -1995,6 +2004,15 @@ Minimum version required to store current data is: ` + bestVersion + `.
     codexVirtualWorkspace: "CodeX virtual workspace",
     codexVirtualSessions: "Sessions"
   }, zh = {
+    terminalRemote: "\u8FDC\u7A0B\u7EC8\u7AEF",
+    terminalRemoteHint: "\u5141\u8BB8\u53D7\u4FE1\u4EFB\u7684 Remote \u8BBE\u5907\u4EE5\u6B64 Host \u7528\u6237\u8EAB\u4EFD\u8FD0\u884C\u4EA4\u4E92\u5F0F Shell\u3002\u9ED8\u8BA4\u5173\u95ED\uFF0C\u72EC\u7ACB\u4E8E Agent \u5BA1\u6279\u3002",
+    previewPorts: "Loopback \u9884\u89C8\u7AEF\u53E3",
+    previewPortsHint: "\u586B\u5199\u5141\u8BB8\u8BBF\u95EE\u7684 Host \u7AEF\u53E3\uFF081024\u201365535\uFF09\uFF0C\u4EE5\u9017\u53F7\u5206\u9694\u3002\u7559\u7A7A\u7981\u7528\u9884\u89C8\uFF1B\u652F\u6301 HTTP\u3001WebSocket \u548C\u70ED\u66F4\u65B0\u3002",
+    developmentSave: "\u4FDD\u5B58\u8BBF\u95EE\u8BBE\u7F6E",
+    developmentSaved: "\u8BBF\u95EE\u8BBE\u7F6E\u5DF2\u4FDD\u5B58\uFF0C\u91CD\u542F Host \u5E76\u91CD\u65B0\u8FDE\u63A5\u540E\u751F\u6548\u3002",
+    previewOpen: "\u9884\u89C8\u670D\u52A1",
+    previewPort: "Host \u7AEF\u53E3",
+    previewLocalOnly: "\u9884\u89C8\u9700\u8981 Desktop\uFF0C\u6216\u8FDE\u63A5\u5230\u672C\u673A Harness \u7684\u6D4F\u89C8\u5668\u3002",
     pluginTitle: "DeepSeek \u8FDC\u7A0B\u8FDE\u63A5",
     pluginDescription: "\u4E00\u6B21\u8FDE\u63A5\uFF0C\u968F\u65F6\u53EF\u7528\u3002",
     expandSettings: "\u5C55\u5F00\u8BBE\u7F6E\uFF1A{name}",
@@ -2412,8 +2430,8 @@ Minimum version required to store current data is: ` + bestVersion + `.
         }
       }
       function RemotePluginOptions(props) {
-        let { t } = props, [open, setOpen] = React.useState(!1), [serverUrl, setServerUrl] = React.useState(""), [codexEnabled, setCodexEnabled] = React.useState(!0), role = "host", [registrationCode, setRegistrationCode] = React.useState(""), [associations, setAssociations] = React.useState({}), [loaded, setLoaded] = React.useState(!1), [writable, setWritable] = React.useState(!1), [busy, setBusy] = React.useState(!1), [codexBusy, setCodexBusy] = React.useState(!1), [acpBackends, setAcpBackends] = React.useState([]), [acpAvailability, setAcpAvailability] = React.useState({}), [acpChecking, setAcpChecking] = React.useState({}), [acpCheckResults, setAcpCheckResults] = React.useState({}), [addingAcp, setAddingAcp] = React.useState(!1), [acpName, setAcpName] = React.useState(""), [acpCommand, setAcpCommand] = React.useState(""), [acpArguments, setAcpArguments] = React.useState("acp"), [reconnectBusy, setReconnectBusy] = React.useState(!1), [hostStatus, setHostStatus] = React.useState(void 0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [settingsView, setSettingsView] = React.useState(void 0), persistedServerUrl = settingsView?.config.serverUrl ?? "https://dsh.r2049.cn", association = associations.client ?? associations.host, serverDirty = settingsView !== void 0 && serverUrl !== persistedServerUrl, draftDirty = serverDirty, applyView = (view) => {
-          setSettingsView(view), setServerUrl(view.config.serverUrl ?? "https://dsh.r2049.cn"), setCodexEnabled(view.config.codex?.enabled ?? !0), setAcpBackends((view.config.acp?.backends ?? []).map((item) => ({ id: item.id, enabled: item.enabled !== !1 }))), setAcpAvailability(view.acpAvailability ?? {}), setAssociations(view.associations ?? (view.association === void 0 ? {} : { host: view.association })), setWritable(view.writable), setLoaded(!0);
+        let { t } = props, [open, setOpen] = React.useState(!1), [serverUrl, setServerUrl] = React.useState(""), [codexEnabled, setCodexEnabled] = React.useState(!0), [terminalEnabled, setTerminalEnabled] = React.useState(!1), [previewPorts, setPreviewPorts] = React.useState(""), role = "host", [registrationCode, setRegistrationCode] = React.useState(""), [associations, setAssociations] = React.useState({}), [loaded, setLoaded] = React.useState(!1), [writable, setWritable] = React.useState(!1), [busy, setBusy] = React.useState(!1), [codexBusy, setCodexBusy] = React.useState(!1), [acpBackends, setAcpBackends] = React.useState([]), [acpAvailability, setAcpAvailability] = React.useState({}), [acpChecking, setAcpChecking] = React.useState({}), [acpCheckResults, setAcpCheckResults] = React.useState({}), [addingAcp, setAddingAcp] = React.useState(!1), [acpName, setAcpName] = React.useState(""), [acpCommand, setAcpCommand] = React.useState(""), [acpArguments, setAcpArguments] = React.useState("acp"), [reconnectBusy, setReconnectBusy] = React.useState(!1), [hostStatus, setHostStatus] = React.useState(void 0), [notice, setNotice] = React.useState(void 0), [error, setError] = React.useState(void 0), [settingsView, setSettingsView] = React.useState(void 0), persistedServerUrl = settingsView?.config.serverUrl ?? "https://dsh.r2049.cn", association = associations.client ?? associations.host, serverDirty = settingsView !== void 0 && serverUrl !== persistedServerUrl, draftDirty = serverDirty, applyView = (view) => {
+          setSettingsView(view), setServerUrl(view.config.serverUrl ?? "https://dsh.r2049.cn"), setCodexEnabled(view.config.codex?.enabled ?? !0), setTerminalEnabled(view.config.terminal?.enabled ?? !1), setPreviewPorts((view.config.loopback?.ports ?? []).join(", ")), setAcpBackends((view.config.acp?.backends ?? []).map((item) => ({ id: item.id, enabled: item.enabled !== !1 }))), setAcpAvailability(view.acpAvailability ?? {}), setAssociations(view.associations ?? (view.association === void 0 ? {} : { host: view.association })), setWritable(view.writable), setLoaded(!0);
         }, load = async () => {
           let [view, status] = await Promise.all([
             props.control("settings.get"),
@@ -2525,7 +2543,52 @@ Minimum version required to store current data is: ` + bestVersion + `.
           }
         }, discard = () => {
           settingsView !== void 0 && applyView(settingsView), setRegistrationCode(""), setNotice(void 0), setError(void 0);
-        }, codexSetting = React.createElement(
+        }, developmentSetting = React.createElement(
+          "section",
+          { className: "dshRemoteDevelopmentSettings" },
+          React.createElement(
+            "div",
+            { className: "dshRemoteAuthorizationSetting" },
+            React.createElement(
+              "div",
+              null,
+              React.createElement("strong", null, t("terminalRemote")),
+              React.createElement("p", null, t("terminalRemoteHint"))
+            ),
+            React.createElement("input", {
+              type: "checkbox",
+              role: "switch",
+              checked: terminalEnabled,
+              disabled: busy || !writable,
+              "aria-label": t("terminalRemote"),
+              onChange: (event) => setTerminalEnabled(event.target.checked)
+            })
+          ),
+          React.createElement(
+            "label",
+            { className: "dshRemotePathField" },
+            React.createElement("span", null, t("previewPorts")),
+            React.createElement("input", {
+              value: previewPorts,
+              maxLength: 128,
+              disabled: busy || !writable,
+              placeholder: "3000, 5173",
+              onChange: (event) => setPreviewPorts(event.target.value)
+            }),
+            React.createElement("small", null, t("previewPortsHint"))
+          ),
+          React.createElement("button", {
+            type: "button",
+            disabled: busy || !writable,
+            onClick: () => {
+              setBusy(!0), setError(void 0), setNotice(void 0);
+              let ports = previewPorts.trim() === "" ? [] : previewPorts.split(/[,，]/).map((value) => Number(value.trim()));
+              props.control("settings.development.set", { terminalEnabled, ports }).then((view) => {
+                applyView(view), setNotice({ key: "developmentSaved" });
+              }).catch((reason) => setError(messageOf(reason))).finally(() => setBusy(!1));
+            }
+          }, t("developmentSave"))
+        ), codexSetting = React.createElement(
           "div",
           { className: "dshRemoteAuthorizationSetting" },
           React.createElement(
@@ -2659,6 +2722,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
                 }),
                 React.createElement("p", null, t("serverUrlHint"))
               ),
+              developmentSetting,
               codexSetting,
               acpSetting,
               React.createElement(
@@ -2742,6 +2806,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
                 }),
                 React.createElement("p", null, t("serverUrlHint"))
               ),
+              developmentSetting,
               codexSetting,
               acpSetting,
               React.createElement("p", { className: "dshRemoteSettingsState" }, t("authorizeFromRemote")),
@@ -3600,6 +3665,46 @@ Minimum version required to store current data is: ` + bestVersion + `.
           ) : null
         ) : null;
       }
+      function RemotePreviewAction(props) {
+        let [open, setOpen] = React.useState(!1), [port, setPort] = React.useState("5173"), [busy, setBusy] = React.useState(!1), [error, setError] = React.useState(void 0), launch = async () => {
+          if (!(["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) || window.location.hostname.endsWith(".localhost"))) {
+            setError(props.t("previewLocalOnly"));
+            return;
+          }
+          setBusy(!0), setError(void 0);
+          try {
+            let result = await props.control("preview.open", { port: Number(port) });
+            props.openPreviewUrl(result.url), setOpen(!1);
+          } catch (reason) {
+            setError(messageOf(reason));
+          } finally {
+            setBusy(!1);
+          }
+        };
+        return React.createElement(
+          "span",
+          { className: "dshRemotePreviewAction" },
+          React.createElement("button", { type: "button", "aria-expanded": open, onClick: () => setOpen((value) => !value) }, props.t("previewOpen")),
+          open ? React.createElement(
+            "span",
+            { className: "dshRemotePreviewForm" },
+            React.createElement("input", {
+              type: "number",
+              min: 1024,
+              max: 65535,
+              value: port,
+              "aria-label": props.t("previewPort"),
+              onChange: (event) => setPort(event.target.value)
+            }),
+            React.createElement("button", {
+              type: "button",
+              disabled: busy || !Number.isInteger(Number(port)) || Number(port) < 1024 || Number(port) > 65535,
+              onClick: () => void launch()
+            }, props.t("previewOpen")),
+            error === void 0 ? null : React.createElement("span", { role: "alert" }, error)
+          ) : null
+        );
+      }
       function RemoteSessionHeaderAction(props) {
         let { t } = props, status = React.useSyncExternalStore(
           props.statusFeed.subscribe,
@@ -3655,6 +3760,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
             onClick: () => setRouteOpen((value) => !value)
           }, React.createElement("i", { "aria-hidden": !0 }), networkLabel),
           networkOnline ? React.createElement("span", { className: "dshRemoteEncrypted" }, t("remoteLinkEncrypted")) : null,
+          networkOnline ? React.createElement(RemotePreviewAction, props) : null,
           React.createElement("button", { type: "button", className: "dshRemoteHeaderExitLink", disabled: busy, onClick: () => void exit() }, t("exitRemote")),
           routeOpen ? React.createElement("div", {
             className: "dshRemoteRouteBackdrop",
@@ -3803,6 +3909,7 @@ Minimum version required to store current data is: ` + bestVersion + `.
           ".dshRemoteWorkspaceLists{overflow:visible}",
           ".dshRemoteDirectoryList{min-height:72px;display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteDirectoryList>button{min-height:52px;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:10px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:8px 4px;cursor:pointer}.dshRemoteDirectoryList>button:hover,.dshRemoteDirectoryList>button.isSelected{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteDirectoryList>button.isSelected{color:var(--dsw-alias-label-primary)}.dshRemoteDirectoryList>button>span:first-child,.dshRemoteDirectoryList>button>.dshRemoteWorkspaceIcon{grid-row:1/3}.dshRemoteWorkspaceIcon{box-sizing:border-box;width:22px;height:22px;align-self:center;object-fit:contain}.dshRemoteWorkspaceIcon.isGpt{border-radius:6px}.dshRemoteDirectoryList>button>span:not(:first-child),.dshRemoteDirectoryList>button>small{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dshRemoteDirectoryList>button>small{grid-column:2;color:var(--dsw-alias-label-secondary)}.dshRemoteDirectoryList>p,.dshRemoteHint{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}",
           ".dshRemoteAddWorkspace{box-sizing:border-box;width:40px;height:40px;display:inline-grid;place-items:center;flex:0 0 auto;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);padding:0;cursor:pointer}.dshRemoteAddWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteAddWorkspace:disabled{opacity:.5;cursor:default}.dshRemoteAddWorkspaceIcon{width:20px;height:20px}.dshRemoteCodexWorkspaceGroup{margin-top:16px}.dshRemoteWorkspaceSourceHeading{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 4px 7px}.dshRemoteWorkspaceSourceText{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteWorkspaceSourceText>strong{font-size:13px}.dshRemoteWorkspaceSourceText>small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteCodexWorkspaceList{min-height:0}.dshRemoteDirectoryList>.dshRemoteWorkspaceMore,.dshRemoteCodexWorkspaceGroup>.dshRemoteWorkspaceMore{box-sizing:border-box;width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-secondary);padding:8px 4px;text-align:center;font-size:16px;cursor:pointer}.dshRemoteWorkspaceMore>span{display:block;line-height:1;transform:translateY(-2px)}.dshRemoteWorkspaceMore:hover:not(:disabled){color:var(--dsw-alias-label-primary);background:transparent}.dshRemoteWorkspaceMore:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}.dshRemoteWorkspaceMore:disabled{opacity:.5;cursor:default}",
+          ".dshRemotePreviewAction,.dshRemotePreviewForm{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}.dshRemotePreviewForm input{width:90px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);padding:6px}.dshRemotePreviewForm [role=alert]{max-width:360px;white-space:normal}.dshRemoteDevelopmentSettings{margin:16px 0}.dshRemoteDevelopmentSettings .dshRemotePathField{margin:8px 0}.dshRemoteDevelopmentSettings button{min-height:36px;color:inherit;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:6px 12px}",
           ".dshRemoteFolderBrowser{margin-top:14px}.dshRemoteFolderBrowser>p,.dshRemoteFolderList>p{margin:12px 0;color:var(--dsw-alias-label-secondary);font-size:13px}.dshRemoteFolderList{max-height:260px;overflow:auto;border-block:1px solid var(--dsw-alias-border-l2)}.dshRemoteFolderList>button{width:100%;min-height:42px;display:flex;align-items:center;gap:9px;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:7px 6px;text-align:left;cursor:pointer}.dshRemoteFolderList>button:hover{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteFolderBrowser>small{display:block;margin-top:8px;color:var(--dsw-alias-state-warn-label)}",
           ".dshRemotePathField{display:flex;flex-direction:column;gap:6px;margin-top:20px}.dshRemotePathField>span{font-size:13px;font-weight:600}.dshRemotePathField>input{min-height:40px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);color:inherit;padding:0 12px;font:inherit}.dshRemotePathField>small{color:var(--dsw-alias-label-secondary)}",
           ".dshRemoteOpenBar{position:sticky;bottom:-96px;display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:20px;padding:14px 0;background:var(--dsw-alias-bg-layer-1);border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteOpenBar>div{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteOpenBar span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteOpenBar strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.dshRemoteOpenBar>button,.dshRemoteEnable>button{min-height:40px;flex:0 0 auto;border:0;border-radius:8px;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-1);padding:8px 16px;cursor:pointer}.dshRemoteOpenBar>button:disabled,.dshRemoteEnable>button:disabled{opacity:.5;cursor:default}",
@@ -3903,7 +4010,10 @@ Minimum version required to store current data is: ` + bestVersion + `.
           id: "ds-harness-remote-global-context",
           order: 20,
           locale: localeNamespace,
-          inject: () => ({ control, statusFeed })
+          inject: () => ({ control, statusFeed, openPreviewUrl: (url) => {
+            let sidebar = ctx.get("sidebarRight");
+            sidebar !== void 0 ? sidebar.openTab("browser", { params: { url } }) : window.open(url, "_blank", "noopener,noreferrer");
+          } })
         }, RemoteSessionHeaderAction)), ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
           name: "sidebar.footer.action",
           id: "ds-harness-remote-workspace",

@@ -5,6 +5,8 @@ export interface Config {
   role?: 'host' | 'client' | 'both'
   serverUrl?: string
   deviceName?: string
+  terminal?: { enabled?: boolean }
+  loopback?: { ports?: number[] }
   forceRelay?: boolean
   logLevel?: 'debug' | 'info' | 'warn' | 'error'
   reconnect?: boolean | {

@@ -1,3 +1,4 @@
+import { waitForRelayCapacity, SerialSend } from '@dsh-remote/webrtc'
 import {
   NoiseIkSession,
   createNoisePrologue,
@@ -758,6 +759,10 @@ export class HostServerConnection {
   private async sendRelay(tunnel: PendingTunnel, ciphertext: Uint8Array): Promise<void> {
     const counter = Number(tunnel.noise.sendingCounter() - 1n)
     if (!Number.isSafeInteger(counter) || counter < 0) throw new ControlConnectionError('FRAME_TOO_LARGE', 'Noise transport counter overflowed.')
+    const socket = this.socket
+    if (socket === undefined) throw new Error('Relay transport closed')
+    await waitForRelayCapacity(socket)
+    if (this.socket !== socket) throw new Error('Relay transport replaced')
     this.sendControl('relay', {
       connectionId: tunnel.connectionId,
       targetDeviceId: tunnel.peer.deviceId,
@@ -832,6 +837,7 @@ const TERMINAL_AUTH_ERRORS = new Set([
 ])
 
 class ServerNoiseChannel implements AuthenticatedPeerChannel {
+  private readonly sends = new SerialSend()
   readonly security
   readonly peerDeviceId: string
   readonly peerIdentityKey: string
@@ -859,11 +865,12 @@ class ServerNoiseChannel implements AuthenticatedPeerChannel {
 
   async send(message: RemoteMessage): Promise<void> {
     if (this.closed) throw new Error('secure channel is closed')
-    const plaintextFrames = this.outgoing.encode(encodeMessage(message))
+    const encoded = encodeMessage(message)
     try {
-      for (const plaintext of plaintextFrames) {
-        await this.transmit(this.tunnel.noise.encrypt(plaintext))
-      }
+      await this.sends.run(encoded.byteLength, async () => {
+        if (this.closed) throw new Error('Secure channel closed')
+        for (const plaintext of this.outgoing.encode(encoded)) await this.transmit(this.tunnel.noise.encrypt(plaintext))
+      })
     } catch (error) {
       await this.close().catch(() => undefined)
       throw error
