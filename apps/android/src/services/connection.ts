@@ -1,9 +1,10 @@
-import { CodexRemoteClient, HarnessAlphaClient, RemoteClientCore, probeRemoteHostFeatures } from '@dsh-remote/client-core'
+import { RemoteTypertGateway, CodexRemoteClient, HarnessAlphaClient, RemoteClientCore, probeRemoteHostFeatures } from '@dsh-remote/client-core'
 import { AdaptiveTransport, type AdaptiveConnectionDetails, type RtcIceServer } from '@dsh-remote/webrtc'
 import { websocketUrl } from '../lib/server-url'
 import { strings } from '../locales/i18n'
 import type { DeviceIdentity, MuxStreamFrame, RemoteDevice } from '../types'
 import { RemoteApiProxy } from './api-proxy'
+import { HarnessSessionTools } from './session-tools'
 import { SecureTransport } from './secure-transport'
 
 export type MuxFrameHandler = (frame: MuxStreamFrame) => void
@@ -22,6 +23,7 @@ export class AndroidRemoteConnection {
   private core?: RemoteClientCore
   private proxy?: RemoteHarnessClient
   private codex?: CodexRemoteClient
+  private sessionTools?: HarnessSessionTools
   private closeMux?: (notifyRemote?: boolean) => Promise<void>
   private unsubscribeClose?: () => void
   private muxHandler?: MuxFrameHandler
@@ -89,6 +91,7 @@ export class AndroidRemoteConnection {
         this.core = undefined
         this.proxy = undefined
         this.codex = undefined
+        this.sessionTools = undefined
         if (!replacingFallback) options.onClose?.()
       })
       await core.connect()
@@ -116,6 +119,7 @@ export class AndroidRemoteConnection {
         this.codex = new CodexRemoteClient(core)
       }
       if (features.remoteGateway) {
+        this.sessionTools = new HarnessSessionTools(new RemoteTypertGateway(core))
         const alpha = new HarnessAlphaClient(
           core,
           {
@@ -153,6 +157,11 @@ export class AndroidRemoteConnection {
     return this.codex
   }
 
+  requireSessionTools(): HarnessSessionTools {
+    if (this.sessionTools === undefined) throw Object.assign(new Error('Native session tools require a compatible Host.'), { code: 'FEATURE_NOT_SUPPORTED' })
+    return this.sessionTools
+  }
+
   hasCodex(): boolean {
     return this.codex !== undefined
   }
@@ -180,6 +189,7 @@ export class AndroidRemoteConnection {
     this.transport = undefined
     this.proxy = undefined
     this.codex = undefined
+    this.sessionTools = undefined
     if (core !== undefined) await core.close()
   }
 }

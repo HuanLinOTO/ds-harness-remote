@@ -942,6 +942,11 @@ permission id、decision enum 或额外响应状态机。
 扩展可调用业务面。直接调用若收到 `RESPONSE_TOO_LARGE`，Client 必须以相同请求自动重试一次
 该分块路径；其他错误不得触发隐式重试。
 
+新版 DSH 0.1.6 的 `permissions` Session 投影仅保留 `currentValue`；选项通过官方
+`permissionPresets/catalog`（`{ args: {} }`）读取，返回 `{ options: [{ value, name, description? }] }`。
+Host 固定 allowlist 仅增加该只读 endpoint；预设切换继续使用官方 `commands/execute`。
+旧版投影自带 `options` 时继续使用原选项。catalog 不可用时不得猜测选项或提升权限。
+
 ### Native sidebar: read-only files and opt-in terminal
 
 Harness `0.1.6-alpha.2` 原生侧栏通过现有 `harness.remote.*` carrier 传输；不新增 Harness wire format。
@@ -950,10 +955,10 @@ Harness `0.1.6-alpha.2` 原生侧栏通过现有 `harness.remote.*` carrier 传�
 注意：上游 `list` / `changes` 限于工作区；文件读取遵循 Session 文件系统权限，允许工作区外的已授权文件，
 不能把“只读”表述成“只能读取 cwd 内文件”。旧 `fileviewer.read.v1` 仍使用 provider 授权。
 
-`terminal.enabled` 默认 false。开启并重启 Host 后，在加密 capability 探测中宣告 `harness.terminal.v1`。
+`terminal.enabled` 默认 false。Host 本地开关切换即保存并更新拦截，在后续加密 capability 探测中宣告 `harness.terminal.v1`。
 只允许 unary `terminal/environment|shells|list|create|write|resize|rename|close` 与 stream
 `terminal/follow|retain`；不允许 wildcard、exec、spawn 或改变官方终端语义。
-关闭时，任何终端调用都返回 `TERMINAL_DISABLED`，提示用户在 Host 本地开启开关并重启重连。
+关闭时，任何终端调用都返回 `TERMINAL_DISABLED`，提示用户在 Host 本地开启开关后重试。
 这个提示不能用于一般登录/连接失败。开关是对受信任 Remote 设备的 Shell 授权，不是 Agent 审批：
 终端继承 Host 执行环境系统用户权限，cwd 不是 filesystem sandbox。
 

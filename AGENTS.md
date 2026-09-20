@@ -184,3 +184,19 @@ Plugin 凭据刷新使用跨进程目录锁，获得锁后重新读取凭据；�
 ## Native sidebar and development preview (2026-09-20)
 
 开发依赖升级到 Harness `0.1.6-alpha.2`。终端与 loopback 设置只能在 Host 本地修改，`settings/update|replace|mutate` 禁止远程修改 `ds-harness-remote` 和 `dsh-remote`。终端默认关闭；loopback 默认无端口。「远程终端」开关切换即保存并立即更新运行时拦截，「保存访问设置」按钮只提交 Loopback 端口（位于端口输入框右侧）；两者都无需重启 Host。预览入口位于 Remote Header「预览服务」，第一版限 Desktop / 连接本机 Harness 的浏览器；不把本机预览 URL 作为远程 Web 或 Android 可用地址。跨机、Windows 和真实网络热更新回归仍需另行验证。
+
+## Android native tools (2026-09-21)
+
+Android Harness 会话已接入 Files/Terminal：官方 workspaceFiles 目录与分页文本只读预览，
+terminal 创建/list/follow/retain/write/resize/close；不对 CodeX 投影开放。终端使用本地打包
+xterm + react-native-webview，需重新构建 APK。`apps/android/scripts/build-terminal.mjs` 生成
+忽略的 `src/generated/terminal-html.ts`，prepare:workspace/check 和 CI APK 工作流负责生成。
+权限控件兼容旧版 permissions.options 与新版仅 currentValue 的投影，后者调用官方
+permissionPresets/catalog（已加入 Host 固定只读 allowlist）；Host 插件需同步更新。
+核心测试覆盖 catalog 合约与终端输入权/事件顺序/断线不重放。跨机和原生 UI 真机验证仍待完成。
+
+本次本地验证：Android 类型检查与 16 个测试文件 / 174 个测试通过；Plugin 类型检查、
+5 个 Host Remote bridge 核心测试及 DSH bundle 校验通过。Plugin 全量测试首次有 5 个超时，
+相关 3 个文件串行重跑 42 个测试通过。Hermes 导出初次通过；最终原生 APK 预构建未完成，
+workspace 全量 check 在 Server web 类型检查处停滞，不作为通过记录。最终 APK 由 CI 构建，
+原生键盘、TalkBack 和跨设备行为尚未验证。

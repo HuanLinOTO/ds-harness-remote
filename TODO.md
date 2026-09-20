@@ -195,3 +195,10 @@ ApiProxy / Typert Remote contract，不得在 Plugin Host 恢复 `sessions.*`、
 - [ ] Windows/Linux 真机、跨机高延迟 Relay、大输出终端、多设备回归
 - [ ] 真实应用复杂 HMR、硬编码 localhost、Cookie/CSP 和浏览器兼容性回归
 - [ ] Remote Web / Android / VS Code 预览入口（需独立方案，不复用本机 preview URL）
+
+## Android native session tools (2026-09-21)
+
+- [x] 兼容旧版内嵌 permissions.options 与新版 permissionPresets/catalog，补齐 Host 只读 allowlist
+- [x] Harness 会话工作区目录浏览、UTF-8 分页只读预览；不支持的 Host 显示更新提示
+- [x] Android 本地 xterm 终端、创建/恢复/结束、归属与输入权隔离、序号检查和断线不重放
+- [ ] 真机验证新旧 DSH 权限切换、Host 热开启/关闭终端、跨机重连、Windows 路径与 shell、长输出、IME/TalkBack/大字体

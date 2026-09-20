@@ -1,11 +1,10 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   Animated,
   FlatList,
   Image,
-  Keyboard,
   Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -19,8 +18,8 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as ImagePicker from 'expo-image-picker'
-import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, CircleStop, Code2, ImagePlus, Images, RefreshCw, Send, ShieldAlert, Sparkles, User, X } from 'lucide-react-native'
-import { useAppStore } from '../state/store'
+import { Bot, Check, ChevronDown, ChevronLeft, ChevronRight, CircleStop, Code2, Folder, Terminal, ImagePlus, Images, RefreshCw, Send, ShieldAlert, Sparkles, User, X } from 'lucide-react-native'
+import { requireSessionTools, useAppStore } from '../state/store'
 import { hasVisibleMessageText } from '../state/event-reducer'
 import type { ApprovalActivity, ChatImage, ChatItem, ChatMessage, ImageAttachmentLimits, ImageMediaType, ModelCatalogModel, ModelProviderGroup, PermissionSelect, PromptImage, QuestionActivity, RemoteSession, ToolActivity, ToolDisplayDetail } from '../types'
 import { Button, IconButton, TopBar } from '../ui/components'
@@ -29,6 +28,9 @@ import { radius, spacing, type } from '../ui/theme'
 import { useTheme, type ThemeColors } from '../ui/theme-context'
 import { useThemedStyles } from '../ui/use-themed-styles'
 import { strings as zhCN } from '../locales/i18n'
+import { KeyboardInset } from '../ui/keyboard-inset'
+import { sessionPermissions } from '../services/session-permissions'
+import { SessionToolsPanel } from './session-tools-panel'
 import { resolveSessionDisplayTitle } from './session-title'
 
 const EMPTY_CHAT_ITEMS: ChatItem[] = []
@@ -57,6 +59,28 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
   const [pickingImages, setPickingImages] = useState(false)
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const [permissionPickerOpen, setPermissionPickerOpen] = useState(false)
+  const [toolsMode, setToolsMode] = useState<'files' | 'terminal'>()
+  const [permissionOptions, setPermissionOptions] = useState<PermissionSelect['options']>()
+  const [permissionError, setPermissionError] = useState<string>()
+  const [permissionRevision, setPermissionRevision] = useState(0)
+  const [permissionLoading, setPermissionLoading] = useState(false)
+  const inlinePermissionOptions = session?.projections?.values?.permissions
+  useEffect(() => {
+    setPermissionOptions(undefined)
+    setPermissionError(undefined)
+    setPermissionLoading(false)
+    if (session === undefined || session.backend === 'codex' || connection.phase !== 'connected') return
+    const projected = sessionPermissions(session)
+    if (projected === undefined || projected.options.length > 0) return
+    const controller = new AbortController()
+    setPermissionLoading(true)
+    void Promise.resolve().then(() => requireSessionTools().permissionOptions(controller.signal))
+      .then(options => { if (!controller.signal.aborted) setPermissionOptions(options) })
+      .catch(() => { if (!controller.signal.aborted) setPermissionError(zhCN.tools.permissionUnavailable) })
+      .finally(() => { if (!controller.signal.aborted) setPermissionLoading(false) })
+    return () => controller.abort()
+  }, [session?.sessionId, session?.backend, inlinePermissionOptions, connection.phase, permissionPickerOpen, permissionRevision])
+  useEffect(() => { setToolsMode(undefined) }, [session?.sessionId, connection.phase])
   const [reconnectingSession, setReconnectingSession] = useState(false)
   const listRef = useRef<FlatList<ChatItem>>(null)
   const lastStreamingScrollAt = useRef(0)
@@ -217,7 +241,8 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
   const canStop = connected && (busy === 'send-message' || busy === 'stop-session' || session.running)
   const stopping = busy === 'stop-session'
   const showGenerating = (busy === 'send-message' || session.running) && !messages.some(isActiveChatItem)
-  const permissions = sessionPermissions(session)
+  const projectedPermissions = sessionPermissions(session)
+  const permissions = projectedPermissions === undefined ? undefined : { ...projectedPermissions, options: permissionOptions ?? projectedPermissions.options }
   const currentPermission = permissions?.options.find(option => option.value === permissions.currentValue)
   const currentModel = sessionModels?.groups
     .find(group => group.id === sessionModels.current.provider)
@@ -245,7 +270,7 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
     } else apply()
   }
   return (
-    <ChatKeyboardInset>
+    <KeyboardInset>
       <TopBar
         title={sessionTitle(session)}
         onBack={onBack}
@@ -256,6 +281,10 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
             : undefined}
       />
 
+      {session.backend !== 'codex' && <View style={styles.toolsControls}>
+        <Button label={zhCN.tools.files} icon={Folder} variant="quiet" disabled={!connected} onPress={() => setToolsMode('files')} />
+        <Button label={zhCN.tools.terminal} icon={Terminal} variant="quiet" disabled={!connected} onPress={() => setToolsMode('terminal')} />
+      </View>}
       <View style={styles.sessionControls}>
         {sessionModels !== undefined && (
           <Pressable accessibilityRole="button" accessibilityLabel={zhCN.chat.selectModel} onPress={() => setModelPickerOpen(true)} style={styles.modelChip}>
@@ -419,48 +448,17 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
         onClose={() => setModelPickerOpen(false)}
         onPick={pickModel}
       />
-      <PermissionPicker visible={permissionPickerOpen} permissions={permissions} onClose={() => setPermissionPickerOpen(false)} onPick={pickPermission} />
-    </ChatKeyboardInset>
+      {toolsMode !== undefined && connected && <SessionToolsPanel key={`${session.sessionId}:${toolsMode}`} mode={toolsMode} sessionId={session.sessionId} onClose={() => setToolsMode(undefined)} />}
+      <PermissionPicker loading={permissionLoading} error={permissionError} onRetry={() => setPermissionRevision(v => v + 1)} visible={permissionPickerOpen} permissions={permissions} onClose={() => setPermissionPickerOpen(false)} onPick={pickPermission} />
+    </KeyboardInset>
   )
 }
 
-function ChatKeyboardInset({ children }: { children: ReactNode }) {
-  const styles = useThemedStyles(createStyles)
-  const insets = useSafeAreaInsets()
-  const { height: windowHeight } = useWindowDimensions()
-  const [keyboardCover, setKeyboardCover] = useState(0)
 
-  useEffect(() => {
-    // Edge-to-edge Android often keeps the RN root full-screen even with
-    // adjustResize, so KeyboardAvoidingView under-pads and the IME toolbar
-    // clips the composer. Measure the real covered band from screenY.
-    const show = Keyboard.addListener('keyboardDidShow', event => {
-      setKeyboardCover(Math.max(0, windowHeight - event.endCoordinates.screenY))
-    })
-    const hide = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardCover(0)
-    })
-    return () => {
-      show.remove()
-      hide.remove()
-    }
-  }, [windowHeight])
-
-  // App shell already reserved insets.bottom below this tree; subtract it so
-  // we clear the IME without double-counting the gesture/nav inset. When
-  // adjustResize already shrank the window, cover≈0 and this is a no-op.
-  const paddingBottom = keyboardCover > 0
-    ? Math.max(0, keyboardCover - insets.bottom) + spacing.sm
-    : 0
-
-  return (
-    <View style={[styles.flex, paddingBottom > 0 ? { paddingBottom } : null]}>
-      {children}
-    </View>
-  )
-}
-
-function PermissionPicker({ visible, permissions, onClose, onPick }: {
+function PermissionPicker({ visible, permissions, onClose, onPick, loading, error, onRetry }: {
+  loading: boolean
+  error?: string
+  onRetry: () => void
   visible: boolean
   permissions?: PermissionSelect
   onClose: () => void
@@ -481,6 +479,8 @@ function PermissionPicker({ visible, permissions, onClose, onPick }: {
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
           >
+            {loading && <ActivityIndicator color={colors.primary} />}
+            {error && <View><Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text><Button label={zhCN.tools.retry} onPress={onRetry} /></View>}
             {permissions.options.filter(option => option.value !== 'custom').map(option => {
               const current = option.value === permissions.currentValue
               return (
@@ -497,19 +497,6 @@ function PermissionPicker({ visible, permissions, onClose, onPick }: {
   )
 }
 
-function sessionPermissions(session: RemoteSession): PermissionSelect | undefined {
-  const value = session.projections?.values?.permissions
-  if (typeof value !== 'object' || value === null) return undefined
-  const source = value as { currentValue?: unknown; options?: unknown }
-  if (typeof source.currentValue !== 'string' || !Array.isArray(source.options)) return undefined
-  const options = source.options.flatMap(option => {
-    if (typeof option !== 'object' || option === null) return []
-    const item = option as { value?: unknown; name?: unknown; description?: unknown }
-    if (typeof item.value !== 'string' || typeof item.name !== 'string') return []
-    return [{ value: item.value, name: item.name, ...(typeof item.description === 'string' ? { description: item.description } : {}) }]
-  })
-  return { currentValue: source.currentValue, options }
-}
 
 const IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
 
@@ -1059,6 +1046,7 @@ function createStyles(colors: ThemeColors) {
   flex: { flex: 1, backgroundColor: colors.background },
   sessionControls: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
   modelChip: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.surfaceStrong },
+  toolsControls: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
   permissionChip: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.primarySoft },
   permissionChipDisabled: { opacity: 0.52 },
   modelChipText: { ...type.smallStrong, color: colors.ink, flexShrink: 1 },

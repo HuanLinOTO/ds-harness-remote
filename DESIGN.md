@@ -40,6 +40,18 @@ Use a 4dp base grid. Screen gutters are 20dp; common vertical spacing is 8, 12, 
 - Status banner: inline connection feedback with a concrete next action for errors.
 - Skeleton: stable content-shaped placeholders for initial loading; spinner only for an action already initiated by the user.
 
+### Android session tools
+
+Harness chat exposes Files and Terminal as labeled secondary actions; they are unavailable offline and absent from CodeX sessions. Each opens a full-screen modal with a back action, safe-area insets, and the shared keyboard inset. Keep tool actions within the existing 48dp minimum touch-target pattern and retain the surrounding theme.
+
+Files uses directory-first rows, a visible path, and explicit back/refresh actions. Text previews are selectable, monospace, read-only, and paginated, with line ranges and disabled pagination at the boundaries. Empty, truncated, loading, and retry states belong beside the affected content.
+
+Terminal keeps native controls around a locally bundled xterm WebView. Label the WebView, enable xterm screen-reader mode, and provide labeled keyboard and special-key controls. Show connecting, exited, and unavailable-input states in text; disable input controls without input ownership and confirm terminal closure. The terminal canvas has its own dark palette without changing the app theme.
+
+The permission preset picker keeps the current selection visible, pairs its selected state with a checkmark, and shows loading or retry feedback when fetching available presets. Keep this selector distinct from individual Allow once / Deny decisions.
+
+These patterns describe the source implementation; native-device appearance, keyboard behavior, and screen-reader operation still require verification.
+
 ## Layout and Navigation
 
 The Android MVP uses a shallow stack: Setup → Devices → Device → Sessions → Chat, with Settings reachable from Devices. Pairing is a focused flow opened from Devices. Preserve the selected device and session on reconnect. Avoid bottom navigation until there are multiple durable top-level destinations.

@@ -203,6 +203,9 @@ const disconnected: ConnectionSnapshot = {
 }
 
 const connection = new AndroidRemoteConnection()
+
+/** Only exposes the authenticated native carrier of the current connection. */
+export const requireSessionTools = () => connection.requireSessionTools()
 let activeCodexStream: CodexStream | undefined
 let activeCodexTimeline: CodexTimelineState | undefined
 const codexModelSelections = new Map<string, ModelSelection>()

@@ -73,6 +73,7 @@ NODE_ENV=production pnpm --filter @dsh-remote/android build
 pnpm dlx expo-doctor@latest
 
 cd apps/android
+pnpm run prepare:workspace
 pnpm exec expo prebuild --platform android
 cd android
 ./gradlew assembleDebug
@@ -89,6 +90,24 @@ src/
   ui/        tokens and reusable mobile components
 ```
 
-The UI does not expose shell, filesystem, or arbitrary tool RPCs. Every Harness action goes through
-the Host's fixed ApiProxy or Typert Remote allowlist, and every CodeX action goes through the separate
-fixed App Server method schemas; Host policy remains authoritative.
+Harness conversations expose **Files** and **Terminal** through the Host's fixed official Typert
+allowlist, requiring the native APIs in DSH 0.1.6-alpha.2 or later. Files lists workspace directories
+and previews UTF-8 text in 200-line pages without mutations. Binary previews are not included.
+Terminal uses a locally bundled xterm renderer in a navigation-blocked WebView; no CDN is used.
+Enable Remote terminal on the Host first. It runs as the Host user, independently of Agent approval.
+Only this device's retained terminals are listed; each attachment obtains fresh input ownership,
+recovers a bounded screen snapshot, and stops input after loss of ownership or connection. Uncertain
+writes and queued input are never replayed. Closing the panel releases its follow/retention streams;
+ending a terminal explicitly terminates it. Host idle reclamation still applies.
+
+Permission options come from the legacy Session projection or the new `permissionPresets/catalog`
+endpoint. Missing catalogs remain an error, never a reason to assume a permissive preset. Update the
+Host Remote plugin as well as the app to use new catalogs. CodeX keeps its existing separate controls.
+
+Run `pnpm run prepare:workspace` before invoking Gradle directly: it generates the ignored local
+terminal renderer from pinned xterm packages. CI and release APK jobs run the generator explicitly.
+The WebView native dependency requires a new APK; a JavaScript-only update to an old APK is insufficient.
+
+Arbitrary tool RPCs remain unavailable. CodeX actions use separate fixed App Server schemas; Host
+policy remains authoritative. Native keyboard, TalkBack, and cross-device regression need real-device
+validation for this addition.

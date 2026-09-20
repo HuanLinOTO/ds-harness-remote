@@ -189,6 +189,9 @@ jobs:
       - name: Build workspace packages
         run: pnpm --filter './packages/**' -r build
 
+      - name: Bundle local terminal renderer
+        run: node apps/android/scripts/build-terminal.mjs
+
       - name: Generate Android project
         run: pnpm --dir apps/android exec expo prebuild --platform android --no-install
 

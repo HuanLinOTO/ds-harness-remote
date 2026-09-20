@@ -141,6 +141,10 @@ Workspace 会在 Harness 原生界面中打开，顶部显示当前 Host 和加�
 使用已有账号登录 Android 客户端，选择可用电脑并打开 Workspace，然后通过文字或图片 Prompt 继续会话。
 会话工具栏也可以切换当前模型，并选择该模型声明的思考程度。
 
+Harness 会话新增「文件」（工作区文件夹浏览、UTF-8 文本分页只读预览）和「终端」入口，需要 DSH `0.1.6-alpha.2` 或更新版本的原生接口及更新后的 Remote Host 插件。使用终端前，在 Host 本地 Remote 设置中开启「远程终端」。Android 从 Host 快照恢复本设备归属的终端，断线不重放输入；CodeX 会话不提供这些原生工具。
+
+权限选择器兼容旧版会话内选项与新版 DSH 0.1.6 的独立 `permissionPresets/catalog`。Host Remote 插件也需要更新；不支持的 Host 会显示更新提示，不会凭空补出权限选项。
+
 <p align="center">
   <img src="docs/images/mobile-list.jpg" alt="Android 客户端中的在线和离线设备列表" width="30%">
   <img src="docs/images/image-msg.jpg" alt="从 Android 客户端发送图片 Prompt" width="30%">

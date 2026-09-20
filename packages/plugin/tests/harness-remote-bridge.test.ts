@@ -27,7 +27,10 @@ describe('HarnessRemoteBridge', () => {
       .rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
     await expect(bridge.call({ endpoint: 'settings/openConfigFile', payload: { args: {} } }))
       .rejects.toBeInstanceOf(RpcError)
-    expect(dispatch).toHaveBeenCalledTimes(1)
+    await expect(bridge.call({ endpoint: 'permissionPresets/catalog', payload: { args: {} } })).resolves.toMatchObject({ ok: true })
+    expect(dispatch).toHaveBeenCalledWith('permissionPresets/catalog', { args: {} }, expect.any(AbortSignal))
+    await expect(bridge.call({ endpoint: 'permissionPresets/select', payload: { args: {} } })).rejects.toMatchObject({ code: 'METHOD_NOT_ALLOWED' })
+    expect(dispatch).toHaveBeenCalledTimes(2)
   })
 
   it('falls back to Host directory metadata for the v0.1.2-rc.1 native-only picker failure', async () => {

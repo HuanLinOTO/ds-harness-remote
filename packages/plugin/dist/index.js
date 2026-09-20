@@ -24032,6 +24032,7 @@ var HARNESS_REMOTE_ALLOWLIST = [
   "messageFeedback/list",
   "messageFeedback/put",
   "pluginInventory/list",
+  "permissionPresets/catalog",
   "session/attachment",
   "session/cancel",
   "session/canOpenWorkspacePath",
