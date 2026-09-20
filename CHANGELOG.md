@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.4.16
+
+- Restores the Remote settings card border and rounded corners in Harness 0.1.6, adds inner spacing, and limits the card width.
+
 ## 0.4.15
 
 - Adds the native workspace file tree and read-only previews for Harness `0.1.6-alpha.2`.
