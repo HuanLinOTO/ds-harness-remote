@@ -195,8 +195,14 @@ xterm + react-native-webview，需重新构建 APK。`apps/android/scripts/build
 permissionPresets/catalog（已加入 Host 固定只读 allowlist）；Host 插件需同步更新。
 核心测试覆盖 catalog 合约与终端输入权/事件顺序/断线不重放。跨机和原生 UI 真机验证仍待完成。
 
-本次本地验证：Android 类型检查与 16 个测试文件 / 174 个测试通过；Plugin 类型检查、
-5 个 Host Remote bridge 核心测试及 DSH bundle 校验通过。Plugin 全量测试首次有 5 个超时，
-相关 3 个文件串行重跑 42 个测试通过。Hermes 导出初次通过；最终原生 APK 预构建未完成，
-workspace 全量 check 在 Server web 类型检查处停滞，不作为通过记录。最终 APK 由 CI 构建，
-原生键盘、TalkBack 和跨设备行为尚未验证。
+2026-09-22 标题栏入口（Issue #72 PR1）：Files/Terminal 入口从会话正文移到标题栏图标
+（CodeX 会话不显示，未连接时禁用，保留可访问 label）；终端面板自带标题栏，右上「＋」才新建
+终端（打开只列出本设备终端，同步 mutex 阻止快速连点重复创建），tabs/结束确认/输入权/断线
+不重放不变；文件面板的刷新移到标题栏，返回键在文件内回到所在目录、仅在根目录关闭面板；
+会话标题在窄屏允许两行。未修改公共 TopBar 契约。
+
+本次本地验证（2026-09-22 标题栏 UI）：`pnpm install --frozen-lockfile`、`packages/**` 构建、
+Android 类型检查（verify:workspace + tsc）与 16 个测试文件 / 174 个测试通过；Hermes 生产
+导出通过（沿用已知 `@noble/hashes/crypto.js` exports fallback 警告）；Plugin DSH bundle 重新
+生成后与提交版本内容一致。本次未跑 workspace 全量 check；最终 APK 由 CI 构建，原生键盘、
+TalkBack 和跨设备行为尚未验证。
