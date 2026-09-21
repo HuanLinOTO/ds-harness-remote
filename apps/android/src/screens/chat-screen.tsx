@@ -273,18 +273,20 @@ export function ChatScreen({ onBack }: { onBack: () => void }) {
     <KeyboardInset>
       <TopBar
         title={sessionTitle(session)}
+        titleLines={2}
         onBack={onBack}
-        action={!connected
-          ? <IconButton label={zhCN.chat.reconnect} icon={RefreshCw} onPress={() => void reconnectCurrentSession()} disabled={connectionRetrying} />
-          : canStop
-            ? <IconButton label={zhCN.chat.stop} icon={CircleStop} onPress={() => void stopSession()} disabled={stopping} />
-            : undefined}
+        action={<>
+          {session.backend !== 'codex' && <>
+            <IconButton label={zhCN.tools.files} icon={Folder} onPress={() => setToolsMode('files')} disabled={!connected} />
+            <IconButton label={zhCN.tools.terminal} icon={Terminal} onPress={() => setToolsMode('terminal')} disabled={!connected} />
+          </>}
+          {!connected
+            ? <IconButton label={zhCN.chat.reconnect} icon={RefreshCw} onPress={() => void reconnectCurrentSession()} disabled={connectionRetrying} />
+            : canStop
+              ? <IconButton label={zhCN.chat.stop} icon={CircleStop} onPress={() => void stopSession()} disabled={stopping} />
+              : undefined}
+        </>}
       />
-
-      {session.backend !== 'codex' && <View style={styles.toolsControls}>
-        <Button label={zhCN.tools.files} icon={Folder} variant="quiet" disabled={!connected} onPress={() => setToolsMode('files')} />
-        <Button label={zhCN.tools.terminal} icon={Terminal} variant="quiet" disabled={!connected} onPress={() => setToolsMode('terminal')} />
-      </View>}
       <View style={styles.sessionControls}>
         {sessionModels !== undefined && (
           <Pressable accessibilityRole="button" accessibilityLabel={zhCN.chat.selectModel} onPress={() => setModelPickerOpen(true)} style={styles.modelChip}>
@@ -1046,7 +1048,6 @@ function createStyles(colors: ThemeColors) {
   flex: { flex: 1, backgroundColor: colors.background },
   sessionControls: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
   modelChip: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.surfaceStrong },
-  toolsControls: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
   permissionChip: { minWidth: 0, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.primarySoft },
   permissionChipDisabled: { opacity: 0.52 },
   modelChipText: { ...type.smallStrong, color: colors.ink, flexShrink: 1 },
