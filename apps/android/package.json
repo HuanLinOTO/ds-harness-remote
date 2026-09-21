@@ -27,6 +27,7 @@
     "expo-system-ui": "~57.0.2",
     "lucide-react-native": "^1.31.0",
     "markdown-it": "^14.1.0",
+    "pdfjs-dist": "6.3.289",
     "react": "19.2.3",
     "react-native": "0.86.2",
     "react-native-safe-area-context": "~5.7.0",
@@ -43,7 +44,8 @@
     "vitest": "^2.1.8"
   },
   "scripts": {
-    "prepare:workspace": "pnpm --filter '@dsh-remote/android^...' -r build && pnpm run verify:workspace && node scripts/build-terminal.mjs",
+    "prepare:workspace": "pnpm --filter '@dsh-remote/android^...' -r build && pnpm run verify:workspace && pnpm run build:renderers",
+    "build:renderers": "node scripts/build-terminal.mjs && node scripts/build-pdf.mjs",
     "verify:workspace": "node scripts/verify-workspace-data-planes.mjs",
     "prestart": "pnpm run prepare:workspace",
     "start": "expo start",
@@ -51,7 +53,7 @@
     "android": "expo run:android",
     "preios": "pnpm run prepare:workspace",
     "ios": "expo run:ios",
-    "check": "node scripts/build-terminal.mjs && pnpm run verify:workspace && tsc --noEmit",
+    "check": "pnpm run build:renderers && pnpm run verify:workspace && tsc --noEmit",
     "test": "pnpm run verify:workspace && vitest run",
     "prebuild": "pnpm run prepare:workspace",
     "build": "expo export --platform android"
