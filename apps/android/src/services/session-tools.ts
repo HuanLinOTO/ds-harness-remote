@@ -14,6 +14,20 @@ export interface WorkspaceText {
   lines: number
   eof: boolean
 }
+export interface WorkspaceFileStat {
+  absolutePath: string
+  version: string
+  bytes?: number
+}
+export interface WorkspaceFileBytes extends WorkspaceFileStat {
+  offset: number
+  data: string
+  eof: boolean
+}
+export interface WorkspaceOfficeRender extends WorkspaceFileBytes {
+  generation: string
+  missingFonts: string[]
+}
 export interface TerminalInfo {
   id: string
   title: string
@@ -27,6 +41,10 @@ export type TerminalFrame =
   | { type: 'snapshot'; sequence: number; screen: string; info: TerminalInfo }
   | { type: 'output'; sequence: number; data: string }
   | { type: 'state'; info: TerminalInfo }
+
+/** Foreground Office conversion legitimately outlives the transport-wide RPC deadline. */
+export const OFFICE_PREVIEW_TIMEOUT_MS = 120_000
+export const OFFICE_PREVIEW_MAX_RESPONSE_BYTES = 12 * 1024 * 1024
 
 /** Official Typert endpoints only; Host owns scope, device ownership and input authorization. */
 export class HarnessSessionTools {
@@ -46,6 +64,32 @@ export class HarnessSessionTools {
 
   readFile(sessionId: string, path: string, offset = 1, signal?: AbortSignal): Promise<WorkspaceText> {
     return this.gateway.call('workspaceFiles/read', { args: { workspaceFileScopeId: sessionId, path, range: { offset, limit: 200 } } }, signal)
+  }
+
+  statFile(sessionId: string, path: string, signal?: AbortSignal): Promise<WorkspaceFileStat> {
+    return this.gateway.call('workspaceFiles/stat', { args: { workspaceFileScopeId: sessionId, path } }, signal)
+  }
+
+  readBytes(sessionId: string, path: string, offset: number, length: number, signal?: AbortSignal): Promise<WorkspaceFileBytes> {
+    return this.gateway.call(
+      'workspaceFiles/readBytes',
+      { args: { workspaceFileScopeId: sessionId, path, range: { offset, length } } },
+      signal,
+      { maxResponseBytes: 4 * Math.ceil(length / 3) + 64 * 1024 },
+    )
+  }
+
+  officeGeneration(signal?: AbortSignal): Promise<string> {
+    return this.gateway.call('officeToPdf/generation', { args: {} }, signal, { timeoutMs: OFFICE_PREVIEW_TIMEOUT_MS })
+  }
+
+  renderOfficePdf(sessionId: string, path: string, signal?: AbortSignal): Promise<WorkspaceOfficeRender> {
+    return this.gateway.call(
+      'officeToPdf/render',
+      { args: { workspaceFileScopeId: sessionId, path, priority: 'foreground' } },
+      signal,
+      { timeoutMs: OFFICE_PREVIEW_TIMEOUT_MS, maxResponseBytes: OFFICE_PREVIEW_MAX_RESPONSE_BYTES },
+    )
   }
 
   terminalEnvironment(sessionId: string): Promise<{ maxInputBytes: number; maxCols: number; maxRows: number }> {
