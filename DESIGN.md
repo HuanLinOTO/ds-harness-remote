@@ -32,7 +32,7 @@ Use a 4dp base grid. Screen gutters are 20dp; common vertical spacing is 8, 12, 
 
 ## Components
 
-- Top bar: back affordance, concise title, optional single trailing action.
+- Top bar: back affordance, concise title, and labeled trailing actions; allow a two-line title when trailing actions leave little width on narrow screens.
 - Device row: identity, status label, last-seen context, and transport; the entire row is one target.
 - Session row: title, workspace, running state, updated time; no nested cards.
 - Composer: multiline input, explicit send/stop action, and keyboard-safe bottom inset.
@@ -42,11 +42,11 @@ Use a 4dp base grid. Screen gutters are 20dp; common vertical spacing is 8, 12, 
 
 ### Android session tools
 
-Harness chat exposes Files and Terminal as labeled secondary actions; they are unavailable offline and absent from CodeX sessions. Each opens a full-screen modal with a back action, safe-area insets, and the shared keyboard inset. Keep tool actions within the existing 48dp minimum touch-target pattern and retain the surrounding theme.
+Harness chat exposes Files and Terminal as labeled icon actions in the conversation top bar; they are disabled while offline and absent from CodeX sessions. Each opens a full-screen modal with its own top bar (back plus the tool's primary action), safe-area insets, and the shared keyboard inset. Keep tool actions within the existing 48dp minimum touch-target pattern and retain the surrounding theme.
 
-Files uses directory-first rows, a visible path, and explicit back/refresh actions. Text previews are selectable, monospace, read-only, and paginated, with line ranges and disabled pagination at the boundaries. Empty, truncated, loading, and retry states belong beside the affected content.
+Files uses directory-first rows, a visible path, and explicit back and refresh actions in the panel header; back returns from a file to its directory and closes the panel only at the workspace root. Text previews are selectable, monospace, read-only, and paginated, with line ranges and disabled pagination at the boundaries. Empty, truncated, loading, and retry states belong beside the affected content.
 
-Terminal keeps native controls around a locally bundled xterm WebView. Label the WebView, enable xterm screen-reader mode, and provide labeled keyboard and special-key controls. Show connecting, exited, and unavailable-input states in text; disable input controls without input ownership and confirm terminal closure. The terminal canvas has its own dark palette without changing the app theme.
+Terminal keeps native controls around a locally bundled xterm WebView and creates a new terminal only from the labeled ＋ action in its header; opening the panel lists existing terminals without creating one. Label the WebView, enable xterm screen-reader mode, and provide labeled keyboard and special-key controls. Show connecting, exited, and unavailable-input states in text; disable input controls without input ownership and confirm terminal closure. The terminal canvas has its own dark palette without changing the app theme.
 
 The permission preset picker keeps the current selection visible, pairs its selected state with a checkmark, and shows loading or retry feedback when fetching available presets. Keep this selector distinct from individual Allow once / Deny decisions.
 
