@@ -153,6 +153,8 @@ Harness conversations include **Files** (workspace folders and paged read-only U
 
 The permission selector supports both older inline options and the separate `permissionPresets/catalog` used by newer DSH 0.1.6 builds. Update the Host Remote plugin too; unsupported Hosts show an actionable error instead of fabricated permission options.
 
+Android Files also previews PNG/JPEG/GIF/WebP images and PDF documents, plus DOC/DOCX/XLS/XLSX/PPT/PPTX when the Host provides `officeToPdf`. Binary previews are limited to 8 MiB (Office sources: 50 MiB). PDF rendering is bundled locally, with no CDN, external viewer, or file export. Unknown binary types are not treated as text. All access remains read-only and authorized by the official Session filesystem; native-device and cross-device preview validation is still pending.
+
 <p align="center">
   <img src="docs/images/mobile-list.jpg" alt="Android client listing online and offline computers" width="30%">
   <img src="docs/images/image-msg.jpg" alt="Sending an image prompt from the Android client" width="30%">

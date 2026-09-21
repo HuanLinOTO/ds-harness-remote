@@ -44,7 +44,7 @@ Use a 4dp base grid. Screen gutters are 20dp; common vertical spacing is 8, 12, 
 
 Harness chat exposes Files and Terminal as labeled secondary actions; they are unavailable offline and absent from CodeX sessions. Each opens a full-screen modal with a back action, safe-area insets, and the shared keyboard inset. Keep tool actions within the existing 48dp minimum touch-target pattern and retain the surrounding theme.
 
-Files uses directory-first rows, a visible path, and explicit back/refresh actions. Text previews are selectable, monospace, read-only, and paginated, with line ranges and disabled pagination at the boundaries. Empty, truncated, loading, and retry states belong beside the affected content.
+Files uses directory-first rows, a visible path, and explicit back/refresh actions. Text previews are selectable, monospace, read-only, and paginated, with line ranges and disabled pagination at the boundaries. Images are contained within the available viewport. PDF and Host-converted Office documents use a local isolated renderer with page and zoom controls; missing fonts, unsupported formats, and mobile size limits are explicit states. Empty, truncated, loading, and retry states belong beside the affected content. PDF canvas text selection is not available; the bounded accessibility text overlay still needs TalkBack verification.
 
 Terminal keeps native controls around a locally bundled xterm WebView. Label the WebView, enable xterm screen-reader mode, and provide labeled keyboard and special-key controls. Show connecting, exited, and unavailable-input states in text; disable input controls without input ownership and confirm terminal closure. The terminal canvas has its own dark palette without changing the app theme.
 

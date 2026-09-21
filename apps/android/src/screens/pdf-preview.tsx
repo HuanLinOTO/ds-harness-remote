@@ -147,11 +147,11 @@ export function PdfPreview({ data, label }: { data: string; label: string }) {
 
   return <View style={styles.container}>
     <ScrollView horizontal keyboardShouldPersistTaps="always" style={styles.controls} contentContainerStyle={styles.row}>
-      <Button label={t.tools.previous} variant="secondary" disabled={busy || page <= 1} onPress={() => send(`window.showPage(${page - 1})`)} />
+      <Button label={t.tools.previous} variant="secondary" disabled={busy || error !== undefined || page <= 1} onPress={() => send(`window.showPage(${page - 1})`)} />
       <Text style={[styles.caption, { color: colors.muted }]}>{pages > 0 ? t.tools.pdfPage(page, pages) : ''}</Text>
-      <Button label={t.tools.next} variant="secondary" disabled={busy || page >= pages} onPress={() => send(`window.showPage(${page + 1})`)} />
-      <Button label={t.tools.zoomOut} variant="secondary" disabled={busy || pages === 0} onPress={() => send(`window.zoomPdf(${-ZOOM_STEP})`)} />
-      <Button label={t.tools.zoomIn} variant="secondary" disabled={busy || pages === 0} onPress={() => send(`window.zoomPdf(${ZOOM_STEP})`)} />
+      <Button label={t.tools.next} variant="secondary" disabled={busy || error !== undefined || page >= pages} onPress={() => send(`window.showPage(${page + 1})`)} />
+      <Button label={t.tools.zoomOut} variant="secondary" disabled={busy || error !== undefined || pages === 0} onPress={() => send(`window.zoomPdf(${-ZOOM_STEP})`)} />
+      <Button label={t.tools.zoomIn} variant="secondary" disabled={busy || error !== undefined || pages === 0} onPress={() => send(`window.zoomPdf(${ZOOM_STEP})`)} />
     </ScrollView>
     <View style={styles.stage}>
       <WebView accessibilityLabel={label} ref={web} key={revision} source={SOURCE} style={[styles.viewer, { backgroundColor: colors.background }]}
