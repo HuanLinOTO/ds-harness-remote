@@ -31,6 +31,10 @@ export interface WorkspaceOfficeRender extends WorkspaceFileBytes {
 export interface TerminalInfo {
   id: string
   title: string
+  /** Host shell descriptor; the narrow tab strip shows `shell.name` rather than a working-directory title. */
+  shell?: { name?: string }
+  /** Terminal working directory; used only to recognise a working-directory label. */
+  cwd?: string
   state: 'running' | 'exited' | 'failed'
   controllerId?: string
   cols: number
