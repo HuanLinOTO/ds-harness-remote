@@ -195,8 +195,19 @@ xterm + react-native-webview，需重新构建 APK。`apps/android/scripts/build
 permissionPresets/catalog（已加入 Host 固定只读 allowlist）；Host 插件需同步更新。
 核心测试覆盖 catalog 合约与终端输入权/事件顺序/断线不重放。跨机和原生 UI 真机验证仍待完成。
 
+2026-09-22 标题栏入口（Issue #72 PR1）：Files/Terminal 入口移到会话标题栏图标，终端面板
+标题栏「＋」才新建终端（打开只列出现有终端），文件面板刷新与层级返回同样在标题栏；未改
+公共 TopBar 契约。
+
 本次本地验证：Android 类型检查与 16 个测试文件 / 174 个测试通过；Plugin 类型检查、
 5 个 Host Remote bridge 核心测试及 DSH bundle 校验通过。Plugin 全量测试首次有 5 个超时，
 相关 3 个文件串行重跑 42 个测试通过。Hermes 导出初次通过；最终原生 APK 预构建未完成，
 workspace 全量 check 在 Server web 类型检查处停滞，不作为通过记录。最终 APK 由 CI 构建，
 原生键盘、TalkBack 和跨设备行为尚未验证。
+
+2026-09-22 补充验证（标题栏 UI）：`pnpm -r check`、`verify-dsh-plugin.mjs` 与
+`NODE_ENV=production pnpm -r build` 通过；`pnpm -r test` 仅 3 个既有 Windows 平台假设失败
+（packages/plugin/tests/codex-domain.test.ts 路径分隔符/目录顺序），Android check/test
+（16 文件 / 174 测试）与 Hermes 导出通过。arm64-v8a release APK 本机未产成：AGP 生成的
+prefab_command.bat 路径 304 字符超过 Windows MAX_PATH（LongPathsEnabled=0），与本改动无关，
+主工作树同样超限；APK 仍以 CI 构建为准。

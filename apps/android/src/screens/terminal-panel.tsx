@@ -1,25 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { WebView } from 'react-native-webview'
+import { CirclePlus } from 'lucide-react-native'
 import { requireSessionTools } from '../state/store'
 import { createNativeRpcId } from '../services/api-proxy'
 import { TerminalAttachment } from '../services/terminal-attachment'
 import type { TerminalInfo } from '../services/session-tools'
 import { terminalHtml } from '../generated/terminal-html'
 import { strings as t } from '../locales/i18n'
-import { Button } from '../ui/components'
+import { Button, IconButton, TopBar } from '../ui/components'
 import { useTheme } from '../ui/theme-context'
 import { spacing, type } from '../ui/theme'
 import { sessionToolsError } from './session-tools-error'
 
 const SOURCE = { html: terminalHtml, baseUrl: 'about:blank' }
 
-export function TerminalPanel({ sessionId }: { sessionId: string }) {
+export function TerminalPanel({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const { colors } = useTheme()
   const web = useRef<WebView>(null)
   const attachment = useRef<TerminalAttachment | undefined>(undefined)
   const pendingAck = useRef<{ id: number; resolve: () => void; reject: () => void } | undefined>(undefined)
   const ackId = useRef(0)
+  const creating = useRef(false)
   const dimensions = useRef({ cols: 80, rows: 24 })
   const limits = useRef({ maxCols: 240, maxRows: 100 })
   const [ready, setReady] = useState(false)
@@ -91,6 +93,8 @@ export function TerminalPanel({ sessionId }: { sessionId: string }) {
     })
   }
   const create = async () => {
+    if (creating.current) return
+    creating.current = true
     setBusy(true); setError(undefined)
     try {
       const tools = requireSessionTools()
@@ -98,7 +102,7 @@ export function TerminalPanel({ sessionId }: { sessionId: string }) {
       const result = await tools.createTerminal(sessionId, createNativeRpcId(), Math.min(dimensions.current.cols, env.maxCols), Math.min(dimensions.current.rows, env.maxRows))
       if (mounted.current) { setItems(old => [...old, result]); setActive(result.id) }
     } catch (e) { if (mounted.current) setError(sessionToolsError(e)) }
-    finally { if (mounted.current) setBusy(false) }
+    finally { creating.current = false; if (mounted.current) setBusy(false) }
   }
   const close = () => {
     const id = active
@@ -112,9 +116,13 @@ export function TerminalPanel({ sessionId }: { sessionId: string }) {
     } }])
   }
   return <View style={styles.container}>
+    <TopBar
+      title={t.tools.terminal}
+      onBack={onClose}
+      action={<IconButton label={t.tools.newTerminal} icon={CirclePlus} tint={colors.primary} onPress={() => void create()} disabled={busy || !ready} />}
+    />
     <Text style={[styles.hint, { color: colors.muted }]}>{t.tools.terminalHint}</Text>
     <ScrollView horizontal style={styles.controls} contentContainerStyle={styles.row}>
-      <Button label={t.tools.newTerminal} onPress={() => void create()} disabled={busy || !ready} variant="secondary" />
       {items.map(item => <Button key={item.id} label={item.title} variant={active === item.id ? 'primary' : 'quiet'} onPress={() => setActive(item.id)} disabled={busy} />)}
       {active && <Button label={t.tools.closeTerminal} variant="danger" disabled={busy} onPress={close} />}
     </ScrollView>
