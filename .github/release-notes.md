@@ -12,4 +12,8 @@
 - Remote 选择主机连接时收起主机列表，立即显示连接进度面板。
 - 主机选择器默认显示 5 条记录，更多主机可在列表内部滚动查看。
 
+## Contributors / 贡献者
+
+- [@ccch1mneyyy](https://github.com/ccch1mneyyy) — Android 文件预览、会话工具栏和终端面板改动（PR [#73](https://github.com/liguobao/ds-harness-remote/pull/73)、[#74](https://github.com/liguobao/ds-harness-remote/pull/74)）。
+
 [Full changelog / 完整改动](https://github.com/liguobao/ds-harness-remote/compare/v0.4.16...v0.4.17) · [Installation / 安装说明](https://github.com/liguobao/ds-harness-remote/blob/v0.4.17/README.md)
