@@ -36,6 +36,13 @@ describe('native session tools', () => {
       ['harness.remote.call', { endpoint: 'workspaceFiles/read', payload: { args: { workspaceFileScopeId: 's1', path: 'src/main.ts', range: { offset: 201, limit: 200 } } } }],
     ])
   })
+  it('addresses the workspace root as a non-empty path the Host accepts', async () => {
+    const { tools, rpc } = setup({})
+    await tools.listFiles('s1', '')
+    expect(rpc.mock.calls[0]?.slice(0, 2)).toMatchObject([
+      'harness.remote.call', { endpoint: 'workspaceFiles/list', payload: { args: { workspaceFileScopeId: 's1', path: '.' } } },
+    ])
+  })
   it('reads byte ranges and converts Office previews with their own deadline', async () => {
     const { tools, rpc } = setup({})
     await tools.statFile('s1', 'assets/logo.png')

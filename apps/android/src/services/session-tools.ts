@@ -59,7 +59,10 @@ export class HarnessSessionTools {
   }
 
   listFiles(sessionId: string, path: string, signal?: AbortSignal): Promise<WorkspaceDirectory> {
-    return this.gateway.call('workspaceFiles/list', { args: { workspaceFileScopeId: sessionId, path } }, signal)
+    // The Host resolves `path` against the Session workspace and rejects an empty
+    // string with `gateway/bad-request`; the empty UI state means the root, which
+    // the wire addresses as `.`. The Host still reports the root back as `''`.
+    return this.gateway.call('workspaceFiles/list', { args: { workspaceFileScopeId: sessionId, path: path === '' ? '.' : path } }, signal)
   }
 
   readFile(sessionId: string, path: string, offset = 1, signal?: AbortSignal): Promise<WorkspaceText> {
