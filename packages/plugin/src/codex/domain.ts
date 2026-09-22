@@ -129,6 +129,20 @@ export class CodexRemoteDomain {
     }
   }
 
+  /** Resolve a thread cwd for Host-owned workspace/terminal carriers. */
+  async resolveThreadWorkspace(connectionId: string, threadId: string): Promise<string | undefined> {
+    if (!this.peers.has(connectionId)) throw new RpcError('CODEX_THREAD_UNAVAILABLE', 'The CodeX thread is not available on this connection.')
+    try {
+      const known = await this.readKnownThread(threadId)
+      return known.cwd
+    } catch (error) {
+      if (error instanceof RpcError && error.code === 'CODEX_THREAD_NOT_ALLOWED') {
+        throw new RpcError('CODEX_THREAD_UNAVAILABLE', 'The CodeX thread is not available.')
+      }
+      throw new RpcError('CODEX_THREAD_UNAVAILABLE', 'The CodeX thread is not available.')
+    }
+  }
+
   createPeer(context: PeerConnectionContext, publish: PublishCodexFrame): CodexPeerBridge | undefined {
     if (!this.config.enabled) return undefined
     const bridge = new CodexPeerBridge(this, context, publish, this.logger)

@@ -35,6 +35,7 @@ import { AcpGateway, StdioAcpAdapter } from './acp.js'
 import { execFileSync } from 'node:child_process'
 import type { CodexPeerBridge, PublishCodexFrame } from './codex/peer-bridge.js'
 import { RpcError } from './safe-error.js'
+import { CodexWorkspaceBridge, CodexWorkspaceState } from './codex-workspace-bridge.js'
 
 export interface HostConnectedClient {
   deviceId: string
@@ -67,6 +68,7 @@ export class HostPluginRuntime {
   private harnessVersion?: string
   private closed = false
   private readonly codex: CodexRemoteDomain
+  private readonly codexWorkspaceState = new CodexWorkspaceState()
   private localCodexPeer?: CodexPeerBridge
   private localCodexPublish: PublishCodexFrame = async () => undefined
 
@@ -99,6 +101,11 @@ export class HostPluginRuntime {
             this.logger,
             this.harnessVersion,
             new TerminalPolicy(() => this.terminalEnabled, context.peerDeviceId, this.terminalOwners),
+            new CodexWorkspaceBridge(
+              (threadId, signal) => this.codex.resolveThreadWorkspace(context.connectionId, threadId),
+              () => this.terminalEnabled,
+              this.codexWorkspaceState,
+            ),
           )
         : undefined
       const fileViewer = new RemoteFileViewerBridge(

@@ -23,6 +23,7 @@ import type { SafeLogger } from './logging.js'
 import { listRemoteDirectory } from './remote-directory-browser.js'
 import { RpcError } from './rpc-router.js'
 import type { LocalTypertGateway, TypertRpcResult } from './typert-gateway-contract.js'
+import { CodexWorkspaceBridge } from './codex-workspace-bridge.js'
 
 type PublishRemoteFrame = (
   event: 'harness.remote.frame' | 'harness.remote.stream.closed',
@@ -181,6 +182,7 @@ export class HarnessRemoteBridge {
     private readonly logger?: SafeLogger,
     private readonly harnessVersion?: string,
     private readonly terminal = new TerminalPolicy(() => false, "", new Map()),
+    private readonly codexWorkspace?: CodexWorkspaceBridge,
   ) {}
 
   async call(input: unknown): Promise<TypertRpcResult> {
@@ -194,6 +196,8 @@ export class HarnessRemoteBridge {
       }
     }
     const reservation = params.endpoint.startsWith('terminal/') ? this.terminal.check(params.endpoint, params.payload) : undefined
+    const codexResult = this.codexWorkspace === undefined ? undefined : await this.codexWorkspace.call(params.endpoint, params.payload, AbortSignal.timeout(60_000))
+    if (codexResult !== undefined) return reservation === undefined ? codexResult : this.terminal.result(params.endpoint, params.payload, codexResult, reservation)
     if (params.endpoint === 'session/canOpenWorkspacePath') {
       return { ok: true, value: true }
     }
@@ -357,7 +361,8 @@ export class HarnessRemoteBridge {
     this.streams.set(params.streamId, { controller })
     let source: AsyncIterable<unknown>
     try {
-      source = await this.gateway.open(params.endpoint, params.payload, controller.signal)
+      source = (this.codexWorkspace === undefined ? undefined : await this.codexWorkspace.open(params.endpoint, params.payload, controller.signal))
+        ?? await this.gateway.open(params.endpoint, params.payload, controller.signal)
       controller.signal.throwIfAborted()
     } catch (error) {
       this.streams.delete(params.streamId)
@@ -384,6 +389,7 @@ export class HarnessRemoteBridge {
     this.incomingTransfers.clear()
     this.outgoingTransfers.clear()
     for (const [, stream] of streams) stream.controller.abort(reason)
+    await this.codexWorkspace?.closeAll()
   }
 
   private assertAllowed(endpoint: string): void {

@@ -954,6 +954,8 @@ Harness `0.1.6-alpha.2` 原生侧栏通过现有 `harness.remote.*` carrier 传�
 `officeToPdf/generation|render`。Host 官方 Session lookup、组合文件系统、分页与大小限制继续生效。
 注意：上游 `list` / `changes` 限于工作区；文件读取遵循 Session 文件系统权限，允许工作区外的已授权文件，
 不能把“只读”表述成“只能读取 cwd 内文件”。旧 `fileviewer.read.v1` 仍使用 provider 授权。
+对 `codex:<threadId>` scope，Host 使用 CodeX thread 当前 `cwd` 作为独立根目录，并额外拒绝根目录之外的路径；
+该映射不改变 Harness Session 的既有工作区权限。CodeX 终端同样按 thread 建立独立 context。
 
 `terminal.enabled` 默认 false。Host 本地开关切换即保存并更新拦截，在后续加密 capability 探测中宣告 `harness.terminal.v1`。
 只允许 unary `terminal/environment|shells|list|create|write|resize|rename|close` 与 stream
@@ -1401,3 +1403,16 @@ UI 排版、静态说明和 Admin 普通筛选不属于协议 conformance。
 - Server 只解析 control envelope，不解析 relay plaintext。
 - Host ApiProxy bridge allowlist 与真实 Harness API 一致。
 - Web/Host/Mock Host 至少两两互操作。
+
+### CodeX Session workspace and terminal scope
+
+A Remote `workspaceFileScopeId` or terminal `agentId` may identify either a Harness
+Session or a CodeX Session. CodeX sessions use the form `codex:<threadId>` and are
+resolved by the Host; they are never looked up as Harness agents. The Host obtains
+the current CodeX thread `cwd`, creates an independent workspace-file scope and
+terminal context per thread, and applies the same path normalization, realpath,
+symlink, size, terminal ownership, and Remote settings checks as Harness sessions.
+A CodeX scope cannot access paths outside that thread's `cwd`; invalid, ended, or
+cwd-less threads return stable `CODEX_SESSION_INVALID`, `CODEX_THREAD_UNAVAILABLE`,
+or `CODEX_WORKSPACE_UNAVAILABLE` errors. Server transport only forwards encrypted
+RPC and does not perform this mapping or authorization.

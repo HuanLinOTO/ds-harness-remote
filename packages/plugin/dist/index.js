@@ -4695,7 +4695,7 @@ var LoopbackHost = class {
         const response = handle.response;
         let chunk = response.read(Math.min(response.readableLength || LOOPBACK_CHUNK_BYTES, LOOPBACK_CHUNK_BYTES));
         if (chunk === null && !response.readableEnded && !response.destroyed) {
-          await new Promise((resolve3, reject) => {
+          await new Promise((resolve4, reject) => {
             const timer = setTimeout(() => finish(new Error("timeout")), 2e4);
             const ready = () => finish();
             const fail4 = () => finish(new Error("closed"));
@@ -4705,7 +4705,7 @@ var LoopbackHost = class {
               response.off("end", ready);
               response.off("close", ready);
               response.off("error", fail4);
-              error === void 0 ? resolve3() : reject(error);
+              error === void 0 ? resolve4() : reject(error);
             };
             response.once("readable", ready);
             response.once("end", ready);
@@ -4735,22 +4735,22 @@ var LoopbackHost = class {
           this.close(value.id);
           throw new RpcError("RATE_LIMITED", "Preview WebSocket buffer exceeded its limit.");
         }
-        await new Promise((resolve3, reject) => handle.socket.send(data2, { binary: value.binary }, (error) => error ? reject(new RpcError("LOOPBACK_CLOSED", "Preview socket closed.")) : resolve3()));
+        await new Promise((resolve4, reject) => handle.socket.send(data2, { binary: value.binary }, (error) => error ? reject(new RpcError("LOOPBACK_CLOSED", "Preview socket closed.")) : resolve4()));
         return { sent: true };
       }
       if (value.op === "ws.read") {
         if (handle.reading) throw new RpcError("REQUEST_CONFLICT", "Only one preview read may be pending.");
         handle.reading = true;
         try {
-          if (handle.messages.length === 0 && !handle.closed) await new Promise((resolve3) => {
+          if (handle.messages.length === 0 && !handle.closed) await new Promise((resolve4) => {
             const timer = setTimeout(() => {
               handle.wake = void 0;
-              resolve3();
+              resolve4();
             }, 2e4);
             handle.wake = () => {
               clearTimeout(timer);
               handle.wake = void 0;
-              resolve3();
+              resolve4();
             };
           });
           let bytes = 0;
@@ -4792,7 +4792,7 @@ var LoopbackHost = class {
   openHttp(value) {
     const body = value.body === void 0 ? void 0 : Buffer.from(value.body, "base64");
     if ((body?.length ?? 0) > LOOPBACK_MAX_BODY_BYTES) throw new Error("body limit");
-    return new Promise((resolve3, reject) => {
+    return new Promise((resolve4, reject) => {
       const headers = Object.fromEntries(cleanHeaders(value.headers));
       const request = httpRequest({
         hostname: "127.0.0.1",
@@ -4811,7 +4811,7 @@ var LoopbackHost = class {
         handle.response = response;
         response.on("error", () => void 0);
         clearTimeout(timer);
-        resolve3({ status: response.statusCode ?? 502, headers: cleanHeaders(headerPairs(response.headers)) });
+        resolve4({ status: response.statusCode ?? 502, headers: cleanHeaders(headerPairs(response.headers)) });
       });
       const timer = setTimeout(() => {
         request.destroy();
@@ -4826,7 +4826,7 @@ var LoopbackHost = class {
     });
   }
   openWs(value) {
-    return new Promise((resolve3, reject) => {
+    return new Promise((resolve4, reject) => {
       const socket = new WebSocket2(`ws://127.0.0.1:${value.port}${value.path}`, value.protocols, {
         headers: Object.fromEntries(cleanHeaders(value.headers)),
         followRedirects: false,
@@ -4836,7 +4836,7 @@ var LoopbackHost = class {
       });
       const handle = { kind: "ws", socket, messages: [], bytes: 0, reading: false, closed: false, touched: Date.now() };
       this.handles.set(value.id, handle);
-      socket.once("open", () => resolve3({ protocol: socket.protocol }));
+      socket.once("open", () => resolve4({ protocol: socket.protocol }));
       socket.on("message", (data2, binary) => {
         const message = { data: Buffer.from(data2).toString("base64"), binary };
         if (handle.bytes + message.data.length > 1024 * 1024 || handle.messages.length >= 256) {
@@ -4894,7 +4894,7 @@ var LoopbackPreview = class {
       for (const client of running.ws.clients) client.terminate();
       running.ws.close();
       running.server.closeAllConnections();
-      await new Promise((resolve3) => running.server.close(() => resolve3()));
+      await new Promise((resolve4) => running.server.close(() => resolve4()));
     }
     this.servers.clear();
   }
@@ -4949,11 +4949,11 @@ var LoopbackPreview = class {
         void this.release(id4);
       });
     });
-    await new Promise((resolve3, reject) => {
+    await new Promise((resolve4, reject) => {
       server.once("error", reject);
       server.listen(0, "127.0.0.1", () => {
         server.off("error", reject);
-        resolve3();
+        resolve4();
       });
     });
     const address = server.address();
@@ -5019,10 +5019,10 @@ var LoopbackPreview = class {
       while (!signal.aborted) {
         const chunk = await this.client.rpc("loopback.call", { op: "http.read", id: id4 }, signal);
         if (chunk.data !== "" && !res.write(Buffer.from(chunk.data, "base64"))) {
-          await new Promise((resolve3, reject) => {
+          await new Promise((resolve4, reject) => {
             const ready = () => {
               cleanup();
-              resolve3();
+              resolve4();
             };
             const closed = () => {
               cleanup();
@@ -5082,7 +5082,7 @@ var LoopbackPreview = class {
           const result = await this.client.rpc("loopback.call", { op: "ws.read", id: id4 }, signal);
           for (const message of result.messages) {
             if (socket.bufferedAmount > 1024 * 1024) throw new Error("slow preview");
-            await new Promise((resolve3, reject) => socket.send(Buffer.from(message.data, "base64"), { binary: message.binary }, (error) => error ? reject(error) : resolve3()));
+            await new Promise((resolve4, reject) => socket.send(Buffer.from(message.data, "base64"), { binary: message.binary }, (error) => error ? reject(error) : resolve4()));
           }
           if (result.closed) break;
         }
@@ -5724,13 +5724,13 @@ var RemoteClientCore = class {
       throw rpcAbortedError(method, signal.reason);
     const timeoutMs = callTimeoutMs(this.timeoutMs, options);
     const request = createRpcRequest(method, params);
-    const result = new Promise((resolve3, reject) => {
+    const result = new Promise((resolve4, reject) => {
       const timer = setTimeout(() => {
         this.rejectPending(request.id, new RemoteClientError("RPC_TIMEOUT", `RPC ${method} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       const pending = {
         method,
-        resolve: resolve3,
+        resolve: resolve4,
         reject,
         timer
       };
@@ -5853,7 +5853,7 @@ async function waitForRelayCapacity(socket) {
   while ((socket.bufferedAmount ?? 0) > 512 * 1024) {
     if (socket.readyState !== 1 || Date.now() - started > 1e4)
       throw new Error("Relay consumer is too slow or disconnected");
-    await new Promise((resolve3) => setTimeout(resolve3, 10));
+    await new Promise((resolve4) => setTimeout(resolve4, 10));
   }
   if (socket.readyState !== 1)
     throw new Error("Relay transport closed");
@@ -6312,8 +6312,8 @@ var RtcDataChannelTransport = class {
     if (this.connectPromise !== void 0)
       return this.connectPromise;
     this.armAbort(signal);
-    this.connectPromise = new Promise((resolve3, reject) => {
-      this.openResolve = resolve3;
+    this.connectPromise = new Promise((resolve4, reject) => {
+      this.openResolve = resolve4;
       this.openReject = reject;
       this.negotiateTimer = setTimeout(() => {
         void this.failOpenAfterStats(new RtcConnectError("RTC_CONNECT_TIMEOUT", `WebRTC negotiation timed out after ${this.negotiateTimeoutMs}ms.`));
@@ -6528,9 +6528,9 @@ var RtcDataChannelTransport = class {
       if (this.closed || this.opened)
         return;
       this.opened = true;
-      const resolve3 = this.openResolve;
+      const resolve4 = this.openResolve;
       this.clearNegotiation();
-      void this.resolveSelectedTransport().then(() => resolve3?.());
+      void this.resolveSelectedTransport().then(() => resolve4?.());
     };
     channel.onmessage = (event) => {
       if (this.closed || !this.opened)
@@ -6924,7 +6924,7 @@ function asError(error) {
   return error instanceof Error ? error : new RtcConnectError("RTC_FAILED", "WebRTC negotiation failed.");
 }
 function sleep(ms) {
-  return new Promise((resolve3) => setTimeout(resolve3, ms));
+  return new Promise((resolve4) => setTimeout(resolve4, ms));
 }
 
 // ../webrtc/dist/adaptive-transport.js
@@ -6962,8 +6962,8 @@ var AdaptiveTransport = class extends BaseTransport {
     this.socket = new WebSocket(this.url);
     this.controlFrameLimits = {};
     this.socket.binaryType = "arraybuffer";
-    await new Promise((resolve3, reject) => {
-      this.readyResolve = resolve3;
+    await new Promise((resolve4, reject) => {
+      this.readyResolve = resolve4;
       this.readyReject = reject;
       this.handshakeTimer = setTimeout(() => this.failConnection(new Error("Adaptive control handshake timed out")), this.options.handshakeTimeoutMs ?? 15e3);
       const socket = this.socket;
@@ -14565,7 +14565,7 @@ var ClientSecureTransport = class {
   }
 };
 async function waitForResponder(inner, noise) {
-  await new Promise((resolve3, reject) => {
+  await new Promise((resolve4, reject) => {
     let settled = false;
     const timer = setTimeout(() => finish(new Error("Noise IK handshake timed out.")), 1e4);
     const unsubscribe = inner.onHandshake((step, data2) => {
@@ -14584,7 +14584,7 @@ async function waitForResponder(inner, noise) {
       settled = true;
       clearTimeout(timer);
       unsubscribe();
-      if (error === void 0) resolve3();
+      if (error === void 0) resolve4();
       else reject(error);
     };
     void inner.sendHandshake(1, noise.writeHandshake()).catch((error) => {
@@ -15029,7 +15029,7 @@ var AsyncFrameQueue = class {
         continue;
       }
       if (this.closed) return;
-      const next = await new Promise((resolve3) => this.waiters.push(resolve3));
+      const next = await new Promise((resolve4) => this.waiters.push(resolve4));
       if (next.done) return;
       yield next.value;
     }
@@ -15394,7 +15394,7 @@ var AsyncValueQueue = class {
         if (this.error !== void 0) throw this.error;
         return;
       }
-      const next = await new Promise((resolve3) => this.waiters.push(resolve3));
+      const next = await new Promise((resolve4) => this.waiters.push(resolve4));
       if (next.done) {
         if (this.error !== void 0) throw this.error;
         return;
@@ -17990,7 +17990,7 @@ var AsyncValueQueue2 = class {
         continue;
       }
       if (this.closed) return;
-      const next = await new Promise((resolve3) => this.waiters.push(resolve3));
+      const next = await new Promise((resolve4) => this.waiters.push(resolve4));
       if (next.done) return;
       yield next.value;
     }
@@ -18034,7 +18034,7 @@ var ServerCredentialStore = class {
       } catch (error) {
         if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") throw error;
         if (Date.now() >= deadline) throw new ServerCredentialsBusyError();
-        await new Promise((resolve3) => setTimeout(resolve3, 50));
+        await new Promise((resolve4) => setTimeout(resolve4, 50));
       }
     }
     try {
@@ -18874,10 +18874,10 @@ function isUsableExternalNode(candidate, requireFrom) {
 }
 function isExecutableFile(candidate) {
   try {
-    const stat6 = statSync(candidate);
-    if (!stat6.isFile()) return false;
+    const stat7 = statSync(candidate);
+    if (!stat7.isFile()) return false;
     if (process.platform === "win32") return true;
-    return (stat6.mode & 73) !== 0;
+    return (stat7.mode & 73) !== 0;
   } catch {
     return false;
   }
@@ -18966,8 +18966,8 @@ var ExternalNativePeerConnection = class {
   request(method, payload) {
     if (this.closed) return Promise.reject(new Error("native rtc helper is closed"));
     const id4 = this.nextRequestId++;
-    const promise = new Promise((resolve3, reject) => {
-      this.pending.set(id4, { resolve: resolve3, reject });
+    const promise = new Promise((resolve4, reject) => {
+      this.pending.set(id4, { resolve: resolve4, reject });
     });
     this.write({ id: id4, method, payload });
     return promise;
@@ -19761,10 +19761,10 @@ function parseRouteTarget(value) {
 async function detectRouteHostIpv4(target2, timeoutMs) {
   const socket = createSocket("udp4");
   try {
-    return await new Promise((resolve3, reject) => {
+    return await new Promise((resolve4, reject) => {
       const timer = setTimeout(() => {
         cleanup();
-        resolve3(void 0);
+        resolve4(void 0);
       }, timeoutMs);
       const cleanup = () => {
         clearTimeout(timer);
@@ -19778,7 +19778,7 @@ async function detectRouteHostIpv4(target2, timeoutMs) {
       socket.connect(target2.port, target2.host, () => {
         cleanup();
         const address = socket.address();
-        resolve3(typeof address === "string" ? void 0 : address.address);
+        resolve4(typeof address === "string" ? void 0 : address.address);
       });
     });
   } finally {
@@ -20877,7 +20877,7 @@ async function probeRemoteHostFeatures(client, clientVersion) {
 }
 async function waitForCodexFrames(stream, signal) {
   if (signal?.aborted) throw new ClientModeError("RPC_ABORTED", "The Codex event poll was cancelled.");
-  await new Promise((resolve3, reject) => {
+  await new Promise((resolve4, reject) => {
     const previousWake = stream.wake;
     const timer = setTimeout(done, 25e3);
     const onAbort = () => {
@@ -20891,7 +20891,7 @@ async function waitForCodexFrames(stream, signal) {
     }
     function done() {
       cleanup();
-      resolve3();
+      resolve4();
     }
     stream.wake = () => {
       previousWake();
@@ -21615,6 +21615,13 @@ function redact(value, key = "") {
   return Object.fromEntries(Object.entries(value).map(([childKey, child]) => [childKey, redact(child, childKey)]));
 }
 
+// src/codex/session-id.ts
+function parseCodexSessionId(value) {
+  if (typeof value !== "string") return void 0;
+  const match = /^codex:([A-Za-z0-9][A-Za-z0-9._-]{0,255})$/.exec(value);
+  return match === null ? void 0 : { sessionId: value, threadId: match[1] };
+}
+
 // src/terminal-policy.ts
 var TERMINAL_CALLS = /* @__PURE__ */ new Set([
   "terminal/environment",
@@ -21627,7 +21634,7 @@ var TERMINAL_CALLS = /* @__PURE__ */ new Set([
   "terminal/close"
 ]);
 var TERMINAL_STREAMS = /* @__PURE__ */ new Set(["terminal/follow", "terminal/retain"]);
-var id2 = external_exports.string().regex(/^[\w-]{1,128}$/);
+var id2 = external_exports.string().regex(/^[A-Za-z0-9_:-]{1,256}$/);
 var TerminalPolicy = class {
   constructor(enabled, deviceId, owners) {
     this.enabled = enabled;
@@ -21641,7 +21648,10 @@ var TerminalPolicy = class {
       "Remote terminal is disabled on this Host. Enable Remote terminal in the Host Remote settings; the switch saves and applies immediately. / \u8FDC\u7A0B\u7EC8\u7AEF\u672A\u5F00\u542F\uFF0C\u8BF7\u5728 Host \u7684 Remote \u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u8FDC\u7A0B\u7EC8\u7AEF\u300D\uFF0C\u5F00\u5173\u5207\u6362\u540E\u7ACB\u5373\u4FDD\u5B58\u5E76\u751F\u6548\u3002"
     );
     const args = external_exports.object({ args: external_exports.record(external_exports.unknown()) }).strict().parse(payload).args;
-    const sessionId = id2.parse(args.agentId ?? args.sessionId);
+    const rawSessionId = args.agentId ?? args.sessionId;
+    const sessionId = id2.parse(rawSessionId);
+    const codexSession = parseCodexSessionId(sessionId);
+    void codexSession;
     if (endpoint === "terminal/environment" || endpoint === "terminal/shells" || endpoint === "terminal/list") return {};
     const request = endpoint === "terminal/create" ? external_exports.object({ id: id2 }).passthrough().parse(args.request) : void 0;
     const terminalId = id2.parse(request?.id ?? args.id);
@@ -22341,7 +22351,7 @@ var HostServerConnection = class {
     this.controlFrameLimits = {};
     let acknowledged = false;
     let messageQueue = Promise.resolve();
-    await new Promise((resolve3, reject) => {
+    await new Promise((resolve4, reject) => {
       let settled = false;
       const helloTimer = setTimeout(() => socket.close(4001, "hello timeout"), 1e4);
       const finish = (error) => {
@@ -22350,7 +22360,7 @@ var HostServerConnection = class {
         clearTimeout(helloTimer);
         this.online = false;
         if (this.socket === socket) this.socket = void 0;
-        void this.dropTunnels().finally(() => error === void 0 ? resolve3() : reject(error));
+        void this.dropTunnels().finally(() => error === void 0 ? resolve4() : reject(error));
       };
       socket.onopen = () => {
         this.sendControl("hello", {
@@ -22888,14 +22898,14 @@ var HostServerConnection = class {
   waitBeforeRetry(baseDelay) {
     const spread = baseDelay * this.config.reconnect.jitter;
     const delay = Math.max(0, Math.round(baseDelay - spread + Math.random() * spread * 2));
-    return new Promise((resolve3) => {
+    return new Promise((resolve4) => {
       const timer = setTimeout(() => {
         this.retryWake = void 0;
-        resolve3();
+        resolve4();
       }, delay);
       this.retryWake = () => {
         clearTimeout(timer);
-        resolve3();
+        resolve4();
       };
     });
   }
@@ -23928,7 +23938,7 @@ function historyRequestPayload(payload, maxMessages) {
   return { ...payload, maxMessages };
 }
 function withTimeout(promise, ms, message) {
-  return new Promise((resolve3, reject) => {
+  return new Promise((resolve4, reject) => {
     const timer = setTimeout(() => {
       reject(new RpcError("TIMEOUT", message, void 0, true));
     }, ms);
@@ -23936,7 +23946,7 @@ function withTimeout(promise, ms, message) {
     promise.then(
       (value) => {
         clearTimeout(timer);
-        resolve3(value);
+        resolve4(value);
       },
       (error) => {
         clearTimeout(timer);
@@ -24083,12 +24093,13 @@ var HARNESS_REMOTE_ALLOWLIST = [
 ];
 var allowedEndpoints = new Set(HARNESS_REMOTE_ALLOWLIST);
 var HarnessRemoteBridge = class {
-  constructor(gateway, publish, logger, harnessVersion, terminal = new TerminalPolicy(() => false, "", /* @__PURE__ */ new Map())) {
+  constructor(gateway, publish, logger, harnessVersion, terminal = new TerminalPolicy(() => false, "", /* @__PURE__ */ new Map()), codexWorkspace) {
     this.gateway = gateway;
     this.publish = publish;
     this.logger = logger;
     this.harnessVersion = harnessVersion;
     this.terminal = terminal;
+    this.codexWorkspace = codexWorkspace;
   }
   streams = /* @__PURE__ */ new Map();
   incomingTransfers = /* @__PURE__ */ new Map();
@@ -24104,6 +24115,8 @@ var HarnessRemoteBridge = class {
       }
     }
     const reservation = params.endpoint.startsWith("terminal/") ? this.terminal.check(params.endpoint, params.payload) : void 0;
+    const codexResult = this.codexWorkspace === void 0 ? void 0 : await this.codexWorkspace.call(params.endpoint, params.payload, AbortSignal.timeout(6e4));
+    if (codexResult !== void 0) return reservation === void 0 ? codexResult : this.terminal.result(params.endpoint, params.payload, codexResult, reservation);
     if (params.endpoint === "session/canOpenWorkspacePath") {
       return { ok: true, value: true };
     }
@@ -24256,7 +24269,7 @@ var HarnessRemoteBridge = class {
     this.streams.set(params.streamId, { controller });
     let source;
     try {
-      source = await this.gateway.open(params.endpoint, params.payload, controller.signal);
+      source = (this.codexWorkspace === void 0 ? void 0 : await this.codexWorkspace.open(params.endpoint, params.payload, controller.signal)) ?? await this.gateway.open(params.endpoint, params.payload, controller.signal);
       controller.signal.throwIfAborted();
     } catch (error) {
       this.streams.delete(params.streamId);
@@ -24281,6 +24294,7 @@ var HarnessRemoteBridge = class {
     this.incomingTransfers.clear();
     this.outgoingTransfers.clear();
     for (const [, stream] of streams) stream.controller.abort(reason);
+    await this.codexWorkspace?.closeAll();
   }
   assertAllowed(endpoint) {
     if (!allowedEndpoints.has(endpoint) && !TERMINAL_CALLS.has(endpoint) && !TERMINAL_STREAMS.has(endpoint)) {
@@ -24453,15 +24467,15 @@ var CodexAppServerClient = class {
     const child = this.process;
     this.process = void 0;
     if (child === void 0 || child.exitCode !== null || child.killed) return;
-    await new Promise((resolve3) => {
+    await new Promise((resolve4) => {
       const timer = setTimeout(() => {
         child.kill("SIGKILL");
-        resolve3();
+        resolve4();
       }, 2e3);
       timer.unref?.();
       child.once("exit", () => {
         clearTimeout(timer);
-        resolve3();
+        resolve4();
       });
       child.kill("SIGTERM");
     });
@@ -24517,13 +24531,13 @@ var CodexAppServerClient = class {
   }
   request(method, params, timeoutMs) {
     const id4 = this.nextId++;
-    const result = new Promise((resolve3, reject) => {
+    const result = new Promise((resolve4, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id4);
         reject(new CodexAppServerError("CODEX_REQUEST_TIMEOUT", "Codex App Server request timed out."));
       }, timeoutMs);
       timer.unref?.();
-      this.pending.set(id4, { resolve: resolve3, reject, timer });
+      this.pending.set(id4, { resolve: resolve4, reject, timer });
     });
     try {
       this.write({ id: id4, method, params });
@@ -25060,6 +25074,19 @@ var CodexRemoteDomain = class {
       restartAttempt: this.restartAttempt,
       ...this.unavailableCode === void 0 ? {} : { error: this.unavailableCode }
     };
+  }
+  /** Resolve a thread cwd for Host-owned workspace/terminal carriers. */
+  async resolveThreadWorkspace(connectionId, threadId) {
+    if (!this.peers.has(connectionId)) throw new RpcError("CODEX_THREAD_UNAVAILABLE", "The CodeX thread is not available on this connection.");
+    try {
+      const known = await this.readKnownThread(threadId);
+      return known.cwd;
+    } catch (error) {
+      if (error instanceof RpcError && error.code === "CODEX_THREAD_NOT_ALLOWED") {
+        throw new RpcError("CODEX_THREAD_UNAVAILABLE", "The CodeX thread is not available.");
+      }
+      throw new RpcError("CODEX_THREAD_UNAVAILABLE", "The CodeX thread is not available.");
+    }
   }
   createPeer(context, publish) {
     if (!this.config.enabled) return void 0;
@@ -26135,7 +26162,7 @@ var StdioAcpAdapter = class {
     const c = this.ensure();
     const id4 = this.nextId++;
     c.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: id4, method, params }) + "\n");
-    return new Promise((resolve3, reject) => {
+    return new Promise((resolve4, reject) => {
       let buf = "";
       const onData = async (d) => {
         buf += d;
@@ -26146,7 +26173,7 @@ var StdioAcpAdapter = class {
             const m = JSON.parse(l);
             if (m.id === id4) {
               c.stdout.off("data", onData);
-              m.error ? reject(new Error(m.error.message ?? "ACP error")) : resolve3(m.result);
+              m.error ? reject(new Error(m.error.message ?? "ACP error")) : resolve4(m.result);
             } else if (m.method && onNotification) await onNotification(m.params);
           } catch {
           }
@@ -26160,6 +26187,293 @@ var StdioAcpAdapter = class {
 
 // src/service.ts
 import { execFileSync as execFileSync2 } from "node:child_process";
+
+// src/codex-workspace-bridge.ts
+import { spawn as spawn4 } from "node:child_process";
+import { realpath as realpath2, lstat, readdir as readdir3, readFile as readFile4, stat as stat5, watch } from "node:fs/promises";
+import { isAbsolute as isAbsolute4, join as join6, relative as relative2, resolve as resolve3 } from "node:path";
+var MAX_READ_BYTES = 4 * 1024 * 1024;
+var MAX_INPUT_BYTES = 64 * 1024;
+var MAX_COLS = 240;
+var MAX_ROWS = 100;
+var MAX_TERMINALS = 256;
+var CodexWorkspaceState = class {
+  terminals = /* @__PURE__ */ new Map();
+};
+var AsyncQueue = class {
+  values = [];
+  waiters = [];
+  ended = false;
+  push(value) {
+    if (this.ended) return;
+    const waiter = this.waiters.shift();
+    if (waiter) waiter({ done: false, value });
+    else this.values.push(value);
+  }
+  end() {
+    this.ended = true;
+    while (this.waiters.length) this.waiters.shift()({ done: true, value: void 0 });
+  }
+  next() {
+    const value = this.values.shift();
+    if (value !== void 0) return Promise.resolve({ done: false, value });
+    if (this.ended) return Promise.resolve({ done: true, value: void 0 });
+    return new Promise((resolve4) => this.waiters.push(resolve4));
+  }
+  [Symbol.asyncIterator]() {
+    return this;
+  }
+};
+var CodexWorkspaceBridge = class {
+  constructor(resolveCwd, terminalEnabled, state = new CodexWorkspaceState()) {
+    this.resolveCwd = resolveCwd;
+    this.terminalEnabled = terminalEnabled;
+    this.terminals = state.terminals;
+  }
+  terminals;
+  ownedSubscribers = /* @__PURE__ */ new Set();
+  isCodeXScope(value) {
+    return parseCodexSessionId(value) !== void 0;
+  }
+  async call(endpoint, payload, signal) {
+    const args = argsOf(payload);
+    const scope = args.workspaceFileScopeId;
+    const session = args.agentId ?? args.sessionId;
+    const raw = scope ?? session;
+    const codex = parseCodexSessionId(raw);
+    if (codex === void 0) {
+      if (typeof raw === "string" && raw.startsWith("codex:")) throw new RpcError("CODEX_SESSION_INVALID", "The CodeX session identifier is invalid.");
+      return void 0;
+    }
+    if (endpoint.startsWith("workspaceFiles/")) return this.fileCall(endpoint, codex.sessionId, args, signal);
+    if (endpoint.startsWith("terminal/")) return this.terminalCall(endpoint, codex.sessionId, args, signal);
+    return void 0;
+  }
+  async open(endpoint, payload, signal) {
+    const args = argsOf(payload);
+    const raw = args.workspaceFileScopeId ?? args.agentId ?? args.sessionId;
+    const codex = parseCodexSessionId(raw);
+    if (codex === void 0) {
+      if (typeof raw === "string" && raw.startsWith("codex:")) throw new RpcError("CODEX_SESSION_INVALID", "The CodeX session identifier is invalid.");
+      return void 0;
+    }
+    if (endpoint === "workspaceFiles/changes") return this.watchChanges(codex.sessionId, args, signal);
+    if (endpoint === "terminal/follow" || endpoint === "terminal/retain") {
+      this.assertTerminalEnabled();
+      await this.rootFor(codex.sessionId, signal);
+      const terminal = await this.requireTerminal(codex.sessionId, String(args.id), signal);
+      if (endpoint === "terminal/follow") {
+        if (typeof args.attachmentId !== "string" || args.attachmentId.length < 1) throw new RpcError("INVALID_MESSAGE", "The terminal attachment is invalid.");
+      }
+      const queue = new AsyncQueue();
+      terminal.subscribers.add(queue);
+      this.ownedSubscribers.add(queue);
+      if (endpoint === "terminal/retain") for (const item of terminal.history) queue.push(item);
+      signal.addEventListener("abort", () => {
+        terminal.subscribers.delete(queue);
+        this.ownedSubscribers.delete(queue);
+        queue.end();
+      }, { once: true });
+      return queue;
+    }
+    return void 0;
+  }
+  async closeAll() {
+    for (const queue of this.ownedSubscribers) queue.end();
+    this.ownedSubscribers.clear();
+  }
+  async fileCall(endpoint, sessionId, args, signal) {
+    const root = await this.rootFor(sessionId, signal);
+    const path = typeof args.path === "string" ? args.path : ".";
+    const target2 = await this.safePath(root, path, endpoint === "workspaceFiles/list");
+    try {
+      if (endpoint === "workspaceFiles/list") {
+        const entries = await readdir3(target2, { withFileTypes: true });
+        const result = [];
+        for (const entry of entries.slice(0, 500)) {
+          const item = join6(target2, entry.name);
+          const info2 = await lstat(item);
+          if (info2.isSymbolicLink()) continue;
+          result.push({ name: entry.name, type: info2.isDirectory() ? "directory" : info2.isFile() ? "file" : "other", ...info2.isFile() ? { size: info2.size } : {} });
+        }
+        return { ok: true, value: { path, entries: result, truncated: entries.length > 500 } };
+      }
+      const info = await stat5(target2);
+      if (endpoint === "workspaceFiles/stat") return { ok: true, value: { path, type: info.isDirectory() ? "directory" : info.isFile() ? "file" : "other", size: info.size, modifiedAt: info.mtimeMs } };
+      if (!info.isFile()) throw new RpcError("CODEX_WORKSPACE_INVALID_PATH", "The requested workspace path is not a file.");
+      const offset = readOffset(args);
+      const limit = readLimit(args);
+      const bytes = await readFile4(target2);
+      if (bytes.byteLength > MAX_READ_BYTES) throw new RpcError("CODEX_WORKSPACE_TOO_LARGE", "The requested workspace file is too large.");
+      if (endpoint === "workspaceFiles/readBytes") {
+        const slice2 = bytes.subarray(offset, Math.min(offset + limit, bytes.length));
+        return { ok: true, value: { path, offset, bytes: slice2.toString("base64"), eof: offset + slice2.length >= bytes.length } };
+      }
+      const text = bytes.toString("utf8");
+      const slice = text.slice(offset, offset + limit);
+      return { ok: true, value: { absolutePath: target2, version: `${info.mtimeMs}:${info.size}`, text: slice, offset, lines: slice.split("\n").length, eof: offset + slice.length >= text.length } };
+    } catch (error) {
+      if (error instanceof RpcError) throw error;
+      throw new RpcError("CODEX_WORKSPACE_UNAVAILABLE", "The CodeX workspace file is unavailable.");
+    }
+  }
+  async watchChanges(sessionId, args, signal) {
+    const root = await this.rootFor(sessionId, signal);
+    const target2 = await this.safePath(root, typeof args.path === "string" ? args.path : ".", true);
+    const queue = new AsyncQueue();
+    const watcher = watch(target2, { recursive: false });
+    const abort = () => {
+      watcher.return?.();
+      queue.end();
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    void (async () => {
+      try {
+        for await (const event of watcher) queue.push({ type: event.eventType, path: event.filename ?? "" });
+      } catch {
+      } finally {
+        signal.removeEventListener("abort", abort);
+        queue.end();
+      }
+    })();
+    return queue;
+  }
+  async terminalCall(endpoint, sessionId, args, signal) {
+    this.assertTerminalEnabled();
+    const cwd = await this.rootFor(sessionId, signal);
+    if (endpoint === "terminal/environment") return { ok: true, value: { cwd, maxInputBytes: MAX_INPUT_BYTES, maxCols: MAX_COLS, maxRows: MAX_ROWS } };
+    if (endpoint === "terminal/shells") return { ok: true, value: [{ id: process.platform === "win32" ? "cmd.exe" : "/bin/sh", name: process.platform === "win32" ? "Command Prompt" : "sh" }] };
+    if (endpoint === "terminal/list") return { ok: true, value: [...this.terminals.values()].filter((item) => item.sessionId === sessionId).map(terminalInfo) };
+    if (endpoint === "terminal/create") {
+      const request = isRecord13(args.request) ? args.request : {};
+      const id5 = stringId(request.id);
+      if ([...this.terminals.values()].some((item) => item.sessionId === sessionId && item.id === id5)) throw new RpcError("REQUEST_CONFLICT", "The terminal id is already active.");
+      if (this.terminals.size >= MAX_TERMINALS) throw new RpcError("RATE_LIMITED", "Too many remote terminals are active.", void 0, true);
+      const cols = bounded(request.cols, 80, MAX_COLS);
+      const rows = bounded(request.rows, 24, MAX_ROWS);
+      const shell = process.platform === "win32" ? "cmd.exe" : "/bin/sh";
+      const child = spawn4(shell, [], { cwd, stdio: "pipe", windowsHide: true });
+      const terminal2 = { sessionId, id: id5, title: typeof request.title === "string" ? request.title : id5, cwd, cols, rows, process: child, sequence: 0, subscribers: /* @__PURE__ */ new Set(), history: [], state: "running", exitCode: null };
+      this.terminals.set(`${sessionId}/${id5}`, terminal2);
+      child.stdout.on("data", (data2) => this.emit(terminal2, { type: "output", sequence: ++terminal2.sequence, data: Buffer.from(data2).toString("utf8") }));
+      child.stderr.on("data", (data2) => this.emit(terminal2, { type: "output", sequence: ++terminal2.sequence, data: Buffer.from(data2).toString("utf8") }));
+      child.on("error", () => {
+        terminal2.state = "failed";
+        this.emit(terminal2, { type: "state", info: terminalInfo(terminal2) });
+        this.endSubscribers(terminal2);
+      });
+      child.on("exit", (code) => {
+        terminal2.state = "exited";
+        terminal2.exitCode = code;
+        this.emit(terminal2, { type: "state", info: terminalInfo(terminal2) });
+        this.endSubscribers(terminal2);
+      });
+      return { ok: true, value: terminalInfo(terminal2) };
+    }
+    const id4 = stringId(args.id);
+    const terminal = await this.requireTerminal(sessionId, id4, signal);
+    if (endpoint === "terminal/write") {
+      const data2 = typeof args.data === "string" ? args.data : "";
+      if (Buffer.byteLength(data2) > MAX_INPUT_BYTES) throw new RpcError("INVALID_MESSAGE", "Terminal input is too large.");
+      terminal.process.stdin.write(data2);
+      return { ok: true, value: {} };
+    }
+    if (endpoint === "terminal/resize") {
+      terminal.cols = bounded(args.cols, terminal.cols, MAX_COLS);
+      terminal.rows = bounded(args.rows, terminal.rows, MAX_ROWS);
+      return { ok: true, value: terminalInfo(terminal) };
+    }
+    if (endpoint === "terminal/rename") {
+      terminal.title = typeof args.title === "string" && args.title.length > 0 ? args.title.slice(0, 128) : terminal.title;
+      return { ok: true, value: terminalInfo(terminal) };
+    }
+    if (endpoint === "terminal/close") {
+      this.disposeTerminal(terminal);
+      this.terminals.delete(`${sessionId}/${id4}`);
+      return { ok: true, value: {} };
+    }
+    throw new RpcError("METHOD_NOT_FOUND", "The requested terminal method does not exist.");
+  }
+  async rootFor(sessionId, signal) {
+    const parsed = parseCodexSessionId(sessionId);
+    if (!parsed) throw new RpcError("CODEX_SESSION_INVALID", "The CodeX session identifier is invalid.");
+    const cwd = await this.resolveCwd(parsed.threadId, signal);
+    if (!cwd) throw new RpcError("CODEX_WORKSPACE_UNAVAILABLE", "The CodeX thread has no available workspace.");
+    try {
+      const root = await realpath2(cwd);
+      const info = await stat5(root);
+      if (!info.isDirectory()) throw new Error();
+      return root;
+    } catch {
+      throw new RpcError("CODEX_WORKSPACE_UNAVAILABLE", "The CodeX workspace is unavailable.");
+    }
+  }
+  async safePath(root, path, directory) {
+    if (isAbsolute4(path)) throw new RpcError("CODEX_WORKSPACE_PATH_DENIED", "The requested workspace path is outside the CodeX workspace.");
+    const candidate = resolve3(root, path);
+    const rel = relative2(root, candidate);
+    if (rel.startsWith("..") || isAbsolute4(rel)) throw new RpcError("CODEX_WORKSPACE_PATH_DENIED", "The requested workspace path is outside the CodeX workspace.");
+    try {
+      const info = await lstat(candidate);
+      if (info.isSymbolicLink()) throw new Error();
+      const canonical = await realpath2(candidate);
+      const canonicalRel = relative2(root, canonical);
+      if (canonicalRel.startsWith("..") || isAbsolute4(canonicalRel)) throw new Error();
+      if (directory && !info.isDirectory()) throw new Error();
+      return canonical;
+    } catch {
+      throw new RpcError("CODEX_WORKSPACE_PATH_DENIED", "The requested workspace path is unavailable.");
+    }
+  }
+  emit(terminal, value) {
+    terminal.history.push(value);
+    if (terminal.history.length > 512) terminal.history.shift();
+    for (const subscriber of terminal.subscribers) subscriber.push(value);
+  }
+  endSubscribers(terminal) {
+    for (const subscriber of terminal.subscribers) subscriber.end();
+    terminal.subscribers.clear();
+  }
+  async requireTerminal(sessionId, id4, _signal) {
+    const terminal = this.terminals.get(`${sessionId}/${id4}`);
+    if (!terminal) throw new RpcError("CODEX_TERMINAL_NOT_FOUND", "The CodeX terminal is no longer available.");
+    return terminal;
+  }
+  assertTerminalEnabled() {
+    if (!this.terminalEnabled()) throw new RpcError("TERMINAL_DISABLED", "Remote terminal is disabled on this Host.");
+  }
+  disposeTerminal(terminal) {
+    if (!terminal.process.killed) terminal.process.kill();
+    this.endSubscribers(terminal);
+  }
+};
+function argsOf(payload) {
+  const value = isRecord13(payload) ? payload : {};
+  return isRecord13(value.args) ? value.args : value;
+}
+function isRecord13(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function stringId(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_.:-]{1,128}$/.test(value)) throw new RpcError("INVALID_MESSAGE", "The terminal identifier is invalid.");
+  return value;
+}
+function bounded(value, fallback, max) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? Math.min(value, max) : fallback;
+}
+function readOffset(args) {
+  const range = isRecord13(args.range) ? args.range : args;
+  return typeof range.offset === "number" && Number.isInteger(range.offset) && range.offset >= 0 ? range.offset : 0;
+}
+function readLimit(args) {
+  const range = isRecord13(args.range) ? args.range : args;
+  return typeof range.limit === "number" && Number.isInteger(range.limit) && range.limit > 0 ? Math.min(range.limit, MAX_READ_BYTES) : MAX_READ_BYTES;
+}
+function terminalInfo(terminal) {
+  return { id: terminal.id, title: terminal.title, state: terminal.state, cols: terminal.cols, rows: terminal.rows, exitCode: terminal.exitCode };
+}
+
+// src/service.ts
 var HostPluginRuntime = class {
   constructor(config, identities, apiProxy, logger, localGateway, fileViewerHost) {
     this.config = config;
@@ -26185,7 +26499,12 @@ var HostPluginRuntime = class {
         (event, data2) => send(createEvent(event, data2)),
         this.logger,
         this.harnessVersion,
-        new TerminalPolicy(() => this.terminalEnabled, context.peerDeviceId, this.terminalOwners)
+        new TerminalPolicy(() => this.terminalEnabled, context.peerDeviceId, this.terminalOwners),
+        new CodexWorkspaceBridge(
+          (threadId, signal) => this.codex.resolveThreadWorkspace(context.connectionId, threadId),
+          () => this.terminalEnabled,
+          this.codexWorkspaceState
+        )
       ) : void 0;
       const fileViewer = new RemoteFileViewerBridge(
         () => this.fileViewerHost?.(),
@@ -26223,6 +26542,7 @@ var HostPluginRuntime = class {
   harnessVersion;
   closed = false;
   codex;
+  codexWorkspaceState = new CodexWorkspaceState();
   localCodexPeer;
   localCodexPublish = async () => void 0;
   setTerminalEnabled(enabled) {
@@ -26506,9 +26826,9 @@ function isPlainRecord(value) {
 }
 
 // src/cli.ts
-import { stat as stat5 } from "node:fs/promises";
+import { stat as stat6 } from "node:fs/promises";
 import { hostname as hostname3 } from "node:os";
-import { join as join6 } from "node:path";
+import { join as join7 } from "node:path";
 var QR_POLL_INTERVAL_MS = 2e3;
 var TERMINAL_QR_MARGIN = 4;
 async function runCli(args = process.argv.slice(2), dependencies = {}) {
@@ -26585,7 +26905,7 @@ async function status(args, runtime) {
     `Server: ${serverUrl}`,
     "Host control: enabled (dsh-TUI default)"
   ];
-  if (!await exists3(join6(directory, "device.json"))) {
+  if (!await exists3(join7(directory, "device.json"))) {
     lines.push("Device: not initialized", "Authorization: logged out", "Credential: unavailable");
     write(runtime.stdout, `${lines.join("\n")}
 
@@ -26629,7 +26949,7 @@ async function logout(args, runtime) {
   const serverUrl = selectedServer();
   const root = new IdentityStore({ env: runtime.env }).directory;
   const directory = serverStorageDirectory(root, serverUrl, "host");
-  if (!await exists3(join6(directory, "device.json"))) {
+  if (!await exists3(join7(directory, "device.json"))) {
     await new ServerCredentialStore(directory).clear();
     write(runtime.stdout, "This Host is already logged out.\n");
     return 0;
@@ -26671,7 +26991,7 @@ function resolveDependencies(input2) {
     stdout: input2.stdout ?? process.stdout,
     stderr: input2.stderr ?? process.stderr,
     now: input2.now ?? Date.now,
-    wait: input2.wait ?? ((milliseconds) => new Promise((resolve3) => setTimeout(resolve3, milliseconds))),
+    wait: input2.wait ?? ((milliseconds) => new Promise((resolve4) => setTimeout(resolve4, milliseconds))),
     renderQr: input2.renderQr ?? renderTerminalQr,
     createIdentityStore: input2.createIdentityStore ?? ((options) => new IdentityStore(options)),
     createHostApi: input2.createHostApi ?? ((serverUrl, store) => new HostServerApi(serverUrl, store))
@@ -26757,7 +27077,7 @@ function terminalLink(url, target2) {
 }
 async function exists3(path) {
   try {
-    await stat5(path);
+    await stat6(path);
     return true;
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return false;
@@ -27116,7 +27436,7 @@ function errorCode4(error) {
   return "CONNECTION_FAILED";
 }
 function wait(milliseconds) {
-  return new Promise((resolve3) => setTimeout(resolve3, milliseconds));
+  return new Promise((resolve4) => setTimeout(resolve4, milliseconds));
 }
 
 // src/remote-file-content-provider.ts
