@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { RemoteTypertGateway, type RemoteClientCore } from '@dsh-remote/client-core'
 import { sessionPermissions } from '../src/services/session-permissions'
 import type { RemoteSession } from '../src/types'
-import { HarnessSessionTools } from '../src/services/session-tools'
+import { HarnessSessionTools, OFFICE_PREVIEW_MAX_RESPONSE_BYTES, OFFICE_PREVIEW_TIMEOUT_MS } from '../src/services/session-tools'
 
 function setup(value: unknown) {
   const rpc = vi.fn(async (..._args: unknown[]) => ({ ok: true, value }))
@@ -15,7 +15,7 @@ describe('native session tools', () => {
     const options = [{ value: 'read-only', name: 'Read only' }, { value: 'auto', name: 'Auto' }]
     const { tools, rpc } = setup({ options })
     await expect(tools.permissionOptions()).resolves.toEqual(options)
-    expect(rpc).toHaveBeenCalledWith('harness.remote.call', { endpoint: 'permissionPresets/catalog', payload: { args: {} } }, expect.any(AbortSignal))
+    expect(rpc).toHaveBeenCalledWith('harness.remote.call', { endpoint: 'permissionPresets/catalog', payload: { args: {} } }, expect.any(AbortSignal), undefined)
     expect(rpc).toHaveBeenCalledTimes(1)
   })
   it('rejects malformed catalogs instead of inventing permission grants', async () => {
@@ -34,6 +34,25 @@ describe('native session tools', () => {
     expect(rpc.mock.calls.map(call => call.slice(0, 2))).toMatchObject([
       ['harness.remote.call', { endpoint: 'workspaceFiles/list', payload: { args: { workspaceFileScopeId: 's1', path: 'src' } } }],
       ['harness.remote.call', { endpoint: 'workspaceFiles/read', payload: { args: { workspaceFileScopeId: 's1', path: 'src/main.ts', range: { offset: 201, limit: 200 } } } }],
+    ])
+  })
+  it('reads byte ranges and converts Office previews with their own deadline', async () => {
+    const { tools, rpc } = setup({})
+    await tools.statFile('s1', 'assets/logo.png')
+    await tools.readBytes('s1', 'assets/logo.png', 0, 512)
+    await tools.officeGeneration()
+    await tools.renderOfficePdf('s1', 'docs/report.docx')
+    expect(rpc.mock.calls.map(call => call.slice(0, 2))).toMatchObject([
+      ['harness.remote.call', { endpoint: 'workspaceFiles/stat', payload: { args: { workspaceFileScopeId: 's1', path: 'assets/logo.png' } } }],
+      ['harness.remote.call', { endpoint: 'workspaceFiles/readBytes', payload: { args: { workspaceFileScopeId: 's1', path: 'assets/logo.png', range: { offset: 0, length: 512 } } } }],
+      ['harness.remote.call', { endpoint: 'officeToPdf/generation', payload: { args: {} } }],
+      ['harness.remote.call', { endpoint: 'officeToPdf/render', payload: { args: { workspaceFileScopeId: 's1', path: 'docs/report.docx', priority: 'foreground' } } }],
+    ])
+    expect(rpc.mock.calls.map(call => call[3])).toEqual([
+      undefined,
+      { maxResponseBytes: 4 * Math.ceil(512 / 3) + 64 * 1024 },
+      { timeoutMs: OFFICE_PREVIEW_TIMEOUT_MS },
+      { timeoutMs: OFFICE_PREVIEW_TIMEOUT_MS, maxResponseBytes: OFFICE_PREVIEW_MAX_RESPONSE_BYTES },
     ])
   })
 })

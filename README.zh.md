@@ -145,6 +145,8 @@ Harness 会话的「文件」（工作区文件夹浏览、UTF-8 文本分页只
 
 权限选择器兼容旧版会话内选项与新版 DSH 0.1.6 的独立 `permissionPresets/catalog`。Host Remote 插件也需要更新；不支持的 Host 会显示更新提示，不会凭空补出权限选项。
 
+Android 文件预览还支持 PNG/JPEG/GIF/WebP 图片和 PDF；Host 提供 `officeToPdf` 时可查看 DOC/DOCX/XLS/XLSX/PPT/PPTX。二进制预览上限为 8 MiB（Office 源文件为 50 MiB）。PDF 使用本地打包的渲染器，不依赖 CDN、外部查看器或文件导出；未知二进制类型不会当作文本打开。文件访问仍只读，并由官方 Session 文件系统授权；原生真机与跨设备预览验收尚待完成。
+
 <p align="center">
   <img src="docs/images/mobile-list.jpg" alt="Android 客户端中的在线和离线设备列表" width="30%">
   <img src="docs/images/image-msg.jpg" alt="从 Android 客户端发送图片 Prompt" width="30%">

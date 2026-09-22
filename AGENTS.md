@@ -205,9 +205,13 @@ permissionPresets/catalog（已加入 Host 固定只读 allowlist）；Host 插�
 workspace 全量 check 在 Server web 类型检查处停滞，不作为通过记录。最终 APK 由 CI 构建，
 原生键盘、TalkBack 和跨设备行为尚未验证。
 
-2026-09-22 补充验证（标题栏 UI）：`pnpm -r check`、`verify-dsh-plugin.mjs` 与
-`NODE_ENV=production pnpm -r build` 通过；`pnpm -r test` 仅 3 个既有 Windows 平台假设失败
-（packages/plugin/tests/codex-domain.test.ts 路径分隔符/目录顺序），Android check/test
-（16 文件 / 174 测试）与 Hermes 导出通过。arm64-v8a release APK 本机未产成：AGP 生成的
-prefab_command.bat 路径 304 字符超过 Windows MAX_PATH（LongPathsEnabled=0），与本改动无关，
-主工作树同样超限；APK 仍以 CI 构建为准。
+Android 只读预览（Issue #72）：`workspace-file-preview.ts` 复用官方 stat/readBytes 和
+Office generation/render，校验文件版本、分块、大小和取消；图片/PDF 上限 8 MiB，Office
+源文件上限 50 MiB。PDF.js 固定版本与 xterm 一起经 `build:renderers` 本地打包；prepare/check、
+CI/release APK 均需生成忽略的 renderer 源文件。PDF 仅单页画布预览，无脚本、外链、导出、
+明文文件缓存或文本选择；不增加 Host 端点或写权限。Office 单次调用使用更长客户端超时，
+Host 限额仍生效。原生真机与真实跨设备文件预览验收尚待完成。
+
+该预览分支的全仓 check/生产 build、Android 197 测试、client-core 38 测试及本地 PDF 浏览器
+烟测通过；全仓 test 仍有既有 codex-domain Windows 平台假设的 3 个失败。原生 APK 构建在
+Expo CMake/Prefab 的 Windows 超长批处理路径处失败，不能视为已完成 APK 或真机验收。

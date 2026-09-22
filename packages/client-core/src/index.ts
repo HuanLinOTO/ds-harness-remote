@@ -36,6 +36,11 @@ interface PendingCall {
   removeAbort?: () => void
 }
 
+/** Per-call override for endpoints that legitimately outlive the client-wide deadline. */
+export interface RemoteRpcOptions {
+  timeoutMs?: number
+}
+
 export class RemoteClientCore {
   private readonly pending = new Map<string, PendingCall>()
   private readonly eventHandlers = new Set<(event: EventPayload) => void>()
@@ -62,17 +67,23 @@ export class RemoteClientCore {
     }
   }
 
-  async rpc<TResult = unknown, TParams = unknown>(method: string, params: TParams, signal?: AbortSignal): Promise<TResult> {
+  async rpc<TResult = unknown, TParams = unknown>(
+    method: string,
+    params: TParams,
+    signal?: AbortSignal,
+    options?: RemoteRpcOptions,
+  ): Promise<TResult> {
     if (signal?.aborted) throw rpcAbortedError(method, signal.reason)
 
+    const timeoutMs = callTimeoutMs(this.timeoutMs, options)
     const request = createRpcRequest(method as RpcMethod, params)
     const result = new Promise<TResult>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.rejectPending(
           request.id,
-          new RemoteClientError('RPC_TIMEOUT', `RPC ${method} timed out after ${this.timeoutMs}ms`),
+          new RemoteClientError('RPC_TIMEOUT', `RPC ${method} timed out after ${timeoutMs}ms`),
         )
-      }, this.timeoutMs)
+      }, timeoutMs)
       const pending: PendingCall = {
         method,
         resolve: resolve as (value: unknown) => void,
@@ -201,6 +212,12 @@ function rpcAbortedError(method: string, reason: unknown): RemoteClientError {
     `RPC ${method} was aborted`,
     reason === undefined ? undefined : { cause: reason },
   )
+}
+
+function callTimeoutMs(fallback: number, options: RemoteRpcOptions | undefined): number {
+  const timeoutMs = options?.timeoutMs
+  if (typeof timeoutMs !== 'number') return fallback
+  return Number.isSafeInteger(timeoutMs) && timeoutMs > 0 && timeoutMs <= 2_147_483_647 ? timeoutMs : fallback
 }
 
 function transportSendError(error: unknown): Error {
