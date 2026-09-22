@@ -149,7 +149,7 @@ Sign in to the Android client with your existing account, select an available co
 open a workspace, and continue the conversation with text or image prompts. The conversation
 toolbar also lets you switch the active model and choose any reasoning effort declared by it.
 
-Harness conversations include **Files** (workspace folders and paged read-only UTF-8 previews) and **Terminal**. These require the native APIs in DSH `0.1.6-alpha.2` or later and an updated Remote Host plugin. Enable **Remote terminal** in the Host's local Remote settings before opening a shell. Android restores terminals owned by this device from the Host snapshot; it never replays input after disconnect. These tools are not exposed for CodeX conversations.
+Harness conversations open **Files** (workspace folders and paged read-only UTF-8 previews) and **Terminal** from the conversation title bar. These require the native APIs in DSH `0.1.6-alpha.2` or later and an updated Remote Host plugin. Enable **Remote terminal** in the Host's local Remote settings before opening a shell. The Terminal panel lists the terminals owned by this device and creates a new one only when you tap ＋ in its title bar; opening the panel never creates a terminal. Android restores terminals from the Host snapshot; it never replays input after disconnect. In Files, Back returns from a file to its directory and closes the tool only at the workspace root; refresh also sits in the title bar. These tools are not exposed for CodeX conversations.
 
 The permission selector supports both older inline options and the separate `permissionPresets/catalog` used by newer DSH 0.1.6 builds. Update the Host Remote plugin too; unsupported Hosts show an actionable error instead of fabricated permission options.
 

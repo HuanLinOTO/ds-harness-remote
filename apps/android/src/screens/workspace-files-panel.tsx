@@ -5,13 +5,13 @@ import { requireSessionTools } from '../state/store'
 import type { WorkspaceDirectory, WorkspaceText } from '../services/session-tools'
 import { classifyWorkspaceFile, loadWorkspacePreview } from '../services/workspace-file-preview'
 import { strings as t } from '../locales/i18n'
-import { Button, IconButton } from '../ui/components'
+import { Button, IconButton, TopBar } from '../ui/components'
 import { useTheme } from '../ui/theme-context'
 import { spacing, type } from '../ui/theme'
 import { sessionToolsError } from './session-tools-error'
 import { PdfPreview } from './pdf-preview'
 
-export function WorkspaceFilesPanel({ sessionId }: { sessionId: string }) {
+export function WorkspaceFilesPanel({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const { colors } = useTheme()
   const [path, setPath] = useState('')
   const [file, setFile] = useState<string>()
@@ -50,12 +50,19 @@ export function WorkspaceFilesPanel({ sessionId }: { sessionId: string }) {
     return () => controller.abort()
   }, [sessionId, path, file, kind, offset, revision])
 
-  const back = () => file === undefined ? setPath(path.split('/').slice(0, -1).join('/')) : setFile(undefined)
+  const back = () => {
+    if (file !== undefined) setFile(undefined)
+    else if (path !== '') setPath(path.split('/').slice(0, -1).join('/'))
+    else onClose()
+  }
   return <View style={styles.container}>
+    <TopBar
+      title={t.tools.files}
+      onBack={back}
+      action={<IconButton label={t.tools.refresh} icon={RefreshCw} onPress={() => setRevision(v => v + 1)} disabled={loading} />}
+    />
     <View style={styles.toolbar}>
-      <IconButton label={t.common.back} icon={ChevronLeft} disabled={!path && file === undefined} onPress={back} />
       <Text style={[styles.path, { color: colors.ink }]} numberOfLines={2}>{file ?? (path || t.tools.root)}</Text>
-      <IconButton label={t.tools.refresh} icon={RefreshCw} onPress={() => setRevision(v => v + 1)} disabled={loading} />
     </View>
     {loading && <View style={styles.notice}><ActivityIndicator color={colors.primary} /><Text style={{ color: colors.muted }}>{kind === 'office' ? t.tools.officeLoading : t.tools.previewLoading}</Text></View>}
     {error && <View style={styles.notice}><Text accessibilityRole="alert" style={{ color: colors.danger }}>{error}</Text><Button label={t.tools.retry} onPress={() => setRevision(v => v + 1)} /></View>}
