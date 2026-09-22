@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.4.17 - 2026-09-22
+
+- Fixes the CodeX workspace terminal in Remote sessions. The Host now answers the official `terminal/*` contract for `codex:<threadId>` scopes: `environment` carries `scrollback`, `shells` uses `{path,args,name}`, `list`/`create`/snapshot/state carry the full `WebTerminalInfo` with `controllerId`, mutations resolve to void, `retain` acknowledges with `retained`, and `follow` opens with a snapshot followed by `sequence + 1` output. The shell starts through the Host `subprocess` service (PTY) when available and falls back to a plain pipe otherwise; recovery screens replay a bounded output journal.
+- Routes CodeX virtual Harness file and terminal requests from Desktop clients through the authenticated Host carrier, so remote CodeX sessions can use the Host workspace files and terminal APIs.
+- Collapses the Host list on the Remote page while a Host is connecting, so the progress panel is on screen, and limits the list to five rows with internal scrolling.
+
 ## 0.4.16
 
 - Restores the Remote settings card border and rounded corners in Harness 0.1.6, adds inner spacing, and limits the card width.

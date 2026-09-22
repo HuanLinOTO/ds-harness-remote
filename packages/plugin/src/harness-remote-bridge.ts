@@ -196,7 +196,18 @@ export class HarnessRemoteBridge {
       }
     }
     const reservation = params.endpoint.startsWith('terminal/') ? this.terminal.check(params.endpoint, params.payload) : undefined
-    const codexResult = this.codexWorkspace === undefined ? undefined : await this.codexWorkspace.call(params.endpoint, params.payload, AbortSignal.timeout(60_000))
+    let codexResult: TypertRpcResult | undefined
+    if (this.codexWorkspace !== undefined) {
+      try {
+        codexResult = await this.codexWorkspace.call(params.endpoint, params.payload, AbortSignal.timeout(60_000))
+      } catch (error) {
+        // A failed allocation must release the device ownership it reserved.
+        if (reservation !== undefined) {
+          this.terminal.result(params.endpoint, params.payload, { ok: false, error: { code: 'FAILED', message: '', details: {} } }, reservation)
+        }
+        throw error
+      }
+    }
     if (codexResult !== undefined) return reservation === undefined ? codexResult : this.terminal.result(params.endpoint, params.payload, codexResult, reservation)
     if (params.endpoint === 'session/canOpenWorkspacePath') {
       return { ok: true, value: true }

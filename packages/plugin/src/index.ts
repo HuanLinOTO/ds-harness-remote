@@ -17,6 +17,7 @@ import { HostPluginRuntime } from './service.js'
 import { ClientServerApi } from './server-api.js'
 import { ServerCredentialStore } from './server-credentials.js'
 import type { TypertGatewayLike } from './typert-gateway-contract.js'
+import { subprocessTerminalSpawner, type HostSubprocessLike } from './codex-workspace-bridge.js'
 import { TypertGatewaySwitch } from './typert-gateway-switch.js'
 import type { FileViewerHostServiceLike } from './file-viewer-bridge.js'
 import {
@@ -160,6 +161,10 @@ async function activate(
   // activation dependency so a peer bridge never silently omits commands.
   const nativeTypertGateway = ctx.get('typertGateway') as TypertGatewayLike
   const localTypertGateway = new TypertGatewaySwitch(nativeTypertGateway).local()
+  // The Host `subprocess` service owns PTY allocation, containment, and process
+  // termination for remote terminals. Profiles without it fall back to the plain
+  // pipe spawner inside the bridge.
+  const subprocess = ctx.get('subprocess', false) as HostSubprocessLike | undefined
   const runtime = new HostPluginRuntime(
     config,
     hostIdentities,
@@ -167,6 +172,7 @@ async function activate(
     logger,
     localTypertGateway,
     () => ctx.get('fileViewerHost') as FileViewerHostServiceLike | undefined,
+    subprocess === undefined ? undefined : subprocessTerminalSpawner(subprocess),
   )
 
   let clientRuntime: ClientModeRuntime | undefined

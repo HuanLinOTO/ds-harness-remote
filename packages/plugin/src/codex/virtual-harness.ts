@@ -32,6 +32,21 @@ const CODEX_IMAGE_MEDIA_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp'
 const CODEX_IMAGE_ATTACHMENT_PREFIX = 'codex-image:'
 const DATA_IMAGE_URL = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/u
 
+const HOST_WORKSPACE_ENDPOINTS = new Set([
+  'workspaceFiles/list', 'workspaceFiles/stat', 'workspaceFiles/read', 'workspaceFiles/readBytes',
+  'workspaceFiles/readAll', 'workspaceFiles/readRelated', 'terminal/environment', 'terminal/shells',
+  'terminal/list', 'terminal/create', 'terminal/write', 'terminal/resize', 'terminal/rename', 'terminal/close',
+])
+const HOST_WORKSPACE_STREAM_ENDPOINTS = new Set(['workspaceFiles/changes', 'terminal/follow', 'terminal/retain'])
+
+function isHostWorkspaceEndpoint(endpoint: string): boolean {
+  return HOST_WORKSPACE_ENDPOINTS.has(endpoint)
+}
+
+function isHostWorkspaceStreamEndpoint(endpoint: string): boolean {
+  return HOST_WORKSPACE_STREAM_ENDPOINTS.has(endpoint)
+}
+
 type JsonRecord = Record<string, unknown>
 
 export interface CodexVirtualWorkspaceView {
@@ -250,6 +265,7 @@ export class CodexVirtualHarness implements RemoteTypertGatewayTarget {
     private readonly client: CodexClientLike,
     private readonly host: { deviceId: string; name: string },
     private readonly sessionGeneration: HarnessSessionGeneration = 'legacy',
+    private readonly hostCarrier?: RemoteTypertGatewayTarget,
   ) {
     this.api = this.createApiProxy()
   }
@@ -258,8 +274,9 @@ export class CodexVirtualHarness implements RemoteTypertGatewayTarget {
     core: ConstructorParameters<typeof CodexRemoteClient>[0],
     host: { deviceId: string; name: string },
     sessionGeneration: HarnessSessionGeneration = 'legacy',
+    hostCarrier?: RemoteTypertGatewayTarget,
   ): CodexVirtualHarness {
-    return new CodexVirtualHarness(new CodexRemoteClient(core), host, sessionGeneration)
+    return new CodexVirtualHarness(new CodexRemoteClient(core), host, sessionGeneration, hostCarrier)
   }
 
   async workspaces(signal?: AbortSignal): Promise<CodexVirtualWorkspaceView[]> {
@@ -319,6 +336,10 @@ export class CodexVirtualHarness implements RemoteTypertGatewayTarget {
 
   async dispatch(endpoint: string, payload: unknown, signal: AbortSignal): Promise<TypertRpcResult> {
     try {
+      if (isHostWorkspaceEndpoint(endpoint)) {
+        if (this.hostCarrier === undefined) return fail('method-not-found', `CodeX virtual Harness does not implement ${endpoint}.`)
+        return await this.hostCarrier.dispatch(endpoint, payload, signal)
+      }
       const args = carrierArgs(payload)
       switch (endpoint) {
         case '$events/result': return business(await this.answerRemoteEvent(args, signal))
@@ -377,6 +398,16 @@ export class CodexVirtualHarness implements RemoteTypertGatewayTarget {
   }
 
   async open(endpoint: string, payload: unknown, signal: AbortSignal): Promise<AsyncIterable<unknown>> {
+    if (isHostWorkspaceStreamEndpoint(endpoint)) {
+      if (this.hostCarrier === undefined) {
+        throw Object.assign(new Error(`CodeX virtual Harness does not implement stream ${endpoint}.`), {
+          isDSHRemoteError: true as const,
+          code: 'method-not-found',
+          details: {},
+        })
+      }
+      return this.hostCarrier.open(endpoint, payload, signal)
+    }
     const args = carrierArgs(payload)
     if (endpoint === 'workspace/follow') return this.workspaceFollow(signal)
     if (endpoint === 'session/control') return this.sessionControl(signal)

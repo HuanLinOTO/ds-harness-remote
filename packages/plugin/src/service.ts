@@ -35,7 +35,7 @@ import { AcpGateway, StdioAcpAdapter } from './acp.js'
 import { execFileSync } from 'node:child_process'
 import type { CodexPeerBridge, PublishCodexFrame } from './codex/peer-bridge.js'
 import { RpcError } from './safe-error.js'
-import { CodexWorkspaceBridge, CodexWorkspaceState } from './codex-workspace-bridge.js'
+import { CodexWorkspaceBridge, CodexWorkspaceState, type RemoteTerminalSpawner } from './codex-workspace-bridge.js'
 
 export interface HostConnectedClient {
   deviceId: string
@@ -79,6 +79,8 @@ export class HostPluginRuntime {
     private readonly logger: SafeLogger,
     private readonly localGateway?: LocalTypertGateway,
     private readonly fileViewerHost?: () => FileViewerHostServiceLike | undefined,
+    /** PTY-backed terminal provider from the Host `subprocess` service, when present. */
+    private readonly terminalSpawner?: RemoteTerminalSpawner,
   ) {
     this.terminalEnabled = config.terminal.enabled
     this.loopback = new LoopbackHost(config.loopback.ports)
@@ -105,6 +107,7 @@ export class HostPluginRuntime {
               (threadId, signal) => this.codex.resolveThreadWorkspace(context.connectionId, threadId),
               () => this.terminalEnabled,
               this.codexWorkspaceState,
+              this.terminalSpawner,
             ),
           )
         : undefined

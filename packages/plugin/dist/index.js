@@ -15504,6 +15504,29 @@ var MAX_CODEX_IMAGE_BASE64 = 288 * 1024 * 1024;
 var CODEX_IMAGE_MEDIA_TYPES2 = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 var CODEX_IMAGE_ATTACHMENT_PREFIX = "codex-image:";
 var DATA_IMAGE_URL2 = /^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/]+={0,2})$/u;
+var HOST_WORKSPACE_ENDPOINTS = /* @__PURE__ */ new Set([
+  "workspaceFiles/list",
+  "workspaceFiles/stat",
+  "workspaceFiles/read",
+  "workspaceFiles/readBytes",
+  "workspaceFiles/readAll",
+  "workspaceFiles/readRelated",
+  "terminal/environment",
+  "terminal/shells",
+  "terminal/list",
+  "terminal/create",
+  "terminal/write",
+  "terminal/resize",
+  "terminal/rename",
+  "terminal/close"
+]);
+var HOST_WORKSPACE_STREAM_ENDPOINTS = /* @__PURE__ */ new Set(["workspaceFiles/changes", "terminal/follow", "terminal/retain"]);
+function isHostWorkspaceEndpoint(endpoint) {
+  return HOST_WORKSPACE_ENDPOINTS.has(endpoint);
+}
+function isHostWorkspaceStreamEndpoint(endpoint) {
+  return HOST_WORKSPACE_STREAM_ENDPOINTS.has(endpoint);
+}
 function codexProjectWorkspaceId(projectId) {
   return `${CODEX_WORKSPACE_PREFIX}project:${projectId}`;
 }
@@ -15511,10 +15534,11 @@ async function discoverCodexVirtualWorkspaces(client, signal) {
   return (await loadCatalog(client, signal)).workspaces;
 }
 var CodexVirtualHarness = class _CodexVirtualHarness {
-  constructor(client, host, sessionGeneration = "legacy") {
+  constructor(client, host, sessionGeneration = "legacy", hostCarrier) {
     this.client = client;
     this.host = host;
     this.sessionGeneration = sessionGeneration;
+    this.hostCarrier = hostCarrier;
     this.api = this.createApiProxy();
   }
   api;
@@ -15538,8 +15562,8 @@ var CodexVirtualHarness = class _CodexVirtualHarness {
   commandSeq = 0;
   selectedWorkspaceId;
   closed = false;
-  static remote(core, host, sessionGeneration = "legacy") {
-    return new _CodexVirtualHarness(new CodexRemoteClient(core), host, sessionGeneration);
+  static remote(core, host, sessionGeneration = "legacy", hostCarrier) {
+    return new _CodexVirtualHarness(new CodexRemoteClient(core), host, sessionGeneration, hostCarrier);
   }
   async workspaces(signal) {
     return (await this.refreshCatalog(signal)).workspaces;
@@ -15586,6 +15610,10 @@ var CodexVirtualHarness = class _CodexVirtualHarness {
   }
   async dispatch(endpoint, payload, signal) {
     try {
+      if (isHostWorkspaceEndpoint(endpoint)) {
+        if (this.hostCarrier === void 0) return fail("method-not-found", `CodeX virtual Harness does not implement ${endpoint}.`);
+        return await this.hostCarrier.dispatch(endpoint, payload, signal);
+      }
       const args = carrierArgs(payload);
       switch (endpoint) {
         case "$events/result":
@@ -15672,6 +15700,16 @@ var CodexVirtualHarness = class _CodexVirtualHarness {
     }
   }
   async open(endpoint, payload, signal) {
+    if (isHostWorkspaceStreamEndpoint(endpoint)) {
+      if (this.hostCarrier === void 0) {
+        throw Object.assign(new Error(`CodeX virtual Harness does not implement stream ${endpoint}.`), {
+          isDSHRemoteError: true,
+          code: "method-not-found",
+          details: {}
+        });
+      }
+      return this.hostCarrier.open(endpoint, payload, signal);
+    }
     const args = carrierArgs(payload);
     if (endpoint === "workspace/follow") return this.workspaceFollow(signal);
     if (endpoint === "session/control") return this.sessionControl(signal);
@@ -18205,7 +18243,7 @@ function normalizeServerUrl(value) {
 }
 
 // src/version.ts
-var PLUGIN_VERSION = "0.4.16";
+var PLUGIN_VERSION = "0.4.17";
 
 // src/server-api.ts
 var TERMINAL_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
@@ -20104,7 +20142,7 @@ var ClientModeRuntime = class {
     const virtual = CodexVirtualHarness.remote(remote.client, {
       deviceId: remote.target.deviceId,
       name: remote.target.name
-    }, harnessSessionGeneration(this.host?.localHarnessVersion?.()));
+    }, harnessSessionGeneration(this.host?.localHarnessVersion?.()), new RemoteTypertGateway2(remote.client));
     let workspace;
     try {
       workspace = await virtual.selectWorkspace(workspaceId, signal);
@@ -24115,7 +24153,17 @@ var HarnessRemoteBridge = class {
       }
     }
     const reservation = params.endpoint.startsWith("terminal/") ? this.terminal.check(params.endpoint, params.payload) : void 0;
-    const codexResult = this.codexWorkspace === void 0 ? void 0 : await this.codexWorkspace.call(params.endpoint, params.payload, AbortSignal.timeout(6e4));
+    let codexResult;
+    if (this.codexWorkspace !== void 0) {
+      try {
+        codexResult = await this.codexWorkspace.call(params.endpoint, params.payload, AbortSignal.timeout(6e4));
+      } catch (error) {
+        if (reservation !== void 0) {
+          this.terminal.result(params.endpoint, params.payload, { ok: false, error: { code: "FAILED", message: "", details: {} } }, reservation);
+        }
+        throw error;
+      }
+    }
     if (codexResult !== void 0) return reservation === void 0 ? codexResult : this.terminal.result(params.endpoint, params.payload, codexResult, reservation);
     if (params.endpoint === "session/canOpenWorkspacePath") {
       return { ok: true, value: true };
@@ -26197,9 +26245,13 @@ var MAX_INPUT_BYTES = 64 * 1024;
 var MAX_COLS = 240;
 var MAX_ROWS = 100;
 var MAX_TERMINALS = 256;
+var MAX_SCREEN_BYTES = 256 * 1024;
+var TERMINAL_SCROLLBACK = 2e3;
+var TERMINAL_TYPE = "xterm-256color";
 var CodexWorkspaceState = class {
   terminals = /* @__PURE__ */ new Map();
 };
+var DEFAULT_SHELL = process.platform === "win32" ? { path: "cmd.exe", args: [], name: "Command Prompt" } : { path: "/bin/sh", args: [], name: "sh" };
 var AsyncQueue = class {
   values = [];
   waiters = [];
@@ -26225,13 +26277,15 @@ var AsyncQueue = class {
   }
 };
 var CodexWorkspaceBridge = class {
-  constructor(resolveCwd, terminalEnabled, state = new CodexWorkspaceState()) {
+  constructor(resolveCwd, terminalEnabled, state = new CodexWorkspaceState(), spawnTerminal = pipeTerminalSpawner()) {
     this.resolveCwd = resolveCwd;
     this.terminalEnabled = terminalEnabled;
     this.terminals = state.terminals;
+    this.spawnTerminal = spawnTerminal;
   }
   terminals;
   ownedSubscribers = /* @__PURE__ */ new Set();
+  spawnTerminal;
   isCodeXScope(value) {
     return parseCodexSessionId(value) !== void 0;
   }
@@ -26258,24 +26312,8 @@ var CodexWorkspaceBridge = class {
       return void 0;
     }
     if (endpoint === "workspaceFiles/changes") return this.watchChanges(codex.sessionId, args, signal);
-    if (endpoint === "terminal/follow" || endpoint === "terminal/retain") {
-      this.assertTerminalEnabled();
-      await this.rootFor(codex.sessionId, signal);
-      const terminal = await this.requireTerminal(codex.sessionId, String(args.id), signal);
-      if (endpoint === "terminal/follow") {
-        if (typeof args.attachmentId !== "string" || args.attachmentId.length < 1) throw new RpcError("INVALID_MESSAGE", "The terminal attachment is invalid.");
-      }
-      const queue = new AsyncQueue();
-      terminal.subscribers.add(queue);
-      this.ownedSubscribers.add(queue);
-      if (endpoint === "terminal/retain") for (const item of terminal.history) queue.push(item);
-      signal.addEventListener("abort", () => {
-        terminal.subscribers.delete(queue);
-        this.ownedSubscribers.delete(queue);
-        queue.end();
-      }, { once: true });
-      return queue;
-    }
+    if (endpoint === "terminal/retain") return this.retain(codex.sessionId, args, signal);
+    if (endpoint === "terminal/follow") return this.follow(codex.sessionId, args, signal);
     return void 0;
   }
   async closeAll() {
@@ -26338,61 +26376,151 @@ var CodexWorkspaceBridge = class {
     })();
     return queue;
   }
+  /**
+   * `terminal/retain` only acknowledges the retention window: it never takes
+   * input ownership and never replays output. Recovery reads the next snapshot.
+   */
+  async retain(sessionId, args, signal) {
+    this.assertTerminalEnabled();
+    await this.rootFor(sessionId, signal);
+    this.requireTerminal(sessionId, String(args.id));
+    const queue = new AsyncQueue();
+    queue.push({ type: "retained" });
+    this.ownedSubscribers.add(queue);
+    signal.addEventListener("abort", () => {
+      this.ownedSubscribers.delete(queue);
+      queue.end();
+    }, { once: true });
+    return queue;
+  }
+  /** `terminal/follow` takes input ownership and starts with a screen snapshot. */
+  async follow(sessionId, args, signal) {
+    this.assertTerminalEnabled();
+    await this.rootFor(sessionId, signal);
+    const attachmentId = typeof args.attachmentId === "string" && args.attachmentId.length > 0 ? args.attachmentId : void 0;
+    if (attachmentId === void 0) throw new RpcError("INVALID_MESSAGE", "The terminal attachment is invalid.");
+    const terminal = this.requireTerminal(sessionId, String(args.id));
+    const queue = new AsyncQueue();
+    if (terminal.controllerId !== attachmentId) {
+      terminal.controllerId = attachmentId;
+      this.emit(terminal, { type: "state", info: terminalInfo(terminal) });
+    }
+    queue.push({ type: "snapshot", sequence: terminal.sequence, screen: screenOf(terminal), info: terminalInfo(terminal) });
+    terminal.subscribers.add(queue);
+    this.ownedSubscribers.add(queue);
+    signal.addEventListener("abort", () => {
+      terminal.subscribers.delete(queue);
+      this.ownedSubscribers.delete(queue);
+      queue.end();
+      if (terminal.controllerId === attachmentId) {
+        terminal.controllerId = void 0;
+        this.emit(terminal, { type: "state", info: terminalInfo(terminal) });
+      }
+    }, { once: true });
+    return queue;
+  }
   async terminalCall(endpoint, sessionId, args, signal) {
     this.assertTerminalEnabled();
     const cwd = await this.rootFor(sessionId, signal);
-    if (endpoint === "terminal/environment") return { ok: true, value: { cwd, maxInputBytes: MAX_INPUT_BYTES, maxCols: MAX_COLS, maxRows: MAX_ROWS } };
-    if (endpoint === "terminal/shells") return { ok: true, value: [{ id: process.platform === "win32" ? "cmd.exe" : "/bin/sh", name: process.platform === "win32" ? "Command Prompt" : "sh" }] };
-    if (endpoint === "terminal/list") return { ok: true, value: [...this.terminals.values()].filter((item) => item.sessionId === sessionId).map(terminalInfo) };
-    if (endpoint === "terminal/create") {
-      const request = isRecord13(args.request) ? args.request : {};
-      const id5 = stringId(request.id);
-      if ([...this.terminals.values()].some((item) => item.sessionId === sessionId && item.id === id5)) throw new RpcError("REQUEST_CONFLICT", "The terminal id is already active.");
-      if (this.terminals.size >= MAX_TERMINALS) throw new RpcError("RATE_LIMITED", "Too many remote terminals are active.", void 0, true);
-      const cols = bounded(request.cols, 80, MAX_COLS);
-      const rows = bounded(request.rows, 24, MAX_ROWS);
-      const shell = process.platform === "win32" ? "cmd.exe" : "/bin/sh";
-      const child = spawn4(shell, [], { cwd, stdio: "pipe", windowsHide: true });
-      const terminal2 = { sessionId, id: id5, title: typeof request.title === "string" ? request.title : id5, cwd, cols, rows, process: child, sequence: 0, subscribers: /* @__PURE__ */ new Set(), history: [], state: "running", exitCode: null };
-      this.terminals.set(`${sessionId}/${id5}`, terminal2);
-      child.stdout.on("data", (data2) => this.emit(terminal2, { type: "output", sequence: ++terminal2.sequence, data: Buffer.from(data2).toString("utf8") }));
-      child.stderr.on("data", (data2) => this.emit(terminal2, { type: "output", sequence: ++terminal2.sequence, data: Buffer.from(data2).toString("utf8") }));
-      child.on("error", () => {
-        terminal2.state = "failed";
-        this.emit(terminal2, { type: "state", info: terminalInfo(terminal2) });
-        this.endSubscribers(terminal2);
-      });
-      child.on("exit", (code) => {
-        terminal2.state = "exited";
-        terminal2.exitCode = code;
-        this.emit(terminal2, { type: "state", info: terminalInfo(terminal2) });
-        this.endSubscribers(terminal2);
-      });
-      return { ok: true, value: terminalInfo(terminal2) };
+    if (endpoint === "terminal/environment") {
+      return { ok: true, value: { cwd, maxInputBytes: MAX_INPUT_BYTES, maxCols: MAX_COLS, maxRows: MAX_ROWS, scrollback: TERMINAL_SCROLLBACK } };
     }
+    if (endpoint === "terminal/shells") return { ok: true, value: [shellInfo(DEFAULT_SHELL)] };
+    if (endpoint === "terminal/list") return { ok: true, value: [...this.terminals.values()].filter((item) => item.sessionId === sessionId).map(terminalInfo) };
+    if (endpoint === "terminal/create") return this.createTerminal(sessionId, cwd, args);
     const id4 = stringId(args.id);
-    const terminal = await this.requireTerminal(sessionId, id4, signal);
+    const terminal = this.requireTerminal(sessionId, id4);
     if (endpoint === "terminal/write") {
       const data2 = typeof args.data === "string" ? args.data : "";
       if (Buffer.byteLength(data2) > MAX_INPUT_BYTES) throw new RpcError("INVALID_MESSAGE", "Terminal input is too large.");
-      terminal.process.stdin.write(data2);
-      return { ok: true, value: {} };
+      if (terminal.process === void 0) throw new RpcError("CODEX_TERMINAL_NOT_FOUND", "The CodeX terminal is no longer available.");
+      await terminal.process.write(data2);
+      return { ok: true };
     }
     if (endpoint === "terminal/resize") {
       terminal.cols = bounded(args.cols, terminal.cols, MAX_COLS);
       terminal.rows = bounded(args.rows, terminal.rows, MAX_ROWS);
-      return { ok: true, value: terminalInfo(terminal) };
+      await terminal.process?.resize(terminal.cols, terminal.rows);
+      return { ok: true };
     }
     if (endpoint === "terminal/rename") {
-      terminal.title = typeof args.title === "string" && args.title.length > 0 ? args.title.slice(0, 128) : terminal.title;
-      return { ok: true, value: terminalInfo(terminal) };
+      if (typeof args.title === "string" && args.title.length > 0) terminal.title = args.title.slice(0, 128);
+      return { ok: true };
     }
     if (endpoint === "terminal/close") {
       this.disposeTerminal(terminal);
       this.terminals.delete(`${sessionId}/${id4}`);
-      return { ok: true, value: {} };
+      return { ok: true };
     }
     throw new RpcError("METHOD_NOT_FOUND", "The requested terminal method does not exist.");
+  }
+  async createTerminal(sessionId, cwd, args) {
+    const request = isRecord13(args.request) ? args.request : {};
+    const id4 = stringId(request.id);
+    if ([...this.terminals.values()].some((item) => item.sessionId === sessionId && item.id === id4)) throw new RpcError("REQUEST_CONFLICT", "The terminal id is already active.");
+    if (this.terminals.size >= MAX_TERMINALS) throw new RpcError("RATE_LIMITED", "Too many remote terminals are active.", void 0, true);
+    if (request.shellPath !== void 0 && request.shellPath !== DEFAULT_SHELL.path) throw new RpcError("INVALID_MESSAGE", "The requested shell is not available for this workspace.");
+    const cols = bounded(request.cols, 80, MAX_COLS);
+    const rows = bounded(request.rows, 24, MAX_ROWS);
+    const terminal = {
+      sessionId,
+      id: id4,
+      title: DEFAULT_SHELL.name,
+      shell: DEFAULT_SHELL,
+      cwd,
+      cols,
+      rows,
+      sequence: 0,
+      screen: [],
+      screenBytes: 0,
+      truncated: false,
+      subscribers: /* @__PURE__ */ new Set(),
+      state: "running",
+      exitCode: null
+    };
+    this.terminals.set(`${sessionId}/${id4}`, terminal);
+    try {
+      terminal.process = await this.spawnTerminal({
+        argv: [DEFAULT_SHELL.path, ...DEFAULT_SHELL.args],
+        cwd,
+        cols,
+        rows,
+        terminalType: TERMINAL_TYPE,
+        env: { DSH_SESSION_ID: sessionId }
+      });
+    } catch {
+      this.terminals.delete(`${sessionId}/${id4}`);
+      throw new RpcError("CODEX_TERMINAL_UNAVAILABLE", "The CodeX terminal could not be started.");
+    }
+    void this.pump(terminal, terminal.process);
+    return { ok: true, value: terminalInfo(terminal) };
+  }
+  /** Streams process output as ordered `output` frames, then reports the exit. */
+  async pump(terminal, process2) {
+    try {
+      for await (const chunk of process2.output) {
+        if (chunk.length === 0) continue;
+        terminal.sequence += 1;
+        this.appendScreen(terminal, chunk);
+        this.emit(terminal, { type: "output", sequence: terminal.sequence, data: chunk });
+      }
+    } catch {
+      terminal.state = "failed";
+      terminal.error = "The terminal output stream failed.";
+    }
+    const outcome = await process2.completed;
+    terminal.exitCode = outcome.exitCode;
+    if (terminal.state === "running") terminal.state = "exited";
+    this.emit(terminal, { type: "state", info: terminalInfo(terminal) });
+    this.endSubscribers(terminal);
+  }
+  appendScreen(terminal, chunk) {
+    terminal.screen.push(chunk);
+    terminal.screenBytes += Buffer.byteLength(chunk);
+    while (terminal.screenBytes > MAX_SCREEN_BYTES && terminal.screen.length > 1) {
+      terminal.screenBytes -= Buffer.byteLength(terminal.screen.shift());
+      terminal.truncated = true;
+    }
   }
   async rootFor(sessionId, signal) {
     const parsed = parseCodexSessionId(sessionId);
@@ -26426,15 +26554,13 @@ var CodexWorkspaceBridge = class {
     }
   }
   emit(terminal, value) {
-    terminal.history.push(value);
-    if (terminal.history.length > 512) terminal.history.shift();
     for (const subscriber of terminal.subscribers) subscriber.push(value);
   }
   endSubscribers(terminal) {
     for (const subscriber of terminal.subscribers) subscriber.end();
     terminal.subscribers.clear();
   }
-  async requireTerminal(sessionId, id4, _signal) {
+  requireTerminal(sessionId, id4) {
     const terminal = this.terminals.get(`${sessionId}/${id4}`);
     if (!terminal) throw new RpcError("CODEX_TERMINAL_NOT_FOUND", "The CodeX terminal is no longer available.");
     return terminal;
@@ -26443,10 +26569,93 @@ var CodexWorkspaceBridge = class {
     if (!this.terminalEnabled()) throw new RpcError("TERMINAL_DISABLED", "Remote terminal is disabled on this Host.");
   }
   disposeTerminal(terminal) {
-    if (!terminal.process.killed) terminal.process.kill();
+    void Promise.resolve(terminal.process?.terminate()).catch(() => void 0);
+    if (terminal.state === "running") {
+      terminal.state = "exited";
+      this.emit(terminal, { type: "state", info: terminalInfo(terminal) });
+    }
     this.endSubscribers(terminal);
   }
 };
+function pipeTerminalSpawner() {
+  return async (spec) => {
+    const child = spawn4(spec.argv[0], spec.argv.slice(1), {
+      cwd: spec.cwd,
+      stdio: "pipe",
+      windowsHide: true,
+      env: { ...process.env, ...spec.env }
+    });
+    const queue = new AsyncQueue();
+    child.stdout.on("data", (data2) => queue.push(Buffer.from(data2).toString("utf8")));
+    child.stderr.on("data", (data2) => queue.push(Buffer.from(data2).toString("utf8")));
+    child.on("error", () => queue.end());
+    const completed = new Promise((resolve4) => {
+      child.on("error", () => {
+        queue.end();
+        resolve4({ exitCode: null });
+      });
+      child.on("exit", (code) => {
+        queue.end();
+        resolve4({ exitCode: code });
+      });
+    });
+    return {
+      output: queue,
+      write: (data2) => {
+        child.stdin.write(data2);
+      },
+      resize: () => void 0,
+      terminate: () => {
+        if (!child.killed) child.kill();
+      },
+      completed
+    };
+  };
+}
+function subprocessTerminalSpawner(subprocess) {
+  return async (spec) => {
+    const handle = await subprocess.spawnTerminal({
+      argv: [...spec.argv],
+      cwd: spec.cwd,
+      cols: spec.cols,
+      rows: spec.rows,
+      terminalType: spec.terminalType,
+      env: spec.env
+    });
+    const queue = new AsyncQueue();
+    handle.output.setEncoding?.("utf8");
+    handle.output.on("data", (chunk) => queue.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8")));
+    handle.output.once("close", () => queue.end());
+    handle.output.once("error", () => queue.end());
+    return {
+      output: queue,
+      write: (data2) => handle.write(data2),
+      resize: (cols, rows) => handle.resize(cols, rows),
+      terminate: () => handle.terminate(),
+      completed: handle.done.then((outcome) => ({ exitCode: typeof outcome?.exitCode === "number" ? outcome.exitCode : null })).catch(() => ({ exitCode: null }))
+    };
+  };
+}
+function shellInfo(shell) {
+  return { path: shell.path, args: [...shell.args], name: shell.name };
+}
+function terminalInfo(terminal) {
+  return {
+    id: terminal.id,
+    title: terminal.title,
+    shell: shellInfo(terminal.shell),
+    cwd: terminal.cwd,
+    cols: terminal.cols,
+    rows: terminal.rows,
+    state: terminal.state,
+    exitCode: terminal.exitCode,
+    ...terminal.error === void 0 ? {} : { error: terminal.error },
+    ...terminal.controllerId === void 0 ? {} : { controllerId: terminal.controllerId }
+  };
+}
+function screenOf(terminal) {
+  return (terminal.truncated ? "\x1Bc" : "") + terminal.screen.join("");
+}
 function argsOf(payload) {
   const value = isRecord13(payload) ? payload : {};
   return isRecord13(value.args) ? value.args : value;
@@ -26469,19 +26678,17 @@ function readLimit(args) {
   const range = isRecord13(args.range) ? args.range : args;
   return typeof range.limit === "number" && Number.isInteger(range.limit) && range.limit > 0 ? Math.min(range.limit, MAX_READ_BYTES) : MAX_READ_BYTES;
 }
-function terminalInfo(terminal) {
-  return { id: terminal.id, title: terminal.title, state: terminal.state, cols: terminal.cols, rows: terminal.rows, exitCode: terminal.exitCode };
-}
 
 // src/service.ts
 var HostPluginRuntime = class {
-  constructor(config, identities, apiProxy, logger, localGateway, fileViewerHost) {
+  constructor(config, identities, apiProxy, logger, localGateway, fileViewerHost, terminalSpawner) {
     this.config = config;
     this.identities = identities;
     this.apiProxy = apiProxy;
     this.logger = logger;
     this.localGateway = localGateway;
     this.fileViewerHost = fileViewerHost;
+    this.terminalSpawner = terminalSpawner;
     this.terminalEnabled = config.terminal.enabled;
     this.loopback = new LoopbackHost(config.loopback.ports);
     this.codex = new CodexRemoteDomain(config.codex, logger);
@@ -26503,7 +26710,8 @@ var HostPluginRuntime = class {
         new CodexWorkspaceBridge(
           (threadId, signal) => this.codex.resolveThreadWorkspace(context.connectionId, threadId),
           () => this.terminalEnabled,
-          this.codexWorkspaceState
+          this.codexWorkspaceState,
+          this.terminalSpawner
         )
       ) : void 0;
       const fileViewer = new RemoteFileViewerBridge(
@@ -27605,13 +27813,15 @@ async function activate(ctx, input2, tuiBinding) {
   const apiProxy = ctx.get("apiProxy");
   const nativeTypertGateway = ctx.get("typertGateway");
   const localTypertGateway = new TypertGatewaySwitch(nativeTypertGateway).local();
+  const subprocess = ctx.get("subprocess", false);
   const runtime = new HostPluginRuntime(
     config,
     hostIdentities,
     apiProxy,
     logger,
     localTypertGateway,
-    () => ctx.get("fileViewerHost")
+    () => ctx.get("fileViewerHost"),
+    subprocess === void 0 ? void 0 : subprocessTerminalSpawner(subprocess)
   );
   let clientRuntime;
   const hostControl = runtime;

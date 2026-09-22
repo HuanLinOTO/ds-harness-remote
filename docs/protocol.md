@@ -1416,3 +1416,16 @@ A CodeX scope cannot access paths outside that thread's `cwd`; invalid, ended, o
 cwd-less threads return stable `CODEX_SESSION_INVALID`, `CODEX_THREAD_UNAVAILABLE`,
 or `CODEX_WORKSPACE_UNAVAILABLE` errors. Server transport only forwards encrypted
 RPC and does not perform this mapping or authorization.
+
+CodeX terminals reuse the official `terminal/*` semantics unchanged: `environment`
+returns `{cwd,maxInputBytes,maxCols,maxRows,scrollback}`, `shells` returns
+`{path,args,name}`, and `list` / `create` / every snapshot and state `info` carry the
+official `WebTerminalInfo` including `controllerId`. `write|resize|rename|close`
+resolve to void, `retain` acknowledges with `{type:"retained"}` without taking input
+ownership, and `follow` starts with `{type:"snapshot",sequence,screen,info}` followed
+by `{type:"output",sequence,data}` where each `sequence` is exactly the previous one
+plus one. The Host starts the shell through its `subprocess` service (PTY, containment,
+process-range termination) when that service is available and falls back to a plain
+pipe otherwise. This carrier has no terminal emulator, so `screen` is a bounded raw
+output journal replayed into the client emulator, prefixed with a reset when the
+journal was truncated.

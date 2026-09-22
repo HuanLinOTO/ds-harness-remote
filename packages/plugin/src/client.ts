@@ -1481,6 +1481,9 @@ window.__ModuleLoader__.load({
       const [status, setStatus] = React.useState<RemoteStatus | undefined>(undefined)
       const [devices, setDevices] = React.useState<RemoteDevice[]>([])
       const [selectedHost, setSelectedHost] = React.useState<RemoteDevice | undefined>(undefined)
+      // The Host being connected right now: its row stays visible as a collapsed
+      // summary so the progress panel below it is on screen without scrolling.
+      const [connectingHost, setConnectingHost] = React.useState<RemoteDevice | undefined>(undefined)
       const [workspaces, setWorkspaces] = React.useState<RemoteWorkspaceView[]>([])
       const [codexWorkspaces, setCodexWorkspaces] = React.useState<CodexWorkspaceView[]>([])
       const [workspaceBackend, setWorkspaceBackend] = React.useState<'harness' | 'codex'>('harness')
@@ -1692,6 +1695,7 @@ window.__ModuleLoader__.load({
       const selectHost = async (host: RemoteDevice): Promise<void> => {
         setBusy(true)
         setError(undefined)
+        setConnectingHost(host)
         setCodexWorkspaces([])
         setShowAllWorkspaces(false)
         setShowAllCodexWorkspaces(false)
@@ -1730,6 +1734,9 @@ window.__ModuleLoader__.load({
         } catch (reason) {
           setError(messageOf(reason))
         } finally {
+          // A failed attempt expands the full Host list again; a successful one
+          // is represented by `selectedHost`.
+          setConnectingHost(undefined)
           setBusy(false)
         }
       }
@@ -2042,6 +2049,10 @@ window.__ModuleLoader__.load({
             : null)
         : null
 
+      // While a Host is connecting only that row stays listed, so the progress
+      // panel below the list is visible without scrolling past every device.
+      const listedHosts = connectingHost === undefined ? devices : [connectingHost]
+
       return React.createElement(React.Fragment, null,
         React.createElement('div', { className: `dshRemoteSidebarEntry${status?.mode === 'remote' ? ' isActive' : ''}${props.wide ? ' isWide' : ' isRail'}` },
         React.createElement(status?.mode === 'remote' ? 'div' : 'button', {
@@ -2192,12 +2203,16 @@ window.__ModuleLoader__.load({
                         onClick: () => void logoutRemote(),
                       }, t('exitRemoteAccount')),
                       connectedMenu)),
-                  React.createElement('div', { className: 'dshRemoteHostList' }, devices.length === 0
+                  React.createElement('div', {
+                    className: `dshRemoteHostList${connectingHost === undefined ? '' : ' isCollapsed'}`,
+                    'aria-busy': connectingHost === undefined ? undefined : true,
+                  }, listedHosts.length === 0
                       ? React.createElement('p', null, busy ? t('checkingConnection') : t('noRemoteHosts'))
-                      : devices.map(device => React.createElement('button', {
+                      : listedHosts.map(device => React.createElement('button', {
                         type: 'button',
                         key: device.deviceId,
                         disabled: busy || !device.online,
+                        'aria-current': connectingHost?.deviceId === device.deviceId ? 'true' : undefined,
                         onClick: () => void selectHost(device),
                       }, React.createElement('span', null,
                         React.createElement('strong', null, device.name),
@@ -2208,7 +2223,8 @@ window.__ModuleLoader__.load({
                         ].filter(Boolean).join(' · '))),
                       React.createElement('small', null, t(device.online ? 'online' : 'offline')))))) : null,
                 React.createElement(RemoteProgressView, { progress, t }),
-                selectedHost === undefined ? React.createElement('p', { className: 'dshRemoteHint' }, t('selectHostHint'))
+                selectedHost === undefined
+                  ? (connectingHost === undefined ? React.createElement('p', { className: 'dshRemoteHint' }, t('selectHostHint')) : null)
                   : React.createElement('section', { className: 'dshRemoteBrowser', 'aria-label': t('chooseDirectory') },
                     React.createElement('div', { className: 'dshRemoteSectionHeading dshRemoteWorkspaceHeading' },
                       React.createElement('strong', null, t(addingWorkspace
@@ -2767,7 +2783,7 @@ window.__ModuleLoader__.load({
         '.dshRemoteAcpList>.dshRemoteAuthorizationSetting{grid-template-columns:minmax(0,1fr) 190px 40px 56px;column-gap:18px}.dshRemoteAcpCheckCell{grid-column:2;display:flex;align-items:center;gap:10px;min-width:0}.dshRemoteAcpCheckLink,.dshRemoteAcpRemoveLink{justify-self:start}.dshRemoteAcpCheckResult{position:static}',
         '.dshRemoteAcpCheckLink.isPassed{color:var(--dsw-alias-state-success-primary)}.dshRemoteAcpCheckLink.isFailed{color:var(--dsw-alias-state-danger-primary)}.dshRemoteAcpCheckLink.isChecking{color:var(--dsw-alias-label-secondary)}',
         '.dshRemoteCancelWorkspace{min-height:36px;border:0;background:transparent;color:var(--dsw-alias-label-secondary);padding:6px 0;cursor:pointer}.dshRemoteCancelWorkspace:hover:not(:disabled){color:var(--dsw-alias-label-primary);text-decoration:underline}.dshRemoteCancelWorkspace:disabled{opacity:.5;cursor:default}',
-        '.dshRemoteHostList{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.dshRemoteHostList>button{min-height:58px;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:10px 4px;cursor:pointer}.dshRemoteHostList>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button:disabled{opacity:.5;cursor:default}.dshRemoteHostList>button>span{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteHostList>button strong{font-size:14px;font-weight:500}.dshRemoteHostList small{color:var(--dsw-alias-label-secondary);font-size:12px}',
+        '.dshRemoteHostList{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2);max-height:296px;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}.dshRemoteHostList.isCollapsed{max-height:none;overflow-y:visible}.dshRemoteHostList>button{min-height:58px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;text-align:left;border:0;border-bottom:1px solid var(--dsw-alias-border-l2);background:transparent;padding:10px 4px;cursor:pointer}.dshRemoteHostList>button:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button:disabled{opacity:.5;cursor:default}.dshRemoteHostList>button[aria-current="true"]{background:var(--dsw-alias-interactive-bg-hover)}.dshRemoteHostList>button>span{min-width:0;display:flex;flex-direction:column;gap:3px}.dshRemoteHostList>button strong{font-size:14px;font-weight:500}.dshRemoteHostList small{color:var(--dsw-alias-label-secondary);font-size:12px}',
         '.dshRemoteConnectedMenu{position:relative;flex:0 0 auto;margin-right:4px}.dshRemoteConnectedCount{appearance:none;display:inline-flex;align-items:center;justify-content:center;height:22px;border:0;border-radius:999px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);box-shadow:0 1px 2px rgba(0,0,0,.18),0 0 0 1px rgba(255,255,255,.04) inset;padding:0 10px;font:inherit;font-size:11px;font-weight:500;line-height:17px;white-space:nowrap;cursor:default}.dshRemoteConnectedCount.isOnline{color:var(--dsw-alias-state-success-primary)}.dshRemoteConnectedCount.isInteractive{cursor:pointer}.dshRemoteConnectedCount.isInteractive:hover{filter:brightness(1.08)}.dshRemoteConnectedCount:disabled{opacity:1;cursor:default}.dshRemoteConnectedCount:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.dshRemoteConnectedPanel{position:absolute;top:calc(100% + 8px);right:0;z-index:4;width:min(320px,calc(100vw - 48px));max-height:min(280px,40vh);overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-2);box-shadow:0 10px 28px rgba(0,0,0,.28);padding:10px 12px}.dshRemoteConnectedPanelTitle{display:block;margin:0 0 6px;color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600}.dshRemoteClientList{display:flex;flex-direction:column}.dshRemoteClientRow{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}.dshRemoteClientRow:last-child{border-bottom:0}.dshRemoteClientRow>span{min-width:0;display:flex;flex-direction:column;gap:2px}.dshRemoteClientRow strong{font-size:13px;font-weight:500}.dshRemoteClientRow small{color:var(--dsw-alias-label-secondary);font-size:11px}.dshRemoteClientOnline{display:inline-flex;align-items:center;gap:6px;color:var(--dsw-alias-state-success-primary)!important}.dshRemoteClientOnline::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}',
         '.dshRemoteConnectedCount{height:auto;border-radius:0;background:transparent;box-shadow:none;padding:0 4px;text-decoration:underline;text-decoration-color:color-mix(in srgb,currentColor 45%,transparent);text-underline-offset:3px}.dshRemoteConnectedCount.isInteractive:hover{filter:none;text-decoration-color:currentColor}.dshRemoteConnectedCount:focus-visible{outline-offset:3px;border-radius:3px}',
         '.dshRemoteProgress{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding:12px 14px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2)}.dshRemoteProgressHeader{display:flex;align-items:center;justify-content:space-between;gap:12px}.dshRemoteProgressHeader strong{font-size:13px;font-weight:600}.dshRemoteProgressHeader span{color:var(--dsw-alias-label-secondary);font-size:12px}.dshRemoteProgressBar{height:6px;overflow:hidden;border-radius:999px;background:var(--dsw-alias-bg-layer-3)}.dshRemoteProgressBar>span{display:block;width:100%;height:100%;border-radius:inherit;background:var(--dsw-alias-brand-primary);transform-origin:left center;transition:transform .22s ease-out}[dir="rtl"] .dshRemoteProgressBar>span{transform-origin:right center}.dshRemoteProgress p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45}.dshRemoteProgressRoute{font-weight:500}.dshRemoteProgressRoute .isActive{color:var(--dsw-alias-state-success-primary);font-weight:700}.dshRemoteProgressRouteArrow{color:var(--dsw-alias-label-tertiary)}@media(prefers-reduced-motion:reduce){.dshRemoteProgressBar>span{transition:none}}',

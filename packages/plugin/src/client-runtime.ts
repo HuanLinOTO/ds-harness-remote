@@ -465,7 +465,7 @@ export class ClientModeRuntime {
     const virtual = CodexVirtualHarness.remote(remote.client, {
       deviceId: remote.target.deviceId,
       name: remote.target.name,
-    }, harnessSessionGeneration(this.host?.localHarnessVersion?.()))
+    }, harnessSessionGeneration(this.host?.localHarnessVersion?.()), new RemoteTypertGateway(remote.client))
     let workspace: CodexVirtualWorkspaceView
     try {
       workspace = await virtual.selectWorkspace(workspaceId, signal)

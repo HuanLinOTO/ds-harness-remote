@@ -10,6 +10,11 @@ const MAX_INPUT_BYTES = 64 * 1024
 const MAX_COLS = 240
 const MAX_ROWS = 100
 const MAX_TERMINALS = 256
+/** Replay journal bound for one terminal; the newest output always survives. */
+const MAX_SCREEN_BYTES = 256 * 1024
+/** Advertised scrollback rows, matching the official terminal environment shape. */
+const TERMINAL_SCROLLBACK = 2000
+const TERMINAL_TYPE = 'xterm-256color'
 
 export class CodexWorkspaceState {
   readonly terminals = new Map<string, TerminalContext>()
@@ -17,19 +22,76 @@ export class CodexWorkspaceState {
 
 export type CodexCwdResolver = (threadId: string, signal: AbortSignal) => Promise<string | undefined>
 
+interface ShellSpec {
+  path: string
+  args: string[]
+  name: string
+}
+
+/** One shell this carrier can start; the client only ever picks from `terminal/shells`. */
+const DEFAULT_SHELL: ShellSpec = process.platform === 'win32'
+  ? { path: 'cmd.exe', args: [], name: 'Command Prompt' }
+  : { path: '/bin/sh', args: [], name: 'sh' }
+
+/** Request for one Host-owned terminal process. */
+export interface RemoteTerminalSpec {
+  argv: readonly string[]
+  cwd: string
+  cols: number
+  rows: number
+  terminalType: string
+  env: Record<string, string>
+}
+
+/** Terminal process surface the bridge needs; PTY-backed when the Host provides one. */
+export interface RemoteTerminalProcess {
+  output: AsyncIterable<string>
+  write(data: string): void | Promise<void>
+  resize(cols: number, rows: number): void | Promise<void>
+  terminate(): void | Promise<void>
+  completed: Promise<{ exitCode: number | null }>
+}
+
+export type RemoteTerminalSpawner = (spec: RemoteTerminalSpec) => Promise<RemoteTerminalProcess>
+
+/** Structural view of the Host `subprocess` service this carrier can use. */
+export interface HostSubprocessLike {
+  spawnTerminal(spec: Record<string, unknown>): Promise<unknown>
+}
+
+interface HostTerminalHandleLike {
+  output: {
+    setEncoding?(encoding: string): unknown
+    on(event: 'data', listener: (chunk: unknown) => void): unknown
+    once(event: 'close' | 'error', listener: (error?: unknown) => void): unknown
+  }
+  write(data: string): Promise<void> | void
+  resize(cols: number, rows: number): Promise<void> | void
+  terminate(): Promise<void> | void
+  done: Promise<{ exitCode?: number | null } | undefined>
+}
+
 interface TerminalContext {
   sessionId: string
   id: string
   title: string
+  shell: ShellSpec
   cwd: string
   cols: number
   rows: number
-  process: ChildProcessWithoutNullStreams
+  process?: RemoteTerminalProcess
+  /** Attachment that currently owns input; absent while nobody is attached. */
+  controllerId?: string
+  /** Monotonic across the Host terminal lifetime and never reset on reconnect. */
   sequence: number
+  /** Bounded raw output replayed to a reconnecting emulator. */
+  screen: string[]
+  screenBytes: number
+  truncated: boolean
   subscribers: Set<AsyncQueue<unknown>>
-  history: unknown[]
   state: 'running' | 'exited' | 'failed'
   exitCode: number | null
+  error?: string
 }
 
 class AsyncQueue<T> implements AsyncIterable<T> {
@@ -59,9 +121,16 @@ class AsyncQueue<T> implements AsyncIterable<T> {
 export class CodexWorkspaceBridge {
   private readonly terminals: Map<string, TerminalContext>
   private readonly ownedSubscribers = new Set<AsyncQueue<unknown>>()
+  private readonly spawnTerminal: RemoteTerminalSpawner
 
-  constructor(private readonly resolveCwd: CodexCwdResolver, private readonly terminalEnabled: () => boolean, state = new CodexWorkspaceState()) {
+  constructor(
+    private readonly resolveCwd: CodexCwdResolver,
+    private readonly terminalEnabled: () => boolean,
+    state = new CodexWorkspaceState(),
+    spawnTerminal: RemoteTerminalSpawner = pipeTerminalSpawner(),
+  ) {
     this.terminals = state.terminals
+    this.spawnTerminal = spawnTerminal
   }
 
   isCodeXScope(value: unknown): boolean {
@@ -86,20 +155,8 @@ export class CodexWorkspaceBridge {
     const codex = parseCodexSessionId(raw)
     if (codex === undefined) { if (typeof raw === 'string' && raw.startsWith('codex:')) throw new RpcError('CODEX_SESSION_INVALID', 'The CodeX session identifier is invalid.'); return undefined }
     if (endpoint === 'workspaceFiles/changes') return this.watchChanges(codex.sessionId, args, signal)
-    if (endpoint === 'terminal/follow' || endpoint === 'terminal/retain') {
-      this.assertTerminalEnabled()
-      await this.rootFor(codex.sessionId, signal)
-      const terminal = await this.requireTerminal(codex.sessionId, String(args.id), signal)
-      if (endpoint === 'terminal/follow') {
-        if (typeof args.attachmentId !== 'string' || args.attachmentId.length < 1) throw new RpcError('INVALID_MESSAGE', 'The terminal attachment is invalid.')
-      }
-      const queue = new AsyncQueue<unknown>()
-      terminal.subscribers.add(queue)
-      this.ownedSubscribers.add(queue)
-      if (endpoint === 'terminal/retain') for (const item of terminal.history) queue.push(item)
-      signal.addEventListener('abort', () => { terminal.subscribers.delete(queue); this.ownedSubscribers.delete(queue); queue.end() }, { once: true })
-      return queue
-    }
+    if (endpoint === 'terminal/retain') return this.retain(codex.sessionId, args, signal)
+    if (endpoint === 'terminal/follow') return this.follow(codex.sessionId, args, signal)
     return undefined
   }
 
@@ -161,40 +218,143 @@ export class CodexWorkspaceBridge {
     return queue
   }
 
+  /**
+   * `terminal/retain` only acknowledges the retention window: it never takes
+   * input ownership and never replays output. Recovery reads the next snapshot.
+   */
+  private async retain(sessionId: string, args: Record<string, unknown>, signal: AbortSignal): Promise<AsyncIterable<unknown>> {
+    this.assertTerminalEnabled()
+    await this.rootFor(sessionId, signal)
+    this.requireTerminal(sessionId, String(args.id))
+    const queue = new AsyncQueue<unknown>()
+    queue.push({ type: 'retained' })
+    this.ownedSubscribers.add(queue)
+    signal.addEventListener('abort', () => { this.ownedSubscribers.delete(queue); queue.end() }, { once: true })
+    return queue
+  }
+
+  /** `terminal/follow` takes input ownership and starts with a screen snapshot. */
+  private async follow(sessionId: string, args: Record<string, unknown>, signal: AbortSignal): Promise<AsyncIterable<unknown>> {
+    this.assertTerminalEnabled()
+    await this.rootFor(sessionId, signal)
+    const attachmentId = typeof args.attachmentId === 'string' && args.attachmentId.length > 0 ? args.attachmentId : undefined
+    if (attachmentId === undefined) throw new RpcError('INVALID_MESSAGE', 'The terminal attachment is invalid.')
+    const terminal = this.requireTerminal(sessionId, String(args.id))
+    const queue = new AsyncQueue<unknown>()
+    if (terminal.controllerId !== attachmentId) {
+      terminal.controllerId = attachmentId
+      // Existing followers keep their output but lose input to the new attachment.
+      this.emit(terminal, { type: 'state', info: terminalInfo(terminal) })
+    }
+    queue.push({ type: 'snapshot', sequence: terminal.sequence, screen: screenOf(terminal), info: terminalInfo(terminal) })
+    terminal.subscribers.add(queue)
+    this.ownedSubscribers.add(queue)
+    signal.addEventListener('abort', () => {
+      terminal.subscribers.delete(queue)
+      this.ownedSubscribers.delete(queue)
+      queue.end()
+      if (terminal.controllerId === attachmentId) {
+        terminal.controllerId = undefined
+        this.emit(terminal, { type: 'state', info: terminalInfo(terminal) })
+      }
+    }, { once: true })
+    return queue
+  }
+
   private async terminalCall(endpoint: string, sessionId: string, args: Record<string, unknown>, signal: AbortSignal): Promise<TypertRpcResult> {
     this.assertTerminalEnabled()
     const cwd = await this.rootFor(sessionId, signal)
-    if (endpoint === 'terminal/environment') return { ok: true, value: { cwd, maxInputBytes: MAX_INPUT_BYTES, maxCols: MAX_COLS, maxRows: MAX_ROWS } }
-    if (endpoint === 'terminal/shells') return { ok: true, value: [{ id: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh', name: process.platform === 'win32' ? 'Command Prompt' : 'sh' }] }
-    if (endpoint === 'terminal/list') return { ok: true, value: [...this.terminals.values()].filter(item => item.sessionId === sessionId).map(terminalInfo) }
-    if (endpoint === 'terminal/create') {
-      const request = isRecord(args.request) ? args.request : {}
-      const id = stringId(request.id)
-      if ([...this.terminals.values()].some(item => item.sessionId === sessionId && item.id === id)) throw new RpcError('REQUEST_CONFLICT', 'The terminal id is already active.')
-      if (this.terminals.size >= MAX_TERMINALS) throw new RpcError('RATE_LIMITED', 'Too many remote terminals are active.', undefined, true)
-      const cols = bounded(request.cols, 80, MAX_COLS); const rows = bounded(request.rows, 24, MAX_ROWS)
-      const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh'
-      const child = spawn(shell, [], { cwd, stdio: 'pipe', windowsHide: true })
-      const terminal: TerminalContext = { sessionId, id, title: typeof request.title === 'string' ? request.title : id, cwd, cols, rows, process: child, sequence: 0, subscribers: new Set(), history: [], state: 'running', exitCode: null }
-      this.terminals.set(`${sessionId}/${id}`, terminal)
-      child.stdout.on('data', data => this.emit(terminal, { type: 'output', sequence: ++terminal.sequence, data: Buffer.from(data).toString('utf8') }))
-      child.stderr.on('data', data => this.emit(terminal, { type: 'output', sequence: ++terminal.sequence, data: Buffer.from(data).toString('utf8') }))
-      child.on('error', () => { terminal.state = 'failed'; this.emit(terminal, { type: 'state', info: terminalInfo(terminal) }); this.endSubscribers(terminal) })
-      child.on('exit', code => { terminal.state = 'exited'; terminal.exitCode = code; this.emit(terminal, { type: 'state', info: terminalInfo(terminal) }); this.endSubscribers(terminal) })
-      return { ok: true, value: terminalInfo(terminal) }
+    if (endpoint === 'terminal/environment') {
+      return { ok: true, value: { cwd, maxInputBytes: MAX_INPUT_BYTES, maxCols: MAX_COLS, maxRows: MAX_ROWS, scrollback: TERMINAL_SCROLLBACK } }
     }
+    if (endpoint === 'terminal/shells') return { ok: true, value: [shellInfo(DEFAULT_SHELL)] }
+    if (endpoint === 'terminal/list') return { ok: true, value: [...this.terminals.values()].filter(item => item.sessionId === sessionId).map(terminalInfo) }
+    if (endpoint === 'terminal/create') return this.createTerminal(sessionId, cwd, args)
     const id = stringId(args.id)
-    const terminal = await this.requireTerminal(sessionId, id, signal)
+    const terminal = this.requireTerminal(sessionId, id)
     if (endpoint === 'terminal/write') {
       const data = typeof args.data === 'string' ? args.data : ''
       if (Buffer.byteLength(data) > MAX_INPUT_BYTES) throw new RpcError('INVALID_MESSAGE', 'Terminal input is too large.')
-      terminal.process.stdin.write(data)
-      return { ok: true, value: {} }
+      if (terminal.process === undefined) throw new RpcError('CODEX_TERMINAL_NOT_FOUND', 'The CodeX terminal is no longer available.')
+      await terminal.process.write(data)
+      return { ok: true }
     }
-    if (endpoint === 'terminal/resize') { terminal.cols = bounded(args.cols, terminal.cols, MAX_COLS); terminal.rows = bounded(args.rows, terminal.rows, MAX_ROWS); return { ok: true, value: terminalInfo(terminal) } }
-    if (endpoint === 'terminal/rename') { terminal.title = typeof args.title === 'string' && args.title.length > 0 ? args.title.slice(0, 128) : terminal.title; return { ok: true, value: terminalInfo(terminal) } }
-    if (endpoint === 'terminal/close') { this.disposeTerminal(terminal); this.terminals.delete(`${sessionId}/${id}`); return { ok: true, value: {} } }
+    if (endpoint === 'terminal/resize') {
+      terminal.cols = bounded(args.cols, terminal.cols, MAX_COLS)
+      terminal.rows = bounded(args.rows, terminal.rows, MAX_ROWS)
+      await terminal.process?.resize(terminal.cols, terminal.rows)
+      return { ok: true }
+    }
+    if (endpoint === 'terminal/rename') {
+      if (typeof args.title === 'string' && args.title.length > 0) terminal.title = args.title.slice(0, 128)
+      return { ok: true }
+    }
+    if (endpoint === 'terminal/close') {
+      this.disposeTerminal(terminal)
+      this.terminals.delete(`${sessionId}/${id}`)
+      return { ok: true }
+    }
     throw new RpcError('METHOD_NOT_FOUND', 'The requested terminal method does not exist.')
+  }
+
+  private async createTerminal(sessionId: string, cwd: string, args: Record<string, unknown>): Promise<TypertRpcResult> {
+    const request = isRecord(args.request) ? args.request : {}
+    const id = stringId(request.id)
+    if ([...this.terminals.values()].some(item => item.sessionId === sessionId && item.id === id)) throw new RpcError('REQUEST_CONFLICT', 'The terminal id is already active.')
+    if (this.terminals.size >= MAX_TERMINALS) throw new RpcError('RATE_LIMITED', 'Too many remote terminals are active.', undefined, true)
+    if (request.shellPath !== undefined && request.shellPath !== DEFAULT_SHELL.path) throw new RpcError('INVALID_MESSAGE', 'The requested shell is not available for this workspace.')
+    const cols = bounded(request.cols, 80, MAX_COLS)
+    const rows = bounded(request.rows, 24, MAX_ROWS)
+    const terminal: TerminalContext = {
+      sessionId, id, title: DEFAULT_SHELL.name, shell: DEFAULT_SHELL, cwd, cols, rows,
+      sequence: 0, screen: [], screenBytes: 0, truncated: false, subscribers: new Set(),
+      state: 'running', exitCode: null,
+    }
+    this.terminals.set(`${sessionId}/${id}`, terminal)
+    try {
+      terminal.process = await this.spawnTerminal({
+        argv: [DEFAULT_SHELL.path, ...DEFAULT_SHELL.args],
+        cwd,
+        cols,
+        rows,
+        terminalType: TERMINAL_TYPE,
+        env: { DSH_SESSION_ID: sessionId },
+      })
+    } catch {
+      this.terminals.delete(`${sessionId}/${id}`)
+      throw new RpcError('CODEX_TERMINAL_UNAVAILABLE', 'The CodeX terminal could not be started.')
+    }
+    void this.pump(terminal, terminal.process)
+    return { ok: true, value: terminalInfo(terminal) }
+  }
+
+  /** Streams process output as ordered `output` frames, then reports the exit. */
+  private async pump(terminal: TerminalContext, process: RemoteTerminalProcess): Promise<void> {
+    try {
+      for await (const chunk of process.output) {
+        if (chunk.length === 0) continue
+        terminal.sequence += 1
+        this.appendScreen(terminal, chunk)
+        this.emit(terminal, { type: 'output', sequence: terminal.sequence, data: chunk })
+      }
+    } catch {
+      terminal.state = 'failed'
+      terminal.error = 'The terminal output stream failed.'
+    }
+    const outcome = await process.completed
+    terminal.exitCode = outcome.exitCode
+    if (terminal.state === 'running') terminal.state = 'exited'
+    this.emit(terminal, { type: 'state', info: terminalInfo(terminal) })
+    this.endSubscribers(terminal)
+  }
+
+  private appendScreen(terminal: TerminalContext, chunk: string): void {
+    terminal.screen.push(chunk)
+    terminal.screenBytes += Buffer.byteLength(chunk)
+    while (terminal.screenBytes > MAX_SCREEN_BYTES && terminal.screen.length > 1) {
+      terminal.screenBytes -= Buffer.byteLength(terminal.screen.shift()!)
+      terminal.truncated = true
+    }
   }
 
   private async rootFor(sessionId: string, signal: AbortSignal): Promise<string> {
@@ -223,8 +383,6 @@ export class CodexWorkspaceBridge {
   }
 
   private emit(terminal: TerminalContext, value: unknown): void {
-    terminal.history.push(value)
-    if (terminal.history.length > 512) terminal.history.shift()
     for (const subscriber of terminal.subscribers) subscriber.push(value)
   }
   private endSubscribers(terminal: TerminalContext): void {
@@ -232,13 +390,109 @@ export class CodexWorkspaceBridge {
     terminal.subscribers.clear()
   }
 
-  private async requireTerminal(sessionId: string, id: string, _signal: AbortSignal): Promise<TerminalContext> {
+  private requireTerminal(sessionId: string, id: string): TerminalContext {
     const terminal = this.terminals.get(`${sessionId}/${id}`)
     if (!terminal) throw new RpcError('CODEX_TERMINAL_NOT_FOUND', 'The CodeX terminal is no longer available.')
     return terminal
   }
   private assertTerminalEnabled(): void { if (!this.terminalEnabled()) throw new RpcError('TERMINAL_DISABLED', 'Remote terminal is disabled on this Host.') }
-  private disposeTerminal(terminal: TerminalContext): void { if (!terminal.process.killed) terminal.process.kill(); this.endSubscribers(terminal) }
+  private disposeTerminal(terminal: TerminalContext): void {
+    void Promise.resolve(terminal.process?.terminate()).catch(() => undefined)
+    if (terminal.state === 'running') {
+      // Followers see a terminal state before their stream ends, so a close from
+      // another connection cannot leave a view stuck on "running".
+      terminal.state = 'exited'
+      this.emit(terminal, { type: 'state', info: terminalInfo(terminal) })
+    }
+    this.endSubscribers(terminal)
+  }
+}
+
+/** Default terminal process: a plain child process, used when the Host exposes no PTY provider. */
+export function pipeTerminalSpawner(): RemoteTerminalSpawner {
+  return async spec => {
+    const child: ChildProcessWithoutNullStreams = spawn(spec.argv[0]!, spec.argv.slice(1), {
+      cwd: spec.cwd,
+      stdio: 'pipe',
+      windowsHide: true,
+      env: { ...process.env, ...spec.env },
+    })
+    const queue = new AsyncQueue<string>()
+    child.stdout.on('data', data => queue.push(Buffer.from(data).toString('utf8')))
+    child.stderr.on('data', data => queue.push(Buffer.from(data).toString('utf8')))
+    child.on('error', () => queue.end())
+    const completed = new Promise<{ exitCode: number | null }>(resolve => {
+      child.on('error', () => { queue.end(); resolve({ exitCode: null }) })
+      child.on('exit', code => { queue.end(); resolve({ exitCode: code }) })
+    })
+    return {
+      output: queue,
+      write: data => { child.stdin.write(data) },
+      resize: () => undefined,
+      terminate: () => { if (!child.killed) child.kill() },
+      completed,
+    }
+  }
+}
+
+/**
+ * Terminal process backed by the Host `subprocess` service, which owns PTY
+ * allocation, containment, and process-range termination.
+ */
+export function subprocessTerminalSpawner(subprocess: HostSubprocessLike): RemoteTerminalSpawner {
+  return async spec => {
+    const handle = await subprocess.spawnTerminal({
+      argv: [...spec.argv],
+      cwd: spec.cwd,
+      cols: spec.cols,
+      rows: spec.rows,
+      terminalType: spec.terminalType,
+      env: spec.env,
+    }) as HostTerminalHandleLike
+    const queue = new AsyncQueue<string>()
+    handle.output.setEncoding?.('utf8')
+    handle.output.on('data', chunk => queue.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk as Uint8Array).toString('utf8')))
+    handle.output.once('close', () => queue.end())
+    handle.output.once('error', () => queue.end())
+    return {
+      output: queue,
+      write: data => handle.write(data),
+      resize: (cols, rows) => handle.resize(cols, rows),
+      terminate: () => handle.terminate(),
+      completed: handle.done
+        .then(outcome => ({ exitCode: typeof outcome?.exitCode === 'number' ? outcome.exitCode : null }))
+        .catch(() => ({ exitCode: null })),
+    }
+  }
+}
+
+function shellInfo(shell: ShellSpec): Record<string, unknown> {
+  return { path: shell.path, args: [...shell.args], name: shell.name }
+}
+
+/** Official WebTerminalInfo shape, including the attachment that owns input. */
+function terminalInfo(terminal: TerminalContext): Record<string, unknown> {
+  return {
+    id: terminal.id,
+    title: terminal.title,
+    shell: shellInfo(terminal.shell),
+    cwd: terminal.cwd,
+    cols: terminal.cols,
+    rows: terminal.rows,
+    state: terminal.state,
+    exitCode: terminal.exitCode,
+    ...(terminal.error === undefined ? {} : { error: terminal.error }),
+    ...(terminal.controllerId === undefined ? {} : { controllerId: terminal.controllerId }),
+  }
+}
+
+/**
+ * The carrier has no terminal emulator: the bounded raw journal is replayed into
+ * the client emulator, which re-executes the same control sequences. A truncated
+ * journal starts with a reset so a half-captured sequence cannot leak in.
+ */
+function screenOf(terminal: TerminalContext): string {
+  return (terminal.truncated ? '\u001bc' : '') + terminal.screen.join('')
 }
 
 function argsOf(payload: unknown): Record<string, unknown> { const value = isRecord(payload) ? payload : {}; return isRecord(value.args) ? value.args : value }
@@ -247,4 +501,3 @@ function stringId(value: unknown): string { if (typeof value !== 'string' || !/^
 function bounded(value: unknown, fallback: number, max: number): number { return typeof value === 'number' && Number.isInteger(value) && value > 0 ? Math.min(value, max) : fallback }
 function readOffset(args: Record<string, unknown>): number { const range = isRecord(args.range) ? args.range : args; return typeof range.offset === 'number' && Number.isInteger(range.offset) && range.offset >= 0 ? range.offset : 0 }
 function readLimit(args: Record<string, unknown>): number { const range = isRecord(args.range) ? args.range : args; return typeof range.limit === 'number' && Number.isInteger(range.limit) && range.limit > 0 ? Math.min(range.limit, MAX_READ_BYTES) : MAX_READ_BYTES }
-function terminalInfo(terminal: TerminalContext): Record<string, unknown> { return { id: terminal.id, title: terminal.title, state: terminal.state, cols: terminal.cols, rows: terminal.rows, exitCode: terminal.exitCode } }

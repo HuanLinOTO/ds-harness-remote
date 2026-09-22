@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { HarnessRemoteBridge } from '../src/harness-remote-bridge.js'
+import { CodexWorkspaceBridge, type RemoteTerminalProcess, type RemoteTerminalSpawner } from '../src/codex-workspace-bridge.js'
+import { TerminalPolicy } from '../src/terminal-policy.js'
 import { RpcError } from '../src/rpc-router.js'
 import type { LocalTypertGateway } from '../src/typert-gateway-contract.js'
 
@@ -133,7 +135,61 @@ describe('HarnessRemoteBridge', () => {
       failure: { code: 'gateway-failed', message: 'Request failed.', details: {} },
     })
   })
+
+  it('routes CodeX terminal calls to the CodeX carrier and keeps device ownership', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-remote-codex-terminal-'))
+    const dispatch = vi.fn(async () => ({ ok: true as const }))
+    const bridge = new HarnessRemoteBridge(gateway({ dispatch }), vi.fn(async () => undefined), undefined, undefined,
+      new TerminalPolicy(() => true, 'device-a', new Map()),
+      new CodexWorkspaceBridge(async () => root, () => true, undefined, stubTerminalSpawner()))
+
+    await expect(bridge.call({ endpoint: 'terminal/environment', payload: { args: { agentId: 'codex:one' } } }))
+      .resolves.toMatchObject({ ok: true, value: { cwd: await realpath(root), scrollback: expect.any(Number) } })
+    await expect(bridge.call({ endpoint: 'terminal/create', payload: { args: { agentId: 'codex:one', request: { id: 't1', cols: 80, rows: 24 } } } }))
+      .resolves.toMatchObject({ ok: true, value: { id: 't1', shell: { path: expect.any(String) } } })
+    expect(dispatch).not.toHaveBeenCalled()
+
+    // A Harness session still reaches the official Gateway.
+    await bridge.call({ endpoint: 'terminal/environment', payload: { args: { agentId: 'session-1' } } })
+    expect(dispatch).toHaveBeenCalledWith('terminal/environment', { args: { agentId: 'session-1' } }, expect.any(AbortSignal))
+
+    // The terminal belongs to the creating device only.
+    const other = new HarnessRemoteBridge(gateway(), vi.fn(async () => undefined), undefined, undefined,
+      new TerminalPolicy(() => true, 'device-b', new Map()),
+      new CodexWorkspaceBridge(async () => root, () => true, undefined, stubTerminalSpawner()))
+    await expect(other.call({ endpoint: 'terminal/list', payload: { args: { sessionId: 'codex:one' } } }))
+      .resolves.toEqual({ ok: true, value: [] })
+    await bridge.closeAll(); await other.closeAll(); await rm(root, { recursive: true, force: true })
+  })
+
+  it('releases the device reservation when a CodeX terminal cannot start', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-remote-codex-terminal-'))
+    const owners = new Map<string, string>()
+    const failing = new HarnessRemoteBridge(gateway(), vi.fn(async () => undefined), undefined, undefined,
+      new TerminalPolicy(() => true, 'device-a', owners),
+      new CodexWorkspaceBridge(async () => root, () => true, undefined, async () => { throw new Error('no terminal provider') }))
+    await expect(failing.call({ endpoint: 'terminal/create', payload: { args: { agentId: 'codex:one', request: { id: 't1', cols: 80, rows: 24 } } } }))
+      .rejects.toMatchObject({ code: 'CODEX_TERMINAL_UNAVAILABLE' })
+
+    // Another device can still claim that id because the failed attempt released it.
+    const other = new HarnessRemoteBridge(gateway(), vi.fn(async () => undefined), undefined, undefined,
+      new TerminalPolicy(() => true, 'device-b', owners),
+      new CodexWorkspaceBridge(async () => root, () => true, undefined, stubTerminalSpawner()))
+    await expect(other.call({ endpoint: 'terminal/create', payload: { args: { agentId: 'codex:one', request: { id: 't1', cols: 80, rows: 24 } } } }))
+      .resolves.toMatchObject({ ok: true, value: { id: 't1' } })
+    await failing.closeAll(); await other.closeAll(); await rm(root, { recursive: true, force: true })
+  })
 })
+
+function stubTerminalSpawner(): RemoteTerminalSpawner {
+  return async (): Promise<RemoteTerminalProcess> => ({
+    output: (async function* () { return })(),
+    write: () => undefined,
+    resize: () => undefined,
+    terminate: () => undefined,
+    completed: Promise.resolve({ exitCode: 0 }),
+  })
+}
 
 function gateway(overrides: Partial<LocalTypertGateway> = {}): LocalTypertGateway {
   return {
