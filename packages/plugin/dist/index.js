@@ -27789,6 +27789,8 @@ function decodeBase64(value) {
 // src/index.ts
 var name = "ds-harness-remote";
 var legacyLoaderModuleNames = /* @__PURE__ */ new Set(["dsh-remote", "@dsh-remote/plugin"]);
+var DEFAULT_ENTRY_ID = "ds-harness-remote";
+var INCLUDE_ENTRY_PREFIX = "include:";
 function apply(ctx, entry = void 0) {
   const readConfig = () => readEntryConfig(entry);
   const entryId = locateEntryId(ctx);
@@ -27947,7 +27949,14 @@ function isEntryConfig(value) {
 }
 function locateEntryId(ctx) {
   const loader = ctx.get("loader");
-  return loader?.locate?.(ctx.fiber) ?? "ds-harness-remote";
+  const located = loader?.locate?.(ctx.fiber);
+  if (located === void 0) return DEFAULT_ENTRY_ID;
+  if (typeof loader?.entries === "function") {
+    for (const entry of loader.entries()) {
+      if (entry.id === located) return entry.options.id;
+    }
+  }
+  return located.startsWith(INCLUDE_ENTRY_PREFIX) ? located.slice(INCLUDE_ENTRY_PREFIX.length) : located;
 }
 async function disableLegacyLoaderEntries(ctx, logger) {
   const loader = ctx.get("loader");

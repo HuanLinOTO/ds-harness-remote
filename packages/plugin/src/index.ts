@@ -42,9 +42,15 @@ export { Config }
 
 const legacyLoaderModuleNames = new Set(['dsh-remote', '@dsh-remote/plugin'])
 
+/** Fallback entry id when the Loader cannot locate this plugin's entry. */
+const DEFAULT_ENTRY_ID = 'ds-harness-remote'
+/** Root include entry id prefixing every profile row's Loader path id. */
+const INCLUDE_ENTRY_PREFIX = 'include:'
+
 interface LoaderEntryLike {
   id: string
   options: {
+    id: string
     name?: string
     disabled?: boolean | null
   }
@@ -256,8 +262,22 @@ function isEntryConfig(value: EntryConfig | ConfigShape): value is EntryConfig {
 
 /** Entry id whose live Config backs this plugin instance's settings writes. */
 function locateEntryId(ctx: Context): string {
-  const loader = ctx.get('loader') as { locate?(fiber?: unknown): string | undefined } | undefined
-  return loader?.locate?.(ctx.fiber) ?? 'ds-harness-remote'
+  const loader = ctx.get('loader') as LoaderLike | undefined
+  // `Entry.id` is the tree path (`include:<row>` for a direct profile row, or
+  // `<include>:<group>:<row>` under a group), while `ctx.settings` and
+  // configEditor address an entry by its own `options.id` (DSH-0.1.7-RC1-04).
+  // Resolve the located path back through the Loader so a bundle-include mount
+  // and a plain insert row both derive the same configurable id.
+  const located = loader?.locate?.(ctx.fiber)
+  if (located === undefined) return DEFAULT_ENTRY_ID
+  if (typeof loader?.entries === 'function') {
+    for (const entry of loader.entries()) {
+      if (entry.id === located) return entry.options.id
+    }
+  }
+  // Fallback for a tree whose entries are not enumerable: the root include's
+  // path component is the only prefix a direct profile row carries.
+  return located.startsWith(INCLUDE_ENTRY_PREFIX) ? located.slice(INCLUDE_ENTRY_PREFIX.length) : located
 }
 
 async function disableLegacyLoaderEntries(ctx: Context, logger: SafeLogger): Promise<void> {

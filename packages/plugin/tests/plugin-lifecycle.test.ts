@@ -217,7 +217,7 @@ describe('Cordis plugin lifecycle', () => {
     const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-host-only-'))
     directories.push(dshHome)
     vi.stubEnv('DSH_HOME', dshHome)
-    const replace = vi.fn(async () => undefined)
+    const replace = vi.fn(async (_ns: string, _section: unknown) => undefined)
     const describeHost = vi.fn(async request => ({
       rpcId: request.rpcId,
       result: {
@@ -262,9 +262,9 @@ describe('Cordis plugin lifecycle', () => {
     vi.stubEnv('DSH_HOME', dshHome)
 
     const entries = [
-      { id: 'legacy-package', options: { name: 'dsh-remote' } },
-      { id: 'legacy-workspace', options: { name: '@dsh-remote/plugin' } },
-      { id: 'current', options: { name: 'ds-harness-remote' } },
+      { id: 'legacy-package', options: { id: 'legacy-package', name: 'dsh-remote' } },
+      { id: 'legacy-workspace', options: { id: 'legacy-workspace', name: '@dsh-remote/plugin' } },
+      { id: 'current', options: { id: 'current', name: 'ds-harness-remote' } },
     ]
     const loader = {
       entries: () => entries.values(),
@@ -293,6 +293,106 @@ describe('Cordis plugin lifecycle', () => {
     await fiber.dispose()
     await ctx.fiber.dispose()
   })
+
+  it('derives the configurable entry id from a bundle include mount', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-include-entry-'))
+    directories.push(dshHome)
+    vi.stubEnv('DSH_HOME', dshHome)
+
+    // A profile row's Loader path id is `include:<row id>`; the settings
+    // namespace must be the row's own `options.id`.
+    const loader = loaderTree('include:ds-harness-remote', 'ds-harness-remote')
+    const replace = vi.fn(async (_ns: string, _section: unknown) => undefined)
+    const handlers: ControlHandler[] = []
+    const ctx = new Context()
+    ctx.provide('loader', loader)
+    ctx.provide('settings', {
+      configure: () => () => undefined,
+      describe: () => [{ ns: 'ds-harness-remote' }],
+      replace,
+    } as never)
+    ctx.provide('typertGateway', typertGateway())
+    ctx.provide('connection', capturingConnection(handlers))
+    ctx.provide('apiProxy', apiProxy())
+
+    const fiber = await ctx.plugin(remotePlugin, { deviceName: 'Cordis include host' })
+    await vi.waitFor(() => {
+      expect(ctx.dshRemote.currentIdentity()).toMatchObject({ name: 'Cordis include host' })
+    })
+    await handlers[0]!('settings.codex.set', { enabled: false }, new AbortController().signal)
+
+    expect(replace).toHaveBeenCalledOnce()
+    expect(replace.mock.calls[0]?.[0]).toBe('ds-harness-remote')
+
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps a plain insert mount entry id unchanged', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-insert-entry-'))
+    directories.push(dshHome)
+    vi.stubEnv('DSH_HOME', dshHome)
+
+    const loader = loaderTree('ds-harness-remote', 'ds-harness-remote')
+    const replace = vi.fn(async (_ns: string, _section: unknown) => undefined)
+    const handlers: ControlHandler[] = []
+    const ctx = new Context()
+    ctx.provide('loader', loader)
+    ctx.provide('settings', {
+      configure: () => () => undefined,
+      describe: () => [{ ns: 'ds-harness-remote' }],
+      replace,
+    } as never)
+    ctx.provide('typertGateway', typertGateway())
+    ctx.provide('connection', capturingConnection(handlers))
+    ctx.provide('apiProxy', apiProxy())
+
+    const fiber = await ctx.plugin(remotePlugin, { deviceName: 'Cordis insert host' })
+    await vi.waitFor(() => {
+      expect(ctx.dshRemote.currentIdentity()).toMatchObject({ name: 'Cordis insert host' })
+    })
+    await handlers[0]!('settings.codex.set', { enabled: false }, new AbortController().signal)
+
+    expect(replace).toHaveBeenCalledOnce()
+    expect(replace.mock.calls[0]?.[0]).toBe('ds-harness-remote')
+
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('resolves a group-nested include path to the row id, not a stripped prefix', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-group-entry-'))
+    directories.push(dshHome)
+    vi.stubEnv('DSH_HOME', dshHome)
+
+    // `include:<group>:<row>` cannot be recovered by stripping `include:`; it
+    // needs the located entry's own `options.id`.
+    const loader = loaderTree('include:team:ds-harness-remote', 'ds-harness-remote')
+    const replace = vi.fn(async (_ns: string, _section: unknown) => undefined)
+    const handlers: ControlHandler[] = []
+    const ctx = new Context()
+    ctx.provide('loader', loader)
+    ctx.provide('settings', {
+      configure: () => () => undefined,
+      describe: () => [{ ns: 'ds-harness-remote' }],
+      replace,
+    } as never)
+    ctx.provide('typertGateway', typertGateway())
+    ctx.provide('connection', capturingConnection(handlers))
+    ctx.provide('apiProxy', apiProxy())
+
+    const fiber = await ctx.plugin(remotePlugin, { deviceName: 'Cordis group host' })
+    await vi.waitFor(() => {
+      expect(ctx.dshRemote.currentIdentity()).toMatchObject({ name: 'Cordis group host' })
+    })
+    await handlers[0]!('settings.codex.set', { enabled: false }, new AbortController().signal)
+
+    expect(replace).toHaveBeenCalledOnce()
+    expect(replace.mock.calls[0]?.[0]).toBe('ds-harness-remote')
+
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
 })
 
 function settings(value: Record<string, unknown>) {
@@ -300,6 +400,30 @@ function settings(value: Record<string, unknown>) {
     configure: () => () => undefined,
     describe: () => [{ ns: 'ds-harness-remote', value }],
     replace: vi.fn(async () => undefined),
+  } as never
+}
+
+type ControlHandler = (endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>
+
+/** Loader stub whose `locate` returns a tree-path id distinct from `options.id`. */
+function loaderTree(located: string, optionsId: string) {
+  const entries = [{ id: located, options: { id: optionsId, name: 'ds-harness-remote' } }]
+  return {
+    entries: () => entries.values(),
+    locate: () => located,
+    update: vi.fn(async () => undefined),
+  }
+}
+
+/** Connection stub that captures the registered control handler. */
+function capturingConnection(handlers: ControlHandler[]) {
+  return {
+    rpc: {
+      handle: vi.fn((_channel: string, handler: ControlHandler) => {
+        handlers.push(handler)
+        return async () => undefined
+      }),
+    },
   } as never
 }
 
