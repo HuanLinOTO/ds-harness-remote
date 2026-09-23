@@ -18721,7 +18721,7 @@ var TypertGatewaySwitch = class {
     this.originalDispatch = this.runtime.dispatchRpc;
     this.localDispatch = this.runtime.dispatchRpc?.bind(gateway);
     this.originalOpen = this.runtime.openWireStream;
-    this.localOpen = this.runtime.openWireStream?.bind(gateway) ?? gateway.wireStream?.open.bind(gateway.wireStream);
+    this.localOpen = createLocalOpen(gateway, this.runtime);
   }
   /** Original local dispatcher, used by the Host bridge without switch recursion. */
   local() {
@@ -18762,7 +18762,16 @@ var TypertGatewaySwitch = class {
       this.runtime.dispatchRpc = (endpoint, payload, signal) => this.remoteTarget === void 0 || isLocalOnlyEndpoint(endpoint) ? this.localDispatch(endpoint, payload, signal) : this.remoteTarget.dispatch(endpoint, payload, signal);
     }
     if (this.originalOpen !== void 0) {
-      this.runtime.openWireStream = (endpoint, payload, signal) => this.remoteTarget === void 0 || isLocalOnlyEndpoint(endpoint) ? this.localOpen(endpoint, payload, signal) : this.remoteTarget.open(endpoint, payload, signal);
+      const open = this.originalOpen;
+      const rc1 = usesRc1Arity(open);
+      this.runtime.openWireStream = (...callArgs) => {
+        const endpoint = callArgs[0];
+        if (this.remoteTarget === void 0 || isLocalOnlyEndpoint(endpoint)) {
+          return rc1 ? Reflect.apply(open, this.runtime, callArgs) : open.call(this.runtime, endpoint, callArgs[1], callArgs[2]);
+        }
+        const signal = rc1 ? callArgs[4] : callArgs[2];
+        return this.remoteTarget.open(endpoint, callArgs[1], signal ?? new AbortController().signal);
+      };
     }
     this.installed = true;
   }
@@ -18807,6 +18816,37 @@ var TypertGatewaySwitch = class {
     return { code, message: source.message, details };
   }
 };
+function usesRc1Arity(open) {
+  return open.length >= 5;
+}
+function endedUplink() {
+  return {
+    [Symbol.asyncIterator]() {
+      return { next: () => Promise.resolve({ done: true, value: void 0 }) };
+    }
+  };
+}
+function linkControl(signal) {
+  const control = new AbortController();
+  if (signal.aborted) control.abort(signal.reason);
+  else signal.addEventListener("abort", () => control.abort(signal.reason), { once: true });
+  return control;
+}
+function createLocalOpen(gateway, runtime) {
+  const open = runtime.openWireStream;
+  if (open !== void 0) {
+    return usesRc1Arity(open) ? (endpoint, payload, signal) => open.call(runtime, endpoint, payload, endedUplink(), void 0, signal, linkControl(signal)) : (endpoint, payload, signal) => open.call(runtime, endpoint, payload, signal);
+  }
+  const wire = gateway.wireStream;
+  if (wire === void 0) return void 0;
+  const wireOpen = wire.open;
+  if (usesRc1Arity(wireOpen)) {
+    const rc1 = wireOpen;
+    return (endpoint, payload, signal) => rc1.call(wire, endpoint, payload, endedUplink(), void 0, signal);
+  }
+  const legacy = wireOpen;
+  return (endpoint, payload, signal) => legacy.call(wire, endpoint, payload, signal);
+}
 function requestFromCarrier(endpoint, payload, signal) {
   const segments = endpoint.split("/");
   if (segments.length !== 2 || segments.some((segment) => segment.length === 0)) {
