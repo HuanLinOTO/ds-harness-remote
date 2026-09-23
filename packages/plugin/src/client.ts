@@ -2994,26 +2994,28 @@ window.__ModuleLoader__.load({
           preferredQrProvider: ctx.locale.getLocale().active === 'zh' ? 'zhihu' : 'github',
         }),
       }, RemoteWorkspaceAction))
-      // The settings plugins slot was renamed in dsh 0.1.6. Keep both
-      // injections: an undeclared slot stays dormant on the other client
-      // generation, while the declared slot receives the one live entry.
-      const registerSettingsItem = (slotName: 'plugins.item' | 'settings.plugin.item'): void => {
-        try {
-          ctx.slots.inject(slotName, () => ctx.slots.register({
-            name: slotName,
-            label: () => t('pluginTitle'),
-            key: 'ds-harness-remote',
-            id: 'ds-harness-remote',
-            order: 30,
-            locale: localeNamespace,
-            inject: () => ({ control, statusFeed }),
-          }, RemotePluginOptions))
-        } catch {
-          // Older/newer clients may not declare the other generation's slot.
-        }
-      }
-      registerSettingsItem('plugins.item')
-      registerSettingsItem('settings.plugin.item')
+      // Official-plugin card on the Plugins page. The retired rc.2
+      // settings-plugin card slot is gone in dsh 0.1.7-rc.1
+      // (DSH-0.1.7-RC1-31): the card now lives in the `plugins.item` list, and
+      // the `plugins.row.config` / `plugins.bundle.config` entries below are the
+      // rc.1 configuration surfaces.
+      ctx.slots.inject('plugins.item', () => ctx.slots.register({
+        name: 'plugins.item',
+        label: () => t('pluginTitle'),
+        key: 'ds-harness-remote',
+        id: 'ds-harness-remote',
+        order: 30,
+        locale: localeNamespace,
+        inject: () => ({ control, statusFeed }),
+      }, RemotePluginOptions))
+      // rc.1 row-scoped configuration: keyed `<package>#<row id>` from the
+      // bundle's own patch (`cordis.patch.yml` row `ds-harness-remote`).
+      ctx.slots.inject('plugins.row.config', () => ctx.slots.register({
+        name: 'plugins.row.config',
+        key: 'ds-harness-remote#ds-harness-remote',
+        locale: localeNamespace,
+        inject: () => ({ control, statusFeed }),
+      }, RemotePluginOptions))
       // 0.1.6 installed-bundle details resolve configuration by package name,
       // independently of the standalone plugins.item cards.
       ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({

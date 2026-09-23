@@ -1,15 +1,18 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ApiProxy } from '@deepseek-ai/dsh-host-apiproxy/api'
-import type { SettingsNamespace, SettingsProvider, SettingsScope } from '@deepseek-ai/dsh-settings'
+// Type-only: pulls the `ctx.settings` Context merge (SettingsForms).
+import type {} from '@deepseek-ai/dsh-settings'
 import { ClientModeRuntime, type HostConnectionHandle } from './client-runtime.js'
 import {
   Config,
   DEFAULT_REMOTE_SERVER_URL,
   resolveConfig,
-  type Config as ConfigInput,
+  type Config as ConfigShape,
+  type ConfigInput,
+  type EntryConfig,
   type ResolvedConfig,
 } from './config.js'
-import { PluginControlRuntime } from './control-runtime.js'
+import { PluginControlRuntime, type PluginSettingsBinding } from './control-runtime.js'
 import type { HostWebServerLike } from './control-route.js'
 import { IdentityStore, serverStorageDirectory } from './identity-store.js'
 import { SafeLogger } from './logging.js'
@@ -38,10 +41,6 @@ export const name = 'ds-harness-remote'
 export { Config }
 
 const legacyLoaderModuleNames = new Set(['dsh-remote', '@dsh-remote/plugin'])
-// rc.2 requires the branded SettingsNamespace type, while v0.1.2-alpha.2+
-// accepts and validates the literal directly after removing the helper.
-const pluginSettingsNamespace = 'ds-harness-remote' as SettingsNamespace
-const legacySettingsNamespace = 'dsh-remote' as SettingsNamespace
 
 interface LoaderEntryLike {
   id: string
@@ -57,7 +56,17 @@ interface LoaderLike {
   update(id: string, options: { disabled?: boolean | null }): unknown
 }
 
-export function apply(ctx: Context, input: ConfigInput = {}): void {
+export function apply(ctx: Context, entry: EntryConfig | ConfigShape | undefined = undefined): void {
+  const readConfig = (): ConfigInput => readEntryConfig(entry)
+  const entryId = locateEntryId(ctx)
+  // rc.1 (DSH-0.1.7-RC1-04): the settings-namespace registry is gone. The
+  // plugin declares its editable fields as the entry's volatile Cordis Config
+  // (config.ts) and only records its page policy here (`auto: false` — the
+  // plugin ships its own card); values persist in the active profile's
+  // `cordis.patch.yml` under this entry id.
+  ctx.inject(['settings'], (settingsContext) => {
+    settingsContext.effect(() => settingsContext.settings.configure({ auto: false }, ctx.fiber))
+  })
   const tuiCommandsAvailable = ctx.get('commands', false) !== undefined
     && ctx.get('tuiScenes', false) !== undefined
   const tuiBinding: TuiRemoteBinding | undefined = tuiCommandsAvailable ? {} : undefined
@@ -78,7 +87,7 @@ export function apply(ctx: Context, input: ConfigInput = {}): void {
       if (connection === undefined || disposePendingControl !== undefined) return
       disposePendingControl = runtimeContext.effect(() => {
         const control = new PluginControlRuntime(
-          resolveConfig(input),
+          resolveConfig(readConfig()),
           new IdentityStore().directory,
           undefined,
           undefined,
@@ -90,7 +99,7 @@ export function apply(ctx: Context, input: ConfigInput = {}): void {
     const startActiveRuntime = async (activeContext: Context): Promise<void> => {
       await disposePendingControl?.()
       disposePendingControl = undefined
-      await activate(activeContext, input, tuiBinding)
+      await activate(activeContext, readConfig, entryId, tuiBinding)
     }
     if (
       tuiCommandsAvailable
@@ -112,22 +121,21 @@ export function apply(ctx: Context, input: ConfigInput = {}): void {
 
 async function activate(
   ctx: Context,
-  input: ConfigInput,
+  readConfig: () => ConfigInput,
+  entryId: string,
   tuiBinding?: TuiRemoteBinding,
 ): Promise<void> {
   const settings = ctx.get('settings')
-  const settingsScope: SettingsScope<ConfigInput> | undefined = settings?.register(pluginSettingsNamespace, Config, {
-    base: input,
-    applies: 'restart',
-    validate: value => { resolveConfig(value) },
-  })
-  if (settings !== undefined && settingsScope !== undefined) {
-    const migration = migrateLegacySettings(settings, settingsScope)
-    reportSettingsMigration(ctx, await migration)
+  // rc.1: the entry Config is the profile-owned store. Reads come from the
+  // live volatile reference; writes go through the settings service into the
+  // active profile's `cordis.patch.yml` under the entry id.
+  const settingsBinding: PluginSettingsBinding | undefined = settings === undefined ? undefined : {
+    get: readConfig,
+    replace: async section => { await settings.replace(entryId, section) },
   }
   const connection = ctx.get('connection') as HostConnectionHandle | undefined
   const webServer = ctx.get('webServer') as HostWebServerLike | undefined
-  const resolvedConfig = resolveConfig(settingsScope?.get() ?? input)
+  const resolvedConfig = resolveConfig(readConfig())
   // dsh-TUI has no settings UI or browser connection. In that profile the
   // QR-authorized Host is enabled against the hosted Server by default.
   const config: ResolvedConfig = connection === undefined && resolvedConfig.serverUrl === undefined
@@ -136,7 +144,7 @@ async function activate(
   const defaultIdentityDirectory = new IdentityStore().directory
   if (!config.enabled) {
     if (connection !== undefined) {
-      const controlRuntime = new PluginControlRuntime(config, defaultIdentityDirectory, settingsScope, undefined, undefined)
+      const controlRuntime = new PluginControlRuntime(config, defaultIdentityDirectory, settingsBinding, undefined, undefined)
       ctx.effect(() => controlRuntime.register(connection, webServer), 'dsh-remote disabled control')
     }
     return
@@ -194,7 +202,7 @@ async function activate(
 
   const controlRuntime = connection === undefined
     ? undefined
-    : new PluginControlRuntime(config, defaultIdentityDirectory, settingsScope, clientRuntime, hostControl)
+    : new PluginControlRuntime(config, defaultIdentityDirectory, settingsBinding, clientRuntime, hostControl)
 
   ctx.provide('dshRemote', runtime)
   if (clientRuntime !== undefined) ctx.provide('dshRemoteClient', clientRuntime)
@@ -231,44 +239,25 @@ async function activate(
   }, 'dsh-remote lifecycle')
 }
 
-function reportSettingsMigration(
-  ctx: Context,
-  migration: 'migrated' | 'skipped' | 'failed',
-): void {
-  if (migration === 'migrated') ctx.logger.info('migrated legacy Remote settings namespace')
-  if (migration === 'failed') ctx.logger.warn('failed to migrate legacy Remote settings namespace')
+/**
+ * Read the plugin entry's config. The Loader passes the resolved
+ * {@link EntryConfig} (a live `Volatile` reference); a direct `ctx.plugin()`
+ * caller passes the plain composition object instead.
+ */
+function readEntryConfig(entry: EntryConfig | ConfigShape | undefined): ConfigInput {
+  if (entry === undefined) return {}
+  return isEntryConfig(entry) ? entry.get() : entry
 }
 
-/**
- * Preserve existing installs after the package/settings namespace rename. The
- * old section remains untouched as a rollback source; only its raw user layer
- * is copied, once, when the current namespace has no user layer of its own.
- */
-export async function migrateLegacySettings(
-  settings: Pick<SettingsProvider, 'register'> & Partial<Pick<SettingsProvider, 'describe'>>,
-  currentScope: SettingsScope<ConfigInput>,
-): Promise<'migrated' | 'skipped' | 'failed'> {
-  if (typeof settings.describe !== 'function') return 'skipped'
-  try {
-    let descriptors = settings.describe()
-    const current = descriptors.find(descriptor => descriptor.ns === pluginSettingsNamespace)
-    if (isPlainRecord(current?.user)) return 'skipped'
+/** Whether a config value is the Loader's live volatile reference. */
+function isEntryConfig(value: EntryConfig | ConfigShape): value is EntryConfig {
+  return typeof (value as { get?: unknown }).get === 'function'
+}
 
-    let legacy = descriptors.find(descriptor => descriptor.ns === legacySettingsNamespace)
-    if (legacy === undefined) {
-      settings.register(legacySettingsNamespace, Config, {
-        applies: 'restart',
-        validate: value => { resolveConfig(value) },
-      })
-      descriptors = settings.describe()
-      legacy = descriptors.find(descriptor => descriptor.ns === legacySettingsNamespace)
-    }
-    if (!isPlainRecord(legacy?.user) || Object.keys(legacy.user).length === 0) return 'skipped'
-    await currentScope.replace(legacy.user)
-    return 'migrated'
-  } catch {
-    return 'failed'
-  }
+/** Entry id whose live Config backs this plugin instance's settings writes. */
+function locateEntryId(ctx: Context): string {
+  const loader = ctx.get('loader') as { locate?(fiber?: unknown): string | undefined } | undefined
+  return loader?.locate?.(ctx.fiber) ?? 'ds-harness-remote'
 }
 
 async function disableLegacyLoaderEntries(ctx: Context, logger: SafeLogger): Promise<void> {
@@ -298,10 +287,6 @@ function isLoaderLike(value: unknown): value is LoaderLike {
   return typeof value === 'object' && value !== null
     && typeof (value as { entries?: unknown }).entries === 'function'
     && typeof (value as { update?: unknown }).update === 'function'
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export type { ResolvedConfig } from './config.js'
