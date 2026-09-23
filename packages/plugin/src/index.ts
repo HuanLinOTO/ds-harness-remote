@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { ApiProxy } from '@deepseek-ai/dsh-host-apiproxy/api'
-// Type-only: pulls the `ctx.settings` Context merge (SettingsForms).
-import type {} from '@deepseek-ai/dsh-settings'
+// Type-only: pulls the `ctx.settings` Context merge and the rc.1 forms type.
+import type { SettingsForms } from '@deepseek-ai/dsh-settings'
 import { ClientModeRuntime, type HostConnectionHandle } from './client-runtime.js'
 import {
   Config,
@@ -41,11 +41,37 @@ export const name = 'ds-harness-remote'
 export { Config }
 
 const legacyLoaderModuleNames = new Set(['dsh-remote', '@dsh-remote/plugin'])
+// Settings-registry generation (≤0.1.6). The branded `SettingsNamespace` type
+// was removed with the registry in rc.1, so the literals stay plain strings.
+const pluginSettingsNamespace = 'ds-harness-remote'
+const legacySettingsNamespace = 'dsh-remote'
 
 /** Fallback entry id when the Loader cannot locate this plugin's entry. */
 const DEFAULT_ENTRY_ID = 'ds-harness-remote'
 /** Root include entry id prefixing every profile row's Loader path id. */
 const INCLUDE_ENTRY_PREFIX = 'include:'
+
+/**
+ * ≤0.1.6 settings registry seam (removed by DSH 0.1.7-rc.1, DSH-0.1.7-RC1-04).
+ * Kept structural so the plugin can still activate on the registry generation
+ * while `ctx.settings` types only describe the rc.1 `SettingsForms` face.
+ */
+interface LegacySettingsScopeLike {
+  get(): ConfigInput
+  replace(section: Config): Promise<unknown>
+}
+
+interface LegacySettingsProviderLike {
+  register(ns: string, schema: unknown, options: {
+    base?: ConfigInput
+    applies?: 'live' | 'restart'
+    validate?: (value: ConfigInput) => void
+  }): LegacySettingsScopeLike
+  describe?(): Array<{ ns: string; user?: unknown }>
+}
+
+/** Union of the two settings service generations this plugin must activate on. */
+type SettingsServiceLike = SettingsForms | LegacySettingsProviderLike
 
 interface LoaderEntryLike {
   id: string
@@ -70,8 +96,14 @@ export function apply(ctx: Context, entry: EntryConfig | ConfigShape | undefined
   // (config.ts) and only records its page policy here (`auto: false` — the
   // plugin ships its own card); values persist in the active profile's
   // `cordis.patch.yml` under this entry id.
+  //
+  // Only the rc.1 `SettingsForms` face has `configure`. On the ≤0.1.6 registry
+  // generation `register` owns the page policy (see `activate`), so feature
+  // detection keeps the retired call from throwing during activation.
   ctx.inject(['settings'], (settingsContext) => {
-    settingsContext.effect(() => settingsContext.settings.configure({ auto: false }, ctx.fiber))
+    const settings = settingsContext.settings
+    if (isLegacySettingsProvider(settings)) return
+    settingsContext.effect(() => settings.configure({ auto: false }, ctx.fiber))
   })
   const tuiCommandsAvailable = ctx.get('commands', false) !== undefined
     && ctx.get('tuiScenes', false) !== undefined
@@ -131,17 +163,13 @@ async function activate(
   entryId: string,
   tuiBinding?: TuiRemoteBinding,
 ): Promise<void> {
-  const settings = ctx.get('settings')
-  // rc.1: the entry Config is the profile-owned store. Reads come from the
-  // live volatile reference; writes go through the settings service into the
-  // active profile's `cordis.patch.yml` under the entry id.
-  const settingsBinding: PluginSettingsBinding | undefined = settings === undefined ? undefined : {
-    get: readConfig,
-    replace: async section => { await settings.replace(entryId, section) },
-  }
+  const settings = ctx.get('settings') as SettingsServiceLike | undefined
+  const settingsBinding = await createSettingsBinding(ctx, settings, readConfig, entryId)
   const connection = ctx.get('connection') as HostConnectionHandle | undefined
   const webServer = ctx.get('webServer') as HostWebServerLike | undefined
-  const resolvedConfig = resolveConfig(readConfig())
+  // Reads resolve through the binding so the ≤0.1.6 scope's user layer (not the
+  // raw composition seed) is honored; the rc.1 binding reads the live Config.
+  const resolvedConfig = resolveConfig(settingsBinding?.get() ?? readConfig())
   // dsh-TUI has no settings UI or browser connection. In that profile the
   // QR-authorized Host is enabled against the hosted Server by default.
   const config: ResolvedConfig = connection === undefined && resolvedConfig.serverUrl === undefined
@@ -278,6 +306,92 @@ function locateEntryId(ctx: Context): string {
   // Fallback for a tree whose entries are not enumerable: the root include's
   // path component is the only prefix a direct profile row carries.
   return located.startsWith(INCLUDE_ENTRY_PREFIX) ? located.slice(INCLUDE_ENTRY_PREFIX.length) : located
+}
+
+/**
+ * Build the live read/write face for this instance's settings.
+ *
+ * DSH 0.1.7-rc.1 (DSH-0.1.7-RC1-04) replaced the namespace registry with
+ * profile-owned `SettingsForms`: reads come from the entry's live volatile
+ * Config and writes go to `settings.replace(entryId, section)`. The ≤0.1.6
+ * registry generation still exposes `register(ns, Config, …)`, whose scope is
+ * the read/write pair. Feature detection keeps both generations on one binding
+ * seam so `PluginControlRuntime` never branches on the host version.
+ */
+async function createSettingsBinding(
+  ctx: Context,
+  settings: SettingsServiceLike | undefined,
+  readConfig: () => ConfigInput,
+  entryId: string,
+): Promise<PluginSettingsBinding | undefined> {
+  if (settings === undefined) return undefined
+  if (!isLegacySettingsProvider(settings)) {
+    return {
+      get: readConfig,
+      replace: async section => { await settings.replace(entryId, section) },
+    }
+  }
+  const scope = settings.register(pluginSettingsNamespace, Config, {
+    base: readConfig(),
+    applies: 'restart',
+    validate: value => { resolveConfig(value) },
+  })
+  reportSettingsMigration(ctx, await migrateLegacySettings(settings, scope))
+  return {
+    get: () => scope.get(),
+    replace: async section => { await scope.replace(section) },
+  }
+}
+
+/** Whether the settings service is the ≤0.1.6 registry generation. */
+function isLegacySettingsProvider(value: unknown): value is LegacySettingsProviderLike {
+  return typeof value === 'object' && value !== null
+    && typeof (value as { register?: unknown }).register === 'function'
+}
+
+function reportSettingsMigration(
+  ctx: Context,
+  migration: 'migrated' | 'skipped' | 'failed',
+): void {
+  if (migration === 'migrated') ctx.logger.info('migrated legacy Remote settings namespace')
+  if (migration === 'failed') ctx.logger.warn('failed to migrate legacy Remote settings namespace')
+}
+
+/**
+ * Preserve existing installs after the package/settings namespace rename. The
+ * old section remains untouched as a rollback source; only its raw user layer
+ * is copied, once, when the current namespace has no user layer of its own.
+ * Only reachable on the ≤0.1.6 registry generation.
+ */
+export async function migrateLegacySettings(
+  settings: LegacySettingsProviderLike,
+  currentScope: LegacySettingsScopeLike,
+): Promise<'migrated' | 'skipped' | 'failed'> {
+  if (typeof settings.describe !== 'function') return 'skipped'
+  try {
+    let descriptors = settings.describe()
+    const current = descriptors.find(descriptor => descriptor.ns === pluginSettingsNamespace)
+    if (isPlainRecord(current?.user)) return 'skipped'
+
+    let legacy = descriptors.find(descriptor => descriptor.ns === legacySettingsNamespace)
+    if (legacy === undefined) {
+      settings.register(legacySettingsNamespace, Config, {
+        applies: 'restart',
+        validate: value => { resolveConfig(value) },
+      })
+      descriptors = settings.describe()
+      legacy = descriptors.find(descriptor => descriptor.ns === legacySettingsNamespace)
+    }
+    if (!isPlainRecord(legacy?.user) || Object.keys(legacy.user).length === 0) return 'skipped'
+    await currentScope.replace(legacy.user as Config)
+    return 'migrated'
+  } catch {
+    return 'failed'
+  }
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 async function disableLegacyLoaderEntries(ctx: Context, logger: SafeLogger): Promise<void> {

@@ -360,6 +360,81 @@ describe('Cordis plugin lifecycle', () => {
     await ctx.fiber.dispose()
   })
 
+  it('installs the rc.1 page policy and writes through a Loader-supplied volatile entry', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-volatile-entry-'))
+    directories.push(dshHome)
+    vi.stubEnv('DSH_HOME', dshHome)
+
+    // The Loader hands `apply` the entry's live volatile reference, not the
+    // plain composition object, and addresses it by `options.id` (the located
+    // tree path is different).
+    const liveEntry = { get: () => ({ deviceName: 'Cordis volatile host' }) }
+    const loader = loaderTree('include:ds-harness-remote-tui', 'ds-harness-remote-tui')
+    const replace = vi.fn(async (_ns: string, _section: unknown) => undefined)
+    const configure = vi.fn((_presentation: unknown, _owner: unknown) => () => undefined)
+    const handlers: ControlHandler[] = []
+    const ctx = new Context()
+    ctx.provide('loader', loader)
+    ctx.provide('settings', {
+      configure,
+      describe: () => [{ ns: 'ds-harness-remote-tui' }],
+      replace,
+    } as never)
+    ctx.provide('typertGateway', typertGateway())
+    ctx.provide('connection', capturingConnection(handlers))
+    ctx.provide('apiProxy', apiProxy())
+
+    const fiber = await ctx.plugin(volatileEntryPlugin(liveEntry) as unknown as typeof remotePlugin, {})
+    await vi.waitFor(() => {
+      expect(ctx.dshRemote.currentIdentity()).toMatchObject({ name: 'Cordis volatile host' })
+    })
+    await handlers[0]!('settings.codex.set', { enabled: false }, new AbortController().signal)
+
+    expect(configure).toHaveBeenCalledWith({ auto: false }, fiber)
+    expect(replace).toHaveBeenCalledOnce()
+    expect(replace.mock.calls[0]?.[0]).toBe('ds-harness-remote-tui')
+
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('activates against the ≤0.1.6 settings registry through a scope binding', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-legacy-settings-'))
+    directories.push(dshHome)
+    vi.stubEnv('DSH_HOME', dshHome)
+
+    const scope = {
+      get: () => ({ deviceName: 'Cordis legacy host' }),
+      replace: vi.fn(async (_section: unknown) => undefined),
+    }
+    const register = vi.fn((_ns: string, _schema: unknown, _options: unknown) => scope)
+    const handlers: ControlHandler[] = []
+    const ctx = new Context()
+    ctx.provide('loader', loaderTree('ds-harness-remote', 'ds-harness-remote'))
+    // Only the ≤0.1.6 registry generation: no `configure`, a `register` that
+    // returns the read/write scope.
+    ctx.provide('settings', {
+      register,
+      describe: () => [{ ns: 'ds-harness-remote', user: { deviceName: 'Cordis legacy host' } }],
+    } as never)
+    ctx.provide('typertGateway', typertGateway())
+    ctx.provide('connection', capturingConnection(handlers))
+    ctx.provide('apiProxy', apiProxy())
+
+    const fiber = await ctx.plugin(remotePlugin, {})
+    await vi.waitFor(() => {
+      expect(ctx.dshRemote.currentIdentity()).toMatchObject({ name: 'Cordis legacy host' })
+    })
+    expect(register).toHaveBeenCalled()
+    expect(register.mock.calls[0]?.[0]).toBe('ds-harness-remote')
+
+    await handlers[0]!('settings.codex.set', { enabled: false }, new AbortController().signal)
+    expect(scope.replace).toHaveBeenCalledOnce()
+
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
+
   it('resolves a group-nested include path to the row id, not a stripped prefix', async () => {
     const dshHome = await mkdtemp(join(tmpdir(), 'dsh-remote-group-entry-'))
     directories.push(dshHome)
@@ -404,6 +479,25 @@ function settings(value: Record<string, unknown>) {
 }
 
 type ControlHandler = (endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>
+
+/**
+ * Apply the plugin with a caller-supplied live volatile entry. The passthrough
+ * `Config` reproduces the Loader contract — `apply` receives the entry's live
+ * reference (a `{ get() }` object) rather than a validated plain config.
+ */
+function volatileEntryPlugin(entry: { get(): Record<string, unknown> }) {
+  return {
+    name: 'ds-harness-remote',
+    Config: {
+      '~standard': {
+        version: 1 as const,
+        vendor: 'test',
+        validate: () => ({ value: entry }),
+      },
+    },
+    apply: (ctx: Context) => remotePlugin.apply(ctx, entry as never),
+  }
+}
 
 /** Loader stub whose `locate` returns a tree-path id distinct from `options.id`. */
 function loaderTree(located: string, optionsId: string) {

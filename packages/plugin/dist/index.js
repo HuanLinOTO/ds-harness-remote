@@ -27789,13 +27789,17 @@ function decodeBase64(value) {
 // src/index.ts
 var name = "ds-harness-remote";
 var legacyLoaderModuleNames = /* @__PURE__ */ new Set(["dsh-remote", "@dsh-remote/plugin"]);
+var pluginSettingsNamespace = "ds-harness-remote";
+var legacySettingsNamespace = "dsh-remote";
 var DEFAULT_ENTRY_ID = "ds-harness-remote";
 var INCLUDE_ENTRY_PREFIX = "include:";
 function apply(ctx, entry = void 0) {
   const readConfig = () => readEntryConfig(entry);
   const entryId = locateEntryId(ctx);
   ctx.inject(["settings"], (settingsContext) => {
-    settingsContext.effect(() => settingsContext.settings.configure({ auto: false }, ctx.fiber));
+    const settings = settingsContext.settings;
+    if (isLegacySettingsProvider(settings)) return;
+    settingsContext.effect(() => settings.configure({ auto: false }, ctx.fiber));
   });
   const tuiCommandsAvailable = ctx.get("commands", false) !== void 0 && ctx.get("tuiScenes", false) !== void 0;
   const tuiBinding = tuiCommandsAvailable ? {} : void 0;
@@ -27837,15 +27841,10 @@ function apply(ctx, entry = void 0) {
 }
 async function activate(ctx, readConfig, entryId, tuiBinding) {
   const settings = ctx.get("settings");
-  const settingsBinding = settings === void 0 ? void 0 : {
-    get: readConfig,
-    replace: async (section) => {
-      await settings.replace(entryId, section);
-    }
-  };
+  const settingsBinding = await createSettingsBinding(ctx, settings, readConfig, entryId);
   const connection = ctx.get("connection");
   const webServer = ctx.get("webServer");
-  const resolvedConfig = resolveConfig(readConfig());
+  const resolvedConfig = resolveConfig(settingsBinding?.get() ?? readConfig());
   const config = connection === void 0 && resolvedConfig.serverUrl === void 0 ? { ...resolvedConfig, serverUrl: DEFAULT_REMOTE_SERVER_URL } : resolvedConfig;
   const defaultIdentityDirectory = new IdentityStore().directory;
   if (!config.enabled) {
@@ -27958,6 +27957,65 @@ function locateEntryId(ctx) {
   }
   return located.startsWith(INCLUDE_ENTRY_PREFIX) ? located.slice(INCLUDE_ENTRY_PREFIX.length) : located;
 }
+async function createSettingsBinding(ctx, settings, readConfig, entryId) {
+  if (settings === void 0) return void 0;
+  if (!isLegacySettingsProvider(settings)) {
+    return {
+      get: readConfig,
+      replace: async (section) => {
+        await settings.replace(entryId, section);
+      }
+    };
+  }
+  const scope = settings.register(pluginSettingsNamespace, Config, {
+    base: readConfig(),
+    applies: "restart",
+    validate: (value) => {
+      resolveConfig(value);
+    }
+  });
+  reportSettingsMigration(ctx, await migrateLegacySettings(settings, scope));
+  return {
+    get: () => scope.get(),
+    replace: async (section) => {
+      await scope.replace(section);
+    }
+  };
+}
+function isLegacySettingsProvider(value) {
+  return typeof value === "object" && value !== null && typeof value.register === "function";
+}
+function reportSettingsMigration(ctx, migration) {
+  if (migration === "migrated") ctx.logger.info("migrated legacy Remote settings namespace");
+  if (migration === "failed") ctx.logger.warn("failed to migrate legacy Remote settings namespace");
+}
+async function migrateLegacySettings(settings, currentScope) {
+  if (typeof settings.describe !== "function") return "skipped";
+  try {
+    let descriptors = settings.describe();
+    const current = descriptors.find((descriptor) => descriptor.ns === pluginSettingsNamespace);
+    if (isPlainRecord2(current?.user)) return "skipped";
+    let legacy = descriptors.find((descriptor) => descriptor.ns === legacySettingsNamespace);
+    if (legacy === void 0) {
+      settings.register(legacySettingsNamespace, Config, {
+        applies: "restart",
+        validate: (value) => {
+          resolveConfig(value);
+        }
+      });
+      descriptors = settings.describe();
+      legacy = descriptors.find((descriptor) => descriptor.ns === legacySettingsNamespace);
+    }
+    if (!isPlainRecord2(legacy?.user) || Object.keys(legacy.user).length === 0) return "skipped";
+    await currentScope.replace(legacy.user);
+    return "migrated";
+  } catch {
+    return "failed";
+  }
+}
+function isPlainRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 async function disableLegacyLoaderEntries(ctx, logger) {
   const loader = ctx.get("loader");
   if (!isLoaderLike(loader)) return;
@@ -28019,6 +28077,7 @@ export {
   apply,
   createRemoteFileContentProvider,
   fingerprint,
+  migrateLegacySettings,
   name,
   resolveConfig,
   runCli,
