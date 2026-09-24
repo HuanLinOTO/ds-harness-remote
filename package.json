@@ -36,6 +36,7 @@
     },
     "./client": "./packages/plugin/dist/client.github.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
     "./package.json": "./package.json"
   },
   "files": [
@@ -47,6 +48,7 @@
     "packages/plugin/LICENSE",
     "dsh-plugin.json",
     "cordis.patch.yml",
+    "locale/",
     "README.md",
     "package.json"
   ],
